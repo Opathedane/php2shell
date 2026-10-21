@@ -22,12 +22,12 @@
 - [ ] Independent security code review and adversarial tests incl. symlink/TOCTOU races, Windows ACL protections, input caps and performance.
 - [ ] Windows Authenticode code signing and publisher trust, approved release checksums and platform signing; optional macOS notarization.
 - [ ] GitHub Actions pin actions to reviewed immutable digests; protect branches/tags, prevent supply-chain tampering, review dependencies/release signing.
-- [ ] Obtain approved open-source license/owner attribution, legal approval for itm8 branding and public release, maintainer/security contact and support terms.
+- [ ] Obtain approved open-source license/owner attribution, legal approval for third-party branding and public release, maintainer/security contact and support terms.
 - [ ] End-user instructions and validation on customer environments. Confirm no customer data is included in source or build artifacts.
 
 **DO NOT present this alpha as a product that establishes PHP2Shell absence, successful patch deployment, or lack of compromise.**
 
-## v2.2.0-alpha.1 official advisory release gate
+## v2.2.0-alpha.2 official advisory release gate
 
 - [ ] Review PHP upstream fix thresholds (8.2.35, 8.3.36, 8.4.27, 8.5.12) against primary PHP advisories.
 - [ ] Review version comparator fixtures, vendor-backport qualifications and runtime evidence limitations.
@@ -36,5 +36,5 @@
 - [ ] Confirm documented sign-off for customer rollout; this remains an unsigned development alpha until approved.
 - [ ] Upload all revised source files through GitHub Desktop, including hidden `.github/workflows` files.
 - [ ] Run CI and ensure *all three* jobs succeed.
-- [ ] Publish an entirely new pre-release tag `v2.2.0-alpha.1` (never overwrite v2.1 binaries).
+- [ ] Publish an entirely new pre-release tag `v2.2.0-alpha.2` (never overwrite v2.1 binaries).
 - [ ] Do not claim full vulnerability clearance, verified vendor backports or compromise clearance.

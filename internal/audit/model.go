@@ -6,7 +6,7 @@ import (
 )
 
 const Schema = "php2shell-assessment/standalone-preview-v1"
-const Version = "2.2.0-alpha.1"
+const Version = "2.2.0-alpha.2"
 
 type Evidence struct {
 	Type           string `json:"type"`
@@ -68,6 +68,7 @@ type Report struct {
 	CompromiseStatus    string             `json:"compromise_status"`
 	EffectiveWebRuntime string             `json:"effective_web_runtime"`
 	Evidence            []Evidence         `json:"evidence"`
+	Summary             ReviewSummary      `json:"summary"`
 	PatchAssessments    []PatchAssessment  `json:"patch_assessments"`
 	Coverage            []Check            `json:"coverage"`
 	Repositories        []RepoCoverage     `json:"repositories,omitempty"`

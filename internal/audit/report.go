@@ -37,6 +37,14 @@ func EncodeCSV(r *Report) ([]byte, error) {
 			return nil, err
 		}
 	}
+	for _, item := range []struct{ name, value string }{{"php_discovery", r.Summary.PHPDiscovery}, {"patch_review", r.Summary.PatchReview}, {"compromise_review", r.Summary.CompromiseReview}} {
+		if item.value != "" {
+			_ = w.Write([]string{"assessment_summary", item.name, "", "scanner summary", "", SpreadsheetSafe(item.value), "NOT_A_CLEARANCE"})
+		}
+	}
+	for i, step := range r.Summary.NextSteps {
+		_ = w.Write([]string{"next_step", fmt.Sprint(i + 1), "", "scanner guidance", "", SpreadsheetSafe(step), "ACTION_REQUIRES_VALIDATION"})
+	}
 	for _, a := range r.PatchAssessments {
 		values := []string{"patch_assessment", a.Component, a.ObservedVersion, a.Source, a.Location, a.RequiredAction, a.Status + " | min_fixed=" + a.MinimumFixed + " | priority=" + a.Priority + " | " + a.Qualification}
 		for i := range values {
@@ -65,6 +73,12 @@ func EncodeHTML(r *Report) []byte {
 	b.WriteString(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none';style-src 'unsafe-inline'"><title>PHP2Shell Assessment</title><style>body{font:15px/1.5 system-ui,Arial,sans-serif;max-width:1050px;margin:35px auto;padding:0 20px;color:#21262c}h1,h2{color:#152437}.notice{background:#fff7ed;border-left:4px solid #ad5e0d;padding:16px}table{border-collapse:collapse;width:100%;margin:15px 0 30px}td,th{border:1px solid #dce1e8;padding:9px;vertical-align:top;text-align:left;overflow-wrap:anywhere}th{background:#eef1f4}code{overflow-wrap:anywhere}p{max-width:75em}@media print{body{max-width:none;margin:0}}</style></head><body>`)
 	b.WriteString("<h1>PHP2Shell – evidence assessment</h1><p><strong>Host: </strong>" + h(r.Hostname) + " &nbsp; <strong>UTC:</strong> " + h(r.GeneratedUTC.Format("2006-01-02 15:04:05")) + " &nbsp; <strong>Version:</strong> " + h(r.ToolVersion) + "</p>")
 	b.WriteString("<div class=notice><strong>Results are NOT a vulnerability clearance or compromise clearance.</strong><p>Vulnerability: " + h(r.VulnerabilityStatus) + ". Compromise: " + h(r.CompromiseStatus) + ". Serving PHP runtime: " + h(r.EffectiveWebRuntime) + ". Lack of findings is not proof of safety.</p></div>")
+	b.WriteString("<h2>At a glance</h2><table><tr><th>PHP discovery</th><th>Patch assessment</th><th>Compromise indicators</th></tr><tr><td>" + h(r.Summary.PHPDiscovery) + "</td><td>" + h(r.Summary.PatchReview) + "</td><td>" + h(r.Summary.CompromiseReview) + "</td></tr></table>")
+	b.WriteString("<h2>What to do next</h2><ol>")
+	for _, step := range r.Summary.NextSteps {
+		b.WriteString("<li>" + h(step) + "</li>")
+	}
+	b.WriteString("</ol><p><strong>Important:</strong> This summary is evidence-qualified, not confirmation of a patched HTTP runtime or absence of compromise.</p>")
 	b.WriteString("<h2>Official PHP2Shell patch assessment</h2><p>Official PHP fixes (21 October 2026): 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35. These comparisons are based on observed package, repository or operator-reported versions. Vendor backports and serving web runtimes must be verified separately. Neither patching nor a negative IOC scan proves no prior compromise.</p>")
 	b.WriteString("<table><tr><th>Component / evidence</th><th>Observed PHP version</th><th>Minimum fixed</th><th>Assessment / priority</th><th>Required action and limitations</th></tr>")
 	if len(r.PatchAssessments) == 0 {
@@ -74,6 +88,7 @@ func EncodeHTML(r *Report) []byte {
 		b.WriteString("<tr><td>" + h(a.Component) + "<br>" + h(a.EvidenceType) + "<br>" + h(a.Location) + "</td><td>" + h(a.ObservedVersion) + "</td><td>" + h(a.MinimumFixed) + "</td><td>" + h(a.Status) + "<br>" + h(a.Priority) + "</td><td>" + h(a.RequiredAction) + "<br><small>" + h(a.Qualification) + "</small></td></tr>")
 	}
 	b.WriteString("</table>")
+	b.WriteString(`<h2>Where to get security updates</h2><p><strong>Linux:</strong> install the approved security package from your OS/LTS vendor's official repository and verify the vendor advisory and installed build. <strong>Windows:</strong> use the <a href="https://windows.php.net/download/">official PHP for Windows downloads</a>. <strong>Source builds:</strong> use <a href="https://www.php.net/downloads.php">PHP's official source downloads</a>. <strong>Containers:</strong> redeploy an officially patched image and verify the deployed digest/runtime. Use the correct supported branch; do not replace distribution-managed PHP with an unrelated binary without change review.</p>`)
 	b.WriteString("<h2>Coverage</h2><table><thead><tr><th>Check</th><th>Status</th><th>Notes</th></tr></thead><tbody>")
 	for _, c := range r.Coverage {
 		b.WriteString("<tr><td>" + h(c.Name) + "</td><td>" + h(c.Status) + "</td><td>" + h(c.Detail) + "</td></tr>")

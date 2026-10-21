@@ -2,7 +2,7 @@
 
 **Do not deploy this preview in sensitive customer environments without independent approval.** It has undergone limited unit tests and Linux smoke tests only. This is not a penetration-test tool and does not contain exploit code.
 
-Do not attach customer reports, access logs, network architecture, credentials or production endpoint names to public GitHub issues. Disclose privately to the code owner / authorized security team. A private reporting address must be supplied and approved before public release. No automatic data transfer takes place.
+Do not attach customer reports, access logs, network architecture, credentials or production endpoint names to public GitHub issues. Disclose vulnerabilities privately to the maintainer. Contact the maintainer privately at **jesma@itm8.com** for responsible disclosure. Do not send customer evidence or credentials via ordinary email. No automatic data transfer takes place.
 
 The scanner deliberately refuses to open nonregular/symlinked input files based on pathname inspection; on a live adversary-controlled filesystem, pathname TOCTOU races are still possible (no filesystem snapshot or OS-specific openat2 hardening). Run with minimum permissions, with protected reports directory, or against an offline forensic copy. It does not prevent tampering with logs or package databases on a compromised host.
 

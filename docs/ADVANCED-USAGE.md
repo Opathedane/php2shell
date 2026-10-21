@@ -1,6 +1,6 @@
 > [Back to the quick start](../README.md)
 
-# Advanced usage — PHP2Shell Assessment (v2.1.0-alpha.2)
+# Advanced usage — PHP2Shell Assessment (v2.2.0-alpha.1)
 
 **Version 2.1.0-alpha.2: development preview only. Not a production-cleared CVE-2026-109618 / CVE-2026-109619 vulnerability or compromise scanner.**
 
@@ -8,7 +8,7 @@ One standalone executable for Windows and Linux: no Python, Go compiler or PHP i
 
 ## Download compiled builds from GitHub Releases
 
-For consultants, open [Releases](https://github.com/Opathedane/php2shell/releases), choose the most recent **alpha prerelease** and download the executable (or `.zip` / `.tar.gz`) for the destination OS and CPU. See [consultant quick start](INSTALL-FOR-CONSULTANTS.md). No build tools on customer servers. Binaries are **unsigned previews**; comply with organizational approval and do not bypass endpoint controls. Maintainers can publish preview downloads from **GitHub Actions → Publish standalone ALPHA downloads → Run workflow** using `v2.1.0-alpha.2` after pushing and reviewing the source. Alternatively, push an approved alpha tag. `.github/workflows/release-alpha.yml` tests on three platforms and uploads five binaries, platform archives and SHA256SUMS as GitHub Release assets. A GitHub Actions artifact is not the same as a permanent public Release download.
+For consultants, open [Releases](https://github.com/Opathedane/php2shell/releases), choose the most recent **alpha prerelease** and download the executable (or `.zip` / `.tar.gz`) for the destination OS and CPU. See [consultant quick start](INSTALL-FOR-CONSULTANTS.md). No build tools on customer servers. Binaries are **unsigned previews**; comply with organizational approval and do not bypass endpoint controls. Maintainers can publish preview downloads from **GitHub Actions → Publish standalone ALPHA downloads → Run workflow** using `v2.2.0-alpha.1` after pushing and reviewing the source. Alternatively, push an approved alpha tag. `.github/workflows/release-alpha.yml` tests on three platforms and uploads five binaries, platform archives and SHA256SUMS as GitHub Release assets. A GitHub Actions artifact is not the same as a permanent public Release download.
 
 ## Customer: two commands
 
@@ -65,7 +65,7 @@ For maintainer key generation and signing, see [rules/README.md](../rules/README
 
 ## Results explained
 
-- `Vulnerability: NOT_VERIFIED` **always**. Installed PHP version is not active web runtime and not proof of absence/presence of PHP2Shell vulnerability.
+- `Vulnerability` now reports an **evidence-qualified upstream patch comparison**. `BELOW_UPSTREAM_FIX_OBSERVED_PATCH_REVIEW_REQUIRED` does not override a verified vendor backport. `UPSTREAM_FIX_LEVEL_OBSERVED_ACTIVE_RUNTIME_UNVERIFIED` does not certify the web server as patched. See [official patch guidance](OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md).
 - `Compromise: NOT_ASSESSED`: no usable IOC analysis was possible. `INDICATORS_MATCHED_REVIEW_REQUIRED`: one or more signed rule matches need investigation. `NO_MATCHES_SCOPE_LIMITED`: only a limited scan was conducted; **not a clean verdict**.
 - `Signed rules: VERIFIED`: integrity and publisher-key authentication of the downloaded data passed, **not** proof each detector is accurate or specific to PHP2Shell.
 - Reports preserve file names and server metadata and require confidential handling. Raw HTTP request target and client IP are not written to reports.
@@ -80,7 +80,7 @@ Tenant identities require an analyst-maintained exact SHA-256 report hash mappin
 
 ## What is not finished
 
-- At the time this alpha was prepared (before **21 Oct 2026, 14:00 UTC**), official CVE details and affected/fixed releases had not been integrated into this scanner. We have deliberately **not imported unverified PoCs or guessed version/HTTP IOC rules**. Consult [PHP news](https://www.php.net/archive/2026.php) and [PHP security advisories](https://github.com/php/php-src/security/advisories) when the release becomes available.
+- Official minimum patch levels from the PHP **21 October 2026** release are integrated into the scanner. Unverified PoCs and guessed IOC signatures are deliberately **not** imported. Compare `Patch assessments` and `Recommended follow-up` in the HTML report with the official advisories. Static observations still cannot certify the live web handler or vendor security backports.
 - Windows Server/IIS real-world validation, PHP-FPM/Apache/LSAPI integration, RPM/Windows package inventory, code signing, validated incident indicators, and active-runtime/vendor-backport verification are release gates, not completed capabilities.
 - Windows/IIS static parsing and W3C log fixtures, signature and rollback checks have unit tests. Cross-compilation is not a substitute for Windows Server or enterprise production validation.
 - Filesystem reads may have TOCTOU race limits. Very large or rotated logs, nested symlinks and cloud hosting are not comprehensively checked.
@@ -101,4 +101,12 @@ CI runs on GitHub-hosted Linux, Windows and macOS runners after you push the cod
 
 ## Ownership and licensing
 
-`LICENSE.proposed` is a draft only. Open-source licensing and itm8 branding must be legally/organizationally approved before making the repo public. Go module: `github.com/Opathedane/php2shell`.
+`LICENSE.proposed` is a draft only. Open-source licensing and third-party branding must be authorized before making the repo public. Go module: `github.com/Opathedane/php2shell`.
+
+## Additional official-patch assessment option (operator-reported runtime)
+
+```bash
+php2shell scan --runtime-version 8.4.26 --runtime-sapi fpm --runtime-source "approved production FPM evidence"
+```
+
+The three runtime options are all required together. They add a separately observed version to the report; the scanner labels it as **OPERATOR_REPORTED_NOT_ATTESTED**, never silently attests a serving PHP version. The report provides per-component patch instructions.

@@ -1,3 +1,10 @@
+## v2.2.0-alpha.2 — 2026-10-21
+
+- Add a concise, evidence-qualified summary to HTML, JSON and CSV reports: PHP discovery, patch review and compromise review.
+- Add prioritized next steps and tests ensuring no evidence/no IOC matches never mean safe.
+- Simplify README, add maintainer contact, retain explicit alpha, validation and licensing notices.
+- No new compromise signatures or active web-runtime attestation in this release.
+
 ## v2.2.0-alpha.1 — 2026-10-21
 
 - Integrate official PHP upstream fix thresholds for CVE-2026-109618 and CVE-2026-109619: 8.2.35, 8.3.36, 8.4.27, 8.5.12.

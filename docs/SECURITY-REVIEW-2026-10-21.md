@@ -24,7 +24,7 @@ Scope: original Go source + GitHub workflows. **Developer pre-release; no indepe
 3. **High:** no production integration testing on IIS/Windows Server, nginx/FPM, Apache, enterprise patches and containers; static config metadata may be stale or overridden.
 4. **Medium:** authenticated rule signing key provisioning and publication are operator responsibilities; no actual signed bundle included, and initial public-key distribution must be out-of-band. Signing-key compromise requires manual re-trust.
 5. **Medium:** static paths/OS metadata may be incomplete; file access TOCTOU is not forensically robust; rotated/compressed access logs are unsupported.
-6. **Operational:** unsigned native executables can trigger Windows SmartScreen/AV and cannot yet be distributed under itm8 as approved software; license remains a proposal.
+6. **Operational:** unsigned native executables can trigger Windows SmartScreen/AV and cannot yet be distributed as an approved enterprise security product; license remains a proposal.
 7. **Operational:** GitHub Actions uses version tags rather than commit hash pins; independently review release pipeline before public distribution.
 
 ## Source validation policy

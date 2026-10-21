@@ -201,6 +201,7 @@ func run(args []string) error {
 			}
 			r.AddCheck("historical_access_logs", status, fmt.Sprintf("Requested %d log files; see detailed coverage. Matched indicators require validation, and missing matches do not prove safety", len(logs)))
 		}
+		audit.FinalizeSummary(r)
 		if *out == "" {
 			*out = fmt.Sprintf("reports/assessment-%s-%d", time.Now().UTC().Format("20060102T150405Z"), os.Getpid())
 		}
@@ -208,6 +209,7 @@ func run(args []string) error {
 			return err
 		}
 		fmt.Printf("Assessment saved: %s.json, %s.csv, %s.html\n", *out, *out, *out)
+		fmt.Printf("PHP evidence: %s | Patch review: %s | Compromise review: %s\n", r.Summary.PHPDiscovery, r.Summary.PatchReview, r.Summary.CompromiseReview)
 		fmt.Printf("Evidence observations: %d | Vulnerability: %s | Compromise: %s | Serving runtime: %s\n", len(r.Evidence), r.VulnerabilityStatus, r.CompromiseStatus, r.EffectiveWebRuntime)
 		fmt.Printf("Signed rules: %d (sequence %d) | Matched indicators: %d\n", r.RuleCount, r.RuleSequence, len(r.Findings))
 		criticalShown := 0

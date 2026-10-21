@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Alpha version to publish, e.g. v2.2.0-alpha.1'
+        description: 'Alpha version to publish, e.g. v2.2.0-alpha.2'
         type: string
-        default: v2.2.0-alpha.1
+        default: v2.2.0-alpha.2
         required: true
 permissions:
   contents: read
