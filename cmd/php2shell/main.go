@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
-	"github.com/Opathedane/php2shell/internal/rules"
 	"flag"
 	"fmt"
+	"github.com/Opathedane/php2shell/internal/rules"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -29,7 +29,7 @@ func (p *paths) Set(s string) error {
 const help = `PHP2Shell Assessment (standalone preview)
 
 No PHP execution. No network scanning. No exploit tests. No customer data upload.
-This build DOES NOT verify vulnerability status or past compromise.
+Reports official upstream patch-level comparisons but cannot attest the serving SAPI or exclude compromise.
 
 Usage:
   php2shell doctor
@@ -44,6 +44,7 @@ Usage:
 
 Examples:
   php2shell scan --out reports/my-webserver
+  php2shell scan --runtime-version 8.4.26 --runtime-sapi fpm --runtime-source "approved FPM status evidence" --out reports/fpm-reviewed
   php2shell scan --webroot /var/www --access-log /var/log/nginx/access.log --out reports/server-1
   php2shell scan --repo /srv/project --out reports/project-1
   php2shell rollup --tenant-map /private/tenant-map.json --out reports/fleet.csv reports/server-1.json
@@ -75,7 +76,7 @@ func run(args []string) error {
 	case "doctor":
 		fmt.Printf("PHP2Shell standalone %s (%s/%s)\nNo Python or PHP required. No external modules.\n", audit.Version, runtime.GOOS, runtime.GOARCH)
 		fmt.Println("Host metadata: best-effort; Linux dpkg/apk and /proc; macOS/Windows partial.")
-		fmt.Println("Runtime patch verification: NOT IMPLEMENTED. CVE-specific official signatures: NOT RELEASED.")
+		fmt.Println("Official upstream PHP2Shell fix thresholds: AVAILABLE. Web-runtime patch attestation: NOT IMPLEMENTED.")
 		fmt.Println("Signed indicator packs: manually trusted Ed25519 key; no automatic internet access.")
 		fmt.Println("Default: offline, no code execution, reports written only to local files.")
 		return nil
@@ -84,6 +85,9 @@ func run(args []string) error {
 		webroot := fs.String("webroot", "", "authorized website document root (file names only)")
 		out := fs.String("out", "", "private output prefix; auto-generate if omitted; fail if exists")
 		customer := fs.String("customer", "", "optional self-declared label; not authenticated tenant")
+		runtimeVersion := fs.String("runtime-version", "", "operator-supplied WEB runtime PHP version; requires --runtime-sapi and --runtime-source; NOT independently verified")
+		runtimeSAPI := fs.String("runtime-sapi", "", "web SAPI of operator-reported version, e.g. fpm, apache/mod_php, cgi, litespeed")
+		runtimeSource := fs.String("runtime-source", "", "human-readable evidence provenance for operator-reported WEB runtime; NOT attestation")
 		docker := fs.Bool("docker", false, "read local privileged Unix Docker API container metadata (opt-in)")
 		updateRules := fs.Bool("update-rules", false, "opt-in download signed indicator rules; requires --rules-url and previously trusted key")
 		rulesURL := fs.String("rules-url", "", "trusted signed rule bundle HTTPS URL")
@@ -96,6 +100,12 @@ func run(args []string) error {
 		}
 		if fs.NArg() != 0 {
 			return fmt.Errorf("unexpected arguments; use --repo PATH or --access-log PATH")
+		}
+		if (*runtimeVersion != "" || *runtimeSAPI != "" || *runtimeSource != "") && (*runtimeVersion == "" || *runtimeSAPI == "" || *runtimeSource == "") {
+			return fmt.Errorf("--runtime-version, --runtime-sapi and --runtime-source must be supplied together")
+		}
+		if len(*runtimeVersion) > 60 || len(*runtimeSAPI) > 80 || len(*runtimeSource) > 256 {
+			return fmt.Errorf("runtime evidence fields too long")
 		}
 		if len(repos) > 20 || len(logs) > 20 {
 			return fmt.Errorf("limit is 20 repositories and 20 log files per scan")
@@ -147,6 +157,10 @@ func run(args []string) error {
 			r.AddCheck("signed_indicator_rules", "VERIFIED", fmt.Sprintf("Signed Ed25519 bundle sequence %d with %d validated data-only indicators", bundle.Sequence, len(bundle.Indicators)))
 		}
 		audit.ScanHost(r, *webroot, *docker)
+		if *runtimeVersion != "" {
+			r.AddEvidence(audit.Evidence{Type: "operator_reported_web_runtime", Name: *runtimeSAPI, Version: *runtimeVersion, Source: "operator-supplied serving runtime statement: " + *runtimeSource, Interpretation: "UNVERIFIED_OPERATOR_ASSERTION_NO_ACTIVE_RUNTIME_ATTESTATION"})
+			r.EffectiveWebRuntime = "OPERATOR_REPORTED_NOT_ATTESTED"
+		}
 		for _, p := range repos {
 			audit.ScanRepository(r, p)
 		}
@@ -166,6 +180,7 @@ func run(args []string) error {
 			audit.ScanAccessLogWithIndicators(r, p, indicators)
 		}
 		audit.ScanFileHashes(r, *webroot, indicators)
+		audit.EvaluatePatchPosture(r)
 		if len(r.Findings) > 0 {
 			r.CompromiseStatus = "INDICATORS_MATCHED_REVIEW_REQUIRED"
 		} else if bundle != nil && len(indicators) > 0 && (len(logs) > 0 || *webroot != "") {
@@ -195,7 +210,23 @@ func run(args []string) error {
 		fmt.Printf("Assessment saved: %s.json, %s.csv, %s.html\n", *out, *out, *out)
 		fmt.Printf("Evidence observations: %d | Vulnerability: %s | Compromise: %s | Serving runtime: %s\n", len(r.Evidence), r.VulnerabilityStatus, r.CompromiseStatus, r.EffectiveWebRuntime)
 		fmt.Printf("Signed rules: %d (sequence %d) | Matched indicators: %d\n", r.RuleCount, r.RuleSequence, len(r.Findings))
-		fmt.Println("IMPORTANT: No exploit check or definitive PHP2Shell compromise exclusion is possible. Review coverage and warnings.")
+		criticalShown := 0
+		for _, a := range r.PatchAssessments {
+			if a.Priority != "CRITICAL" {
+				continue
+			}
+			if criticalShown == 0 {
+				fmt.Println("IMMEDIATE PATCH REVIEW:")
+			}
+			if criticalShown >= 8 {
+				fmt.Println("  ... additional findings and required actions are in the HTML / JSON report")
+				break
+			}
+			fmt.Printf("  - %s %s (%s): %s\n", a.Component, a.ObservedVersion, a.Status, a.RequiredAction)
+			criticalShown++
+		}
+		fmt.Println("Next steps and source qualifications: open the .html report > Official PHP2Shell patch assessment / Recommended follow-up.")
+		fmt.Println("IMPORTANT: Patch-level comparison does not attest the active HTTP runtime or exclude compromise. Review assessments, coverage and required actions.")
 		return nil
 	case "rollup":
 		fs := flag.NewFlagSet("rollup", flag.ContinueOnError)

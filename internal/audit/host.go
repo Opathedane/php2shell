@@ -20,7 +20,7 @@ import (
 var phpBin = regexp.MustCompile(`(?i)^(?:php(?:-cgi|-fpm)?[0-9]*(?:\.[0-9]+)?|php[0-9]+(?:\.[0-9]+)?(?:-fpm|-cgi)|lsphp[0-9]*)(?:\.exe)?$`)
 var pkgPHP = regexp.MustCompile(`(?i)^(?:php[0-9.]*(?:-(?:cli|fpm|cgi|common|apache2|mysql|opcache))?|libapache2-mod-php[0-9.]*|php[0-9]{2}(?:-(?:cli|fpm|cgi|apache2|common))?|ea-php[0-9]+(?:-php(?:-fpm|-cgi|-cli)?)?|lsphp[0-9]+(?:-common)?)$`)
 var versionNumber = regexp.MustCompile(`\d+\.\d+(?:\.\d+)?`)
-var iniSetting = regexp.MustCompile(`(?i)^\s*(session\.upload_progress\.enabled|expose_php)\s*=\s*([^\r\n;#]+)`)
+var iniSetting = regexp.MustCompile(`(?i)^\s*(session\.upload_progress\.enabled|expose_php|memory_limit|post_max_size|upload_max_filesize|fatal_error_backtraces)\s*=\s*([^\r\n;#]+)`)
 
 func ScanHost(r *Report, webroot string, docker bool) {
 	scanBinaries(r)
@@ -39,7 +39,6 @@ func ScanHost(r *Report, webroot string, docker bool) {
 		r.AddCheck("docker", "NOT_REQUESTED", "Supply --docker for local privileged Docker socket metadata only; no docker exec")
 	}
 	r.AddCheck("active_http_sapi_verification", "NOT_IMPLEMENTED", "Package/process/path observations cannot verify the PHP runtime actually serving HTTP traffic")
-	r.AddCheck("official_php2shell_version_rules", "NOT_CONFIGURED", "No upstream fix or CVE vulnerability rules applied; vendor backports and official advisories need manual verification")
 	r.AddCheck("php2shell_specific_compromise_detection", "NOT_VERIFIED", "No validated CVE-specific indicator pack is provided. Generic signed IOC matching cannot prove exploitation or exclude compromise")
 }
 

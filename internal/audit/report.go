@@ -37,6 +37,24 @@ func EncodeCSV(r *Report) ([]byte, error) {
 			return nil, err
 		}
 	}
+	for _, a := range r.PatchAssessments {
+		values := []string{"patch_assessment", a.Component, a.ObservedVersion, a.Source, a.Location, a.RequiredAction, a.Status + " | min_fixed=" + a.MinimumFixed + " | priority=" + a.Priority + " | " + a.Qualification}
+		for i := range values {
+			values[i] = SpreadsheetSafe(values[i])
+		}
+		if err := w.Write(values); err != nil {
+			return nil, err
+		}
+	}
+	for i, action := range r.RecommendedActions {
+		values := []string{"recommended_action", fmt.Sprint(i + 1), "", "2026-10-21 PHP security advisory", "", action, "ACTION_REQUIRES_ANALYST_REVIEW"}
+		for j := range values {
+			values[j] = SpreadsheetSafe(values[j])
+		}
+		if err := w.Write(values); err != nil {
+			return nil, err
+		}
+	}
 	w.Flush()
 	return b.Bytes(), w.Error()
 }
@@ -47,6 +65,15 @@ func EncodeHTML(r *Report) []byte {
 	b.WriteString(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none';style-src 'unsafe-inline'"><title>PHP2Shell Assessment</title><style>body{font:15px/1.5 system-ui,Arial,sans-serif;max-width:1050px;margin:35px auto;padding:0 20px;color:#21262c}h1,h2{color:#152437}.notice{background:#fff7ed;border-left:4px solid #ad5e0d;padding:16px}table{border-collapse:collapse;width:100%;margin:15px 0 30px}td,th{border:1px solid #dce1e8;padding:9px;vertical-align:top;text-align:left;overflow-wrap:anywhere}th{background:#eef1f4}code{overflow-wrap:anywhere}p{max-width:75em}@media print{body{max-width:none;margin:0}}</style></head><body>`)
 	b.WriteString("<h1>PHP2Shell – evidence assessment</h1><p><strong>Host: </strong>" + h(r.Hostname) + " &nbsp; <strong>UTC:</strong> " + h(r.GeneratedUTC.Format("2006-01-02 15:04:05")) + " &nbsp; <strong>Version:</strong> " + h(r.ToolVersion) + "</p>")
 	b.WriteString("<div class=notice><strong>Results are NOT a vulnerability clearance or compromise clearance.</strong><p>Vulnerability: " + h(r.VulnerabilityStatus) + ". Compromise: " + h(r.CompromiseStatus) + ". Serving PHP runtime: " + h(r.EffectiveWebRuntime) + ". Lack of findings is not proof of safety.</p></div>")
+	b.WriteString("<h2>Official PHP2Shell patch assessment</h2><p>Official PHP fixes (21 October 2026): 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35. These comparisons are based on observed package, repository or operator-reported versions. Vendor backports and serving web runtimes must be verified separately. Neither patching nor a negative IOC scan proves no prior compromise.</p>")
+	b.WriteString("<table><tr><th>Component / evidence</th><th>Observed PHP version</th><th>Minimum fixed</th><th>Assessment / priority</th><th>Required action and limitations</th></tr>")
+	if len(r.PatchAssessments) == 0 {
+		b.WriteString("<tr><td colspan=5>No comparable PHP patch versions found. Web runtime and patch status remain unverified.</td></tr>")
+	}
+	for _, a := range r.PatchAssessments {
+		b.WriteString("<tr><td>" + h(a.Component) + "<br>" + h(a.EvidenceType) + "<br>" + h(a.Location) + "</td><td>" + h(a.ObservedVersion) + "</td><td>" + h(a.MinimumFixed) + "</td><td>" + h(a.Status) + "<br>" + h(a.Priority) + "</td><td>" + h(a.RequiredAction) + "<br><small>" + h(a.Qualification) + "</small></td></tr>")
+	}
+	b.WriteString("</table>")
 	b.WriteString("<h2>Coverage</h2><table><thead><tr><th>Check</th><th>Status</th><th>Notes</th></tr></thead><tbody>")
 	for _, c := range r.Coverage {
 		b.WriteString("<tr><td>" + h(c.Name) + "</td><td>" + h(c.Status) + "</td><td>" + h(c.Detail) + "</td></tr>")
@@ -157,6 +184,9 @@ type RollupRow struct {
 	CompromiseStatus       string `json:"compromise_status"`
 	EvidenceCount          int    `json:"evidence_count"`
 	MissingOrPartialChecks int    `json:"missing_or_partial_checks"`
+	PatchAssessments       int    `json:"patch_assessments"`
+	CriticalPatchReviews   int    `json:"critical_patch_reviews"`
+	ImmediateAction        string `json:"immediate_action"`
 }
 
 // Rollup never trusts report.CustomerLabel to assign a customer to a tenant.
@@ -200,13 +230,23 @@ func Rollup(reportFiles []string, tenantMapFile string, output string) error {
 				partial++
 			}
 		}
-		rows = append(rows, RollupRow{digest, tenant, r.Hostname, r.GeneratedUTC.Format("2006-01-02T15:04:05Z"), r.VulnerabilityStatus, r.CompromiseStatus, len(r.Evidence), partial})
+		critical := 0
+		for _, a := range r.PatchAssessments {
+			if a.Priority == "CRITICAL" && a.EvidenceType != "repository_declaration" {
+				critical++
+			}
+		}
+		immediate := "Verify active web-serving PHP version and vendor patch evidence."
+		if critical > 0 {
+			immediate = "Urgent: review below-fix/legacy PHP, apply supported vendor fixes and restart web workers."
+		}
+		rows = append(rows, RollupRow{digest, tenant, r.Hostname, r.GeneratedUTC.Format("2006-01-02T15:04:05Z"), r.VulnerabilityStatus, r.CompromiseStatus, len(r.Evidence), partial, len(r.PatchAssessments), critical, immediate})
 	}
 	var buffer bytes.Buffer
 	w := csv.NewWriter(&buffer)
-	_ = w.Write([]string{"report_sha256", "trusted_tenant", "hostname", "timestamp", "vulnerability_status", "compromise_status", "evidence_count", "missing_or_partial_checks"})
+	_ = w.Write([]string{"report_sha256", "trusted_tenant", "hostname", "timestamp", "vulnerability_status", "compromise_status", "evidence_count", "missing_or_partial_checks", "patch_assessments", "critical_patch_reviews", "immediate_action"})
 	for _, row := range rows {
-		fields := []string{row.ReportHash, row.TrustedTenant, row.Hostname, row.Timestamp, row.VulnerabilityStatus, row.CompromiseStatus, fmt.Sprint(row.EvidenceCount), fmt.Sprint(row.MissingOrPartialChecks)}
+		fields := []string{row.ReportHash, row.TrustedTenant, row.Hostname, row.Timestamp, row.VulnerabilityStatus, row.CompromiseStatus, fmt.Sprint(row.EvidenceCount), fmt.Sprint(row.MissingOrPartialChecks), fmt.Sprint(row.PatchAssessments), fmt.Sprint(row.CriticalPatchReviews), row.ImmediateAction}
 		for i := range fields {
 			fields[i] = SpreadsheetSafe(fields[i])
 		}

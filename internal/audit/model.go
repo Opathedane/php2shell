@@ -6,7 +6,7 @@ import (
 )
 
 const Schema = "php2shell-assessment/standalone-preview-v1"
-const Version = "2.1.0-alpha.2"
+const Version = "2.2.0-alpha.1"
 
 type Evidence struct {
 	Type           string `json:"type"`
@@ -68,6 +68,7 @@ type Report struct {
 	CompromiseStatus    string             `json:"compromise_status"`
 	EffectiveWebRuntime string             `json:"effective_web_runtime"`
 	Evidence            []Evidence         `json:"evidence"`
+	PatchAssessments    []PatchAssessment  `json:"patch_assessments"`
 	Coverage            []Check            `json:"coverage"`
 	Repositories        []RepoCoverage     `json:"repositories,omitempty"`
 	Logs                []LogCoverage      `json:"logs,omitempty"`
@@ -101,6 +102,14 @@ func (r *Report) AddCheck(name, status, detail string) {
 }
 func (r *Report) AddEvidence(e Evidence) { r.Evidence = append(r.Evidence, e) }
 func (r *Report) AddWarning(w string)    { r.Warnings = append(r.Warnings, w) }
+func (r *Report) AddAction(action string) {
+	for _, previous := range r.RecommendedActions {
+		if previous == action {
+			return
+		}
+	}
+	r.RecommendedActions = append(r.RecommendedActions, action)
+}
 
 func ParseReport(b []byte) (*Report, error) {
 	var r Report

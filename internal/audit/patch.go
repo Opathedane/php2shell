@@ -1,0 +1,158 @@
+package audit
+
+import (
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+// These thresholds originate from the PHP security advisory dated 2026-10-21.
+// A package-version comparison is NOT verification of a running HTTP SAPI and
+// it cannot rule out distribution-maintained source backports.
+const AdvisoryURL = "https://www.php.net/archive/2026.php#2026-10-21-1"
+const AdvisoryDate = "2026-10-21"
+
+var officialFixes = map[string]int{"8.2": 35, "8.3": 36, "8.4": 27, "8.5": 12}
+var cleanPHPVersion = regexp.MustCompile(`(?i)^\s*(\d+)\.(\d+)(?:\.(\d+))?(?:[-+][a-z0-9._+:-]+)?\s*$`)
+var preRelease = regexp.MustCompile(`(?i)(?:rc\d*|alpha\d*|beta\d*|dev|snapshot)`)
+
+type PatchAssessment struct {
+	Component       string `json:"component"`
+	ObservedVersion string `json:"observed_version"`
+	EvidenceType    string `json:"evidence_type"`
+	Source          string `json:"source"`
+	Location        string `json:"location,omitempty"`
+	Status          string `json:"status"`
+	MinimumFixed    string `json:"minimum_fixed,omitempty"`
+	Priority        string `json:"priority"`
+	RequiredAction  string `json:"required_action"`
+	Qualification   string `json:"qualification"`
+}
+
+type VersionDecision struct{ Status, MinimumFixed, Priority, Action, Qualification string }
+
+// CheckPHPVersion is deliberately conservative: a missing patch number, a
+// version constraint, an RC, or an EOL stream must never become "patched".
+func CheckPHPVersion(input string) VersionDecision {
+	v := strings.TrimSpace(input)
+	if v == "" || strings.ContainsAny(v, "<>^~*|, ") {
+		return VersionDecision{"UNDETERMINED_VERSION", "", "REVIEW", "Determine the exact deployed PHP patch version; a PHP requirement or a major.minor line is insufficient.", "Not an exact installed version."}
+	}
+	match := cleanPHPVersion.FindStringSubmatch(v)
+	if match == nil {
+		return VersionDecision{"UNDETERMINED_VERSION", "", "REVIEW", "Determine the exact deployed PHP patch version from trusted deployment evidence.", "Version string not safely comparable."}
+	}
+	major, _ := strconv.Atoi(match[1])
+	minor, _ := strconv.Atoi(match[2])
+	if match[3] == "" {
+		return VersionDecision{"UNDETERMINED_VERSION", "", "REVIEW", "Find the exact deployed PHP patch version for this branch.", "Only major.minor is known."}
+	}
+	patch, _ := strconv.Atoi(match[3])
+	if preRelease.MatchString(v) {
+		return VersionDecision{"PRERELEASE_NOT_APPROVED", "", "REVIEW", "Do not use a prerelease build in production; install a supported patched stable release.", "Release candidates and pre-releases are not approved by this advisory comparison."}
+	}
+	branch := fmt.Sprintf("%d.%d", major, minor)
+	if min, ok := officialFixes[branch]; ok {
+		target := fmt.Sprintf("%s.%d", branch, min)
+		if patch < min {
+			return VersionDecision{"BELOW_UPSTREAM_FIX", target, "CRITICAL", "Update the PHP web-serving runtime to " + target + " or later on this supported branch (or verify an equivalent vendor security backport), restart every PHP worker and verify the serving runtime.", "Version below the upstream fix; vendor backports and actual deployment remain unverified."}
+		}
+		return VersionDecision{"AT_OR_ABOVE_UPSTREAM_FIX", target, "VERIFY", "Verify this version is the one actively handling HTTP requests; restart workers after deployment and check all pools, hosts, and containers.", "An observed version at or above the upstream fix is not proof of a patched running SAPI or past non-compromise."}
+	}
+	if major < 8 || (major == 8 && minor <= 1) {
+		return VersionDecision{"LEGACY_VENDOR_VERIFICATION_REQUIRED", "", "CRITICAL", "Upgrade the web-serving PHP runtime to a currently supported fixed branch. If using a supported LTS vendor or official minimal source backport, obtain and verify exact patch evidence; do not assume a PHP 8.1-or-earlier build is fixed.", "Upstream PHP 8.1 and earlier receive no normal security releases. Backports are separate and must be evidenced."}
+	}
+	return VersionDecision{"BRANCH_NOT_COVERED", "", "REVIEW", "Verify this PHP branch against its own official security advisory and stable release status; do not assume it is protected.", "Not one of the supported stable branches listed in the 2026-10-21 advisory."}
+}
+
+// EvaluatePatchPosture classifies observations without upgrading the claim from
+// package inventory or source declaration to active web-runtime verification.
+func EvaluatePatchPosture(r *Report) {
+	r.PatchAssessments = []PatchAssessment{}
+	// Official patch actions take precedence over generic preview guidance.
+	r.RecommendedActions = []string{}
+	belowPackage, belowRepo, legacy, unknown, observed, fixed := 0, 0, 0, 0, 0, 0
+	seen := map[string]bool{}
+	for _, e := range r.Evidence {
+		switch e.Type {
+		case "installed_package", "repository_declaration", "operator_reported_web_runtime":
+		default:
+			continue
+		}
+		if e.Version == "" {
+			continue
+		}
+		key := e.Type + "\x00" + e.Location + "\x00" + e.Name + "\x00" + e.Version
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		d := CheckPHPVersion(e.Version)
+		scope := "Static inventory only; not attestation of the serving HTTP runtime."
+		if e.Type == "repository_declaration" {
+			scope = "Source declaration only; may not match production."
+		}
+		if e.Type == "operator_reported_web_runtime" {
+			scope = "Reported by an operator; not independently verified by this tool."
+		}
+		if e.Type == "installed_package" {
+			scope += " A vendor may have backported a fix without changing the upstream version string."
+		}
+		r.PatchAssessments = append(r.PatchAssessments, PatchAssessment{
+			Component: e.Name, ObservedVersion: e.Version, EvidenceType: e.Type, Source: e.Source, Location: e.Location,
+			Status: d.Status, MinimumFixed: d.MinimumFixed, Priority: d.Priority, RequiredAction: d.Action, Qualification: scope + " " + d.Qualification,
+		})
+		observed++
+		switch d.Status {
+		case "BELOW_UPSTREAM_FIX":
+			if e.Type == "repository_declaration" {
+				belowRepo++
+			} else {
+				belowPackage++
+			}
+		case "LEGACY_VENDOR_VERIFICATION_REQUIRED":
+			if e.Type != "repository_declaration" {
+				legacy++
+			}
+		case "AT_OR_ABOVE_UPSTREAM_FIX":
+			fixed++
+		default:
+			unknown++
+		}
+	}
+	switch {
+	case belowPackage > 0:
+		r.VulnerabilityStatus = "BELOW_UPSTREAM_FIX_OBSERVED_PATCH_REVIEW_REQUIRED"
+	case legacy > 0:
+		r.VulnerabilityStatus = "LEGACY_PHP_VENDOR_PATCH_VERIFICATION_REQUIRED"
+	case belowRepo > 0:
+		r.VulnerabilityStatus = "REPOSITORY_DECLARATION_BELOW_FIX_DEPLOYMENT_UNKNOWN"
+	case observed == 0:
+		r.VulnerabilityStatus = "NO_COMPARABLE_PHP_VERSION_FOUND_INVENTORY_INCOMPLETE"
+	case fixed > 0 && unknown == 0:
+		r.VulnerabilityStatus = "UPSTREAM_FIX_LEVEL_OBSERVED_ACTIVE_RUNTIME_UNVERIFIED"
+	default:
+		r.VulnerabilityStatus = "INDETERMINATE_REVIEW_REQUIRED"
+	}
+	if belowPackage > 0 {
+		r.AddAction("URGENT: Observed installed or operator-reported PHP version below the upstream fixes. Patch all relevant running web SAPIs, not only the CLI binary. Confirm vendor backports where applicable.")
+	}
+	if belowRepo > 0 {
+		r.AddAction("Review Dockerfiles, CI and deployment manifests naming versions below the fixes. Verify actual deployed image digest/runtime before assigning vulnerability status.")
+	}
+	if legacy > 0 {
+		r.AddAction("Escalate PHP 8.1 and older for supported-branch upgrade or obtain explicit vendor/LTS patch evidence for both CVEs.")
+	}
+	if observed == 0 || unknown > 0 {
+		r.AddAction("Inventory the exact active PHP patch versions for all production web handlers; static package, binary-name and repository observations may miss deployments.")
+	}
+	r.AddAction("Immediately prioritize internet-reachable mod_php and other web-facing PHP (FPM, CGI, FrankenPHP, LiteSpeed). Determine network reachability separately; this is NOT an external exposure scan.")
+	r.AddAction("Apply upstream PHP 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35 or your vendor's verified equivalent patches. Restart/recycle all PHP workers, pools and services; re-scan and verify the active web-serving SAPI and container images.")
+	r.AddAction("If patching must be delayed: consider administratively enforced memory_limit=-1, conservative post_max_size and edge request bounds for CVE-2026-109618; these are incomplete risk reductions and have availability tradeoffs.")
+	r.AddAction("For CVE-2026-109619, administratively disable session.upload_progress.enabled and restart all workers; on PHP 8.5, consider fatal_error_backtraces=0 until patched. Neither measure covers every attack path.")
+	r.AddAction("Confirm WAF/origin access cannot be bypassed and document time-bounded restrictions if a patch cannot be deployed immediately.")
+	r.AddAction("Preserve and review access/error logs and EDR telemetry from before patching; patched servers may already have been compromised. A clean IOC result does not rule out compromise.")
+	r.AddAction("See official advisories: https://www.php.net/ and https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w and https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp")
+	r.AddCheck("official_php2shell_version_rules", "APPLIED", fmt.Sprintf("Upstream fixes: 8.2.35, 8.3.36, 8.4.27, 8.5.12. Compared %d observations; NOT a vendor backport or active HTTP runtime verification", observed))
+}
