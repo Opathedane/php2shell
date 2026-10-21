@@ -103,8 +103,8 @@ func TestDistinctInstallationsSameVersionStaySeparate(t *testing.T) {
 	if groups[0].Key == groups[1].Key {
 		t.Fatal("install keys must differ")
 	}
-	if !strings.HasPrefix(groups[0].Key, "install:binary:") || !strings.HasPrefix(groups[1].Key, "install:binary:") {
-		t.Fatalf("expected binary install keys, got %q and %q", groups[0].Key, groups[1].Key)
+	if !strings.HasPrefix(groups[0].Key, "install:binary-dir:") || !strings.HasPrefix(groups[1].Key, "install:binary-dir:") {
+		t.Fatalf("expected binary-dir install keys, got %q and %q", groups[0].Key, groups[1].Key)
 	}
 }
 

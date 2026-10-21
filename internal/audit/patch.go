@@ -30,6 +30,7 @@ type PatchAssessment struct {
 	Priority        string `json:"priority"`
 	RequiredAction  string `json:"required_action"`
 	Qualification   string `json:"qualification"`
+	Confidence      string `json:"confidence,omitempty"` // HIGH | MEDIUM | LOW — version observation confidence, not exploit certainty
 }
 
 type VersionDecision struct{ Status, MinimumFixed, Priority, Action, Qualification string }
@@ -71,6 +72,7 @@ func CheckPHPVersion(input string) VersionDecision {
 // EvaluatePatchPosture classifies observations without upgrading the claim from
 // package inventory or source declaration to active web-runtime verification.
 func EvaluatePatchPosture(r *Report) {
+	ReconcileBinaryInstallAliases(r)
 	r.PatchAssessments = []PatchAssessment{}
 	// Official patch actions take precedence over generic preview guidance.
 	r.RecommendedActions = []string{}
@@ -78,7 +80,7 @@ func EvaluatePatchPosture(r *Report) {
 	seen := map[string]bool{}
 	for _, e := range r.Evidence {
 		switch e.Type {
-		case "installed_package", "repository_declaration", "operator_reported_web_runtime", "binary_static_version":
+		case "installed_package", "repository_declaration", "operator_reported_web_runtime", "binary_static_version", "binary_path_inferred_version":
 		default:
 			continue
 		}
@@ -96,22 +98,35 @@ func EvaluatePatchPosture(r *Report) {
 		}
 		seen[key] = true
 		d := CheckPHPVersion(e.Version)
+		confidence := "HIGH"
 		scope := "Static inventory only; not attestation of the serving HTTP runtime."
 		if e.Type == "repository_declaration" {
 			scope = "Source declaration only; may not match production."
+			confidence = "MEDIUM"
 		}
 		if e.Type == "operator_reported_web_runtime" {
 			scope = "Reported by an operator; not independently verified by this tool."
+			confidence = "MEDIUM"
 		}
 		if e.Type == "installed_package" {
 			scope += " A vendor may have backported a fix without changing the upstream version string."
+			confidence = "MEDIUM"
 		}
 		if e.Type == "binary_static_version" {
-			scope = "Static binary inspection (embedded string and/or PE metadata); not proof the binary serves HTTP or is the active runtime."
+			scope = "Verified from passive binary metadata (embedded string and/or PE resource); not proof the binary serves HTTP or is the active runtime."
+			confidence = "HIGH"
+			if strings.Contains(e.Detail, "inspect_coverage=partial") {
+				confidence = "MEDIUM"
+			}
+		}
+		if e.Type == "binary_path_inferred_version" {
+			scope = "PATH-INFERRED version from installer directory layout (and/or corroborated alias). Not verified from binary metadata; not proof of the active HTTP runtime; CLI path must not be treated as the web SAPI."
+			confidence = "MEDIUM"
 		}
 		r.PatchAssessments = append(r.PatchAssessments, PatchAssessment{
 			Component: e.Name, ObservedVersion: e.Version, EvidenceType: e.Type, Source: e.Source, Location: e.Location,
-			Status: d.Status, MinimumFixed: d.MinimumFixed, Priority: d.Priority, RequiredAction: d.Action, Qualification: scope + " " + d.Qualification,
+			Status: d.Status, MinimumFixed: d.MinimumFixed, Priority: d.Priority, RequiredAction: d.Action,
+			Qualification: scope + " " + d.Qualification, Confidence: confidence,
 		})
 		observed++
 		switch d.Status {
@@ -127,7 +142,7 @@ func EvaluatePatchPosture(r *Report) {
 			}
 		}
 	}
-	r.PatchAssessments = assignInstallKeys(r.PatchAssessments)
+	r.PatchAssessments = assignInstallKeysWithAliases(r.PatchAssessments, r.binaryAliasDirs())
 	r.VulnerabilityStatus = aggregateHostVulnerability(r.PatchAssessments, belowRepo, observed)
 	if belowHost > 0 {
 		r.AddAction("URGENT: Observed installed or operator-reported PHP version below the upstream fixes. Patch all relevant running web SAPIs, not only the CLI binary. Confirm vendor backports where applicable.")

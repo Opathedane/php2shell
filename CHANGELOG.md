@@ -1,6 +1,7 @@
-## Unreleased (documentation / process)
+## Unreleased
 
-- Post-release documentation audit for v2.3.0: remove obsolete alpha/JSON-CSV user guidance, refresh release checklist, add issue templates and governance notes. No scanner detection or assessment logic changes; v2.3.0 release assets unchanged.
+- Fix Windows AppData PHP installs that were discovered but reported "no version marker found": directed PE `.rsrc` reads, labelled path-based version inference (e.g. `Programs\PHP\8.4.24\...`), distinguish inferred vs verified metadata, corroborate `current` aliases without assuming identity, and emit patch assessments with confidence in HTML and CSV. Regression covers the TestVM v2.3.0 report scenario (8.4.24 below 8.4.27). Does not execute PHP or attest CLI as the web runtime.
+- Post-release documentation audit for v2.3.0 (issue templates, governance). v2.3.0 release assets remain unchanged.
 
 ## v2.3.0 — 2026-10-21
 

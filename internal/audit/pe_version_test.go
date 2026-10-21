@@ -1,5 +1,3 @@
-//go:build windows
-
 package audit
 
 import (
@@ -21,16 +19,7 @@ func TestPEVersionWithPHPResourceMetadata(t *testing.T) {
 	if ver != "8.4.27" {
 		t.Fatalf("version %q sources %v", ver, src)
 	}
-	if !containsSource(src, "pe_fixed_file_info") && !containsSource(src, "embedded_build_string") {
+	if !containsString(src, "pe_fixed_file_info") && !containsString(src, "embedded_build_string") {
 		t.Fatalf("expected PE or embedded source: %v", src)
 	}
-}
-
-func containsSource(src []string, want string) bool {
-	for _, s := range src {
-		if s == want {
-			return true
-		}
-	}
-	return false
 }

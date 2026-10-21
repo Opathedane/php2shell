@@ -93,17 +93,20 @@ func scanBinaries(r *Report) {
 		}
 	}
 
-	versioned, partialInspect := 0, 0
+	versioned, inferred, partialInspect := 0, 0, 0
 	for _, e := range r.Evidence {
-		if e.Type == "binary_static_version" {
+		switch e.Type {
+		case "binary_static_version":
 			versioned++
 			if strings.Contains(e.Detail, "inspect_coverage=partial") {
 				partialInspect++
 			}
+		case "binary_path_inferred_version":
+			inferred++
 		}
 	}
 	status := "PARTIAL"
-	detail := fmt.Sprintf("Found %d PHP-like binary paths (%d with static version markers); no binaries executed", found, versioned)
+	detail := fmt.Sprintf("Found %d PHP-like binary paths (%d with verified static version markers, %d path-inferred); no binaries executed", found, versioned, inferred)
 	if runtime.GOOS == "windows" {
 		detail += `; searched well-known dirs, %LOCALAPPDATA%\Programs\PHP, and PATH entries`
 	} else {

@@ -84,7 +84,7 @@ func humanPHPDetected(r *Report) (label string, versions []string) {
 			}
 			confirmed = true
 			confirmedVers[e.Version] = struct{}{}
-		case "binary_path", "binary_static_version", "iis_php_handler_config", "operator_reported_web_runtime":
+		case "binary_path", "binary_static_version", "binary_path_inferred_version", "iis_php_handler_config", "operator_reported_web_runtime":
 			confirmed = true
 			if e.Version != "" {
 				confirmedVers[e.Version] = struct{}{}
@@ -138,7 +138,7 @@ func humanRuntime(r *Report) (label, detail string) {
 				hasCandidate = true
 				break
 			}
-			if e.Type == "iis_php_handler_config" || e.Type == "binary_static_version" {
+			if e.Type == "iis_php_handler_config" || e.Type == "binary_static_version" || e.Type == "binary_path_inferred_version" || e.Type == "binary_path" {
 				hasCandidate = true
 				break
 			}
@@ -174,7 +174,7 @@ var phpBranchToken = regexp.MustCompile(`(?i)(?:php-fpm|php-cgi|lsphp|php)(\d)\.
 func groupKeyForAssessment(a PatchAssessment) string {
 	// Prefer established install/runtime correlation. Distinct binary installs that
 	// share a PHP version must remain separate (install:binary:<path>).
-	if strings.HasPrefix(a.InstallKey, "install:binary:") || strings.HasPrefix(a.InstallKey, "install:operator:") {
+	if strings.HasPrefix(a.InstallKey, "install:binary-dir:") || strings.HasPrefix(a.InstallKey, "install:binary:") || strings.HasPrefix(a.InstallKey, "install:operator:") {
 		return a.InstallKey
 	}
 	if a.EvidenceType == "repository_declaration" {
@@ -257,17 +257,27 @@ func GroupInstallations(r *Report) []InstallGroup {
 }
 
 func installGroupLabel(g *InstallGroup) string {
-	if strings.HasPrefix(g.Key, "install:binary:") && len(g.Assessments) > 0 {
+	if (strings.HasPrefix(g.Key, "install:binary-dir:") || strings.HasPrefix(g.Key, "install:binary:")) && len(g.Assessments) > 0 {
 		loc := g.Assessments[0].Location
-		// Prefer the binary path over shared package-database locations.
+		inferred := false
+		// Prefer a versioned verified binary path; otherwise any binary path.
 		for _, a := range g.Assessments {
 			if a.EvidenceType == "binary_static_version" && a.Location != "" {
 				loc = a.Location
+				inferred = false
 				break
+			}
+			if a.EvidenceType == "binary_path_inferred_version" && a.Location != "" {
+				loc = a.Location
+				inferred = true
 			}
 		}
 		if g.Version != "" && loc != "" && !strings.Contains(loc, "dpkg/status") && !strings.Contains(loc, "apk/db") {
-			return "PHP " + g.Version + " @ " + loc
+			label := "PHP " + g.Version + " @ " + loc
+			if inferred {
+				label += " (path-inferred)"
+			}
+			return label
 		}
 	}
 	if g.Version != "" {
@@ -315,7 +325,7 @@ func relatedEvidenceForGroup(r *Report, g *InstallGroup) []Evidence {
 	wantNames := map[string]struct{}{}
 	wantLocs := map[string]struct{}{}
 	branches := map[string]struct{}{}
-	binaryScoped := strings.HasPrefix(g.Key, "install:binary:")
+	binaryScoped := strings.HasPrefix(g.Key, "install:binary-dir:") || strings.HasPrefix(g.Key, "install:binary:")
 	for _, a := range g.Assessments {
 		wantNames[strings.ToLower(a.Component)] = struct{}{}
 		if a.Location != "" {

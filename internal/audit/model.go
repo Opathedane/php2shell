@@ -6,7 +6,7 @@ import (
 )
 
 const Schema = "php2shell-assessment/v1"
-const Version = "2.3.0"
+const Version = "2.3.1"
 
 type Evidence struct {
 	Type           string `json:"type"`
@@ -78,6 +78,11 @@ type Report struct {
 	Findings            []IndicatorFinding `json:"indicator_findings,omitempty"`
 	Warnings            []string           `json:"warnings"`
 	RecommendedActions  []string           `json:"recommended_actions"`
+
+	// aliasDirs maps a corroborated alias install directory (e.g. ...\PHP\current)
+	// to a canonical versioned directory. Not serialized; used only while building
+	// patch assessments after ReconcileBinaryInstallAliases.
+	aliasDirs map[string]string
 }
 
 func NewReport(host, osname, arch string) *Report {
