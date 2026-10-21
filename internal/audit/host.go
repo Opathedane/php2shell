@@ -68,10 +68,16 @@ func scanBinaries(r *Report) {
 			}
 			seen[path] = true
 			found++
-			r.AddEvidence(Evidence{Type: "binary_path", Name: filepath.Base(path), Source: "well-known path metadata", Location: path, Interpretation: "PRESENT_VERSION_UNKNOWN_NOT_RUNTIME_VERIFIED"})
+			AddBinaryVersionEvidence(r, path, filepath.Base(path), "well-known path static binary inspection")
 		}
 	}
-	r.AddCheck("binary_paths", "PARTIAL", fmt.Sprintf("Found %d PHP-like binary paths; only common installation paths checked, no binaries executed", found))
+	versioned := 0
+	for _, e := range r.Evidence {
+		if e.Type == "binary_static_version" {
+			versioned++
+		}
+	}
+	r.AddCheck("binary_paths", "PARTIAL", fmt.Sprintf("Found %d PHP-like binary paths (%d with static version markers); common paths only, no binaries executed", found, versioned))
 }
 
 func scanPackages(r *Report) {

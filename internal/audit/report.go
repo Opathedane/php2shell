@@ -46,7 +46,14 @@ func EncodeCSV(r *Report) ([]byte, error) {
 		_ = w.Write([]string{"next_step", fmt.Sprint(i + 1), "", "scanner guidance", "", SpreadsheetSafe(step), "ACTION_REQUIRES_VALIDATION"})
 	}
 	for _, a := range r.PatchAssessments {
-		values := []string{"patch_assessment", a.Component, a.ObservedVersion, a.Source, a.Location, a.RequiredAction, a.Status + " | min_fixed=" + a.MinimumFixed + " | priority=" + a.Priority + " | " + a.Qualification}
+		qual := a.Status + " | min_fixed=" + a.MinimumFixed + " | priority=" + a.Priority + " | " + a.Qualification
+		if a.InstallKey != "" {
+			qual += " | install_key=" + a.InstallKey
+		}
+		if a.RuntimeKey != "" {
+			qual += " | runtime_key=" + a.RuntimeKey
+		}
+		values := []string{"patch_assessment", a.Component, a.ObservedVersion, a.Source, a.Location, a.RequiredAction, qual}
 		for i := range values {
 			values[i] = SpreadsheetSafe(values[i])
 		}
