@@ -51,6 +51,8 @@ func windowsWellKnownPHPGlobs() []string {
 
 // discoverPHPBinsFromPATHEnv finds php.exe / php-cgi.exe sitting directly in PATH directories.
 // It never executes candidates and does not recurse into PATH entries.
+// Directory junctions/symlinks (e.g. ...\PHP\current) are resolved with a bounded
+// reparse follow so PATH entries that PowerShell resolves via Get-Command are not skipped.
 func discoverPHPBinsFromPATHEnv(pathEnv string, limit int) []string {
 	if limit <= 0 {
 		return nil
@@ -71,7 +73,8 @@ func discoverPHPBinsFromPATHEnv(pathEnv string, limit int) []string {
 		if dirs > maxPATHDirInspect {
 			break
 		}
-		if skipUnsafePath(dir) {
+		plan, ok := planPATHDirInspect(dir)
+		if !ok {
 			continue
 		}
 		for _, name := range []string{"php.exe", "php-cgi.exe", "php", "php-cgi"} {
@@ -81,7 +84,8 @@ func discoverPHPBinsFromPATHEnv(pathEnv string, limit int) []string {
 			if runtime.GOOS != "windows" && strings.HasSuffix(strings.ToLower(name), ".exe") {
 				continue
 			}
-			candidate := filepath.Join(dir, name)
+			// Prefer the resolved plain directory for Lstat (regular file check).
+			candidate := filepath.Join(plan.Inspect, name)
 			if !phpBin.MatchString(filepath.Base(candidate)) {
 				continue
 			}
@@ -103,7 +107,9 @@ func discoverPHPBinsFromPATHEnv(pathEnv string, limit int) []string {
 }
 
 // discoverPHPBinsUnderProgramsPHP walks a Programs\PHP root (or test fixture) for php binaries.
-// Symlinks/junctions are not followed. Depth and file counts are bounded.
+// Plain directory trees are walked with a depth cap. Directory junctions/symlinks
+// (e.g. current → versioned install) are resolved once with a bounded reparse follow,
+// then walked under the same depth/file caps with a visited-set to prevent loops.
 func discoverPHPBinsUnderProgramsPHP(root string, limit int) ([]string, string) {
 	if limit <= 0 || strings.TrimSpace(root) == "" {
 		return nil, ""
@@ -115,71 +121,91 @@ func discoverPHPBinsUnderProgramsPHP(root string, limit int) ([]string, string) 
 		}
 		return nil, "Programs PHP root inaccessible: " + err.Error()
 	}
-	if !fi.IsDir() || fi.Mode()&os.ModeSymlink != 0 {
+	start := root
+	if fi.Mode()&os.ModeSymlink != 0 {
+		resolved, _, rerr := resolvePlainDir(root)
+		if rerr != nil {
+			return nil, "Programs PHP root reparse not resolved: " + rerr.Error()
+		}
+		start = resolved
+	} else if !fi.IsDir() {
 		return nil, "Programs PHP root is not a plain directory"
 	}
 	var out []string
-	seen := map[string]bool{}
+	seenBin := map[string]bool{}
+	visitedWalk := map[string]bool{}
 	warn := ""
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			// Permission denied under a nested tree must not abort the whole scan.
-			return nil
+	var walk func(walkRoot string, depthBudget int)
+	walk = func(walkRoot string, depthBudget int) {
+		if len(out) >= limit || depthBudget < 0 {
+			return
 		}
-		rel, relErr := filepath.Rel(root, path)
-		if relErr != nil {
-			return nil
+		key := normalizeInstallPath(walkRoot)
+		if visitedWalk[key] {
+			return
 		}
-		if rel != "." {
-			depth := len(strings.Split(rel, string(filepath.Separator)))
-			if d.IsDir() && depth > maxProgramsPHPDepth {
+		visitedWalk[key] = true
+		_ = filepath.WalkDir(walkRoot, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || len(out) >= limit {
+				if len(out) >= limit {
+					warn = "Programs PHP discovery truncated"
+					return fs.SkipAll
+				}
+				return nil
+			}
+			rel, relErr := filepath.Rel(walkRoot, path)
+			if relErr != nil {
+				return nil
+			}
+			depth := 0
+			if rel != "." {
+				depth = len(strings.Split(rel, string(filepath.Separator)))
+			}
+			info, infoErr := d.Info()
+			if infoErr != nil {
+				return nil
+			}
+			if info.Mode()&os.ModeSymlink != 0 {
+				if !d.IsDir() {
+					return nil // file symlink: never follow
+				}
+				// Bounded one-shot resolve of a directory junction (e.g. current).
+				resolved, _, rerr := resolvePlainDir(path)
+				if rerr != nil {
+					return fs.SkipDir
+				}
+				remaining := depthBudget - depth
+				if remaining < 0 {
+					remaining = 0
+				}
+				walk(resolved, remaining)
 				return fs.SkipDir
 			}
-		}
-		info, infoErr := d.Info()
-		if infoErr != nil {
-			return nil
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
 			if d.IsDir() {
-				return fs.SkipDir
+				if depth > depthBudget {
+					return fs.SkipDir
+				}
+				return nil
+			}
+			base := d.Name()
+			if !phpBin.MatchString(base) || !info.Mode().IsRegular() {
+				return nil
+			}
+			bkey := normalizeInstallPath(path)
+			if seenBin[bkey] {
+				return nil
+			}
+			seenBin[bkey] = true
+			out = append(out, path)
+			if len(out) >= limit {
+				warn = "Programs PHP discovery truncated"
+				return fs.SkipAll
 			}
 			return nil
-		}
-		if d.IsDir() {
-			return nil
-		}
-		base := d.Name()
-		if !phpBin.MatchString(base) {
-			return nil
-		}
-		if !info.Mode().IsRegular() {
-			return nil
-		}
-		key := normalizeInstallPath(path)
-		if seen[key] {
-			return nil
-		}
-		seen[key] = true
-		out = append(out, path)
-		if len(out) >= limit {
-			warn = "Programs PHP discovery truncated"
-			return fs.SkipAll
-		}
-		return nil
-	})
+		})
+	}
+	walk(start, maxProgramsPHPDepth)
 	return out, warn
-}
-
-func skipUnsafePath(dir string) bool {
-	fi, err := os.Lstat(dir)
-	if err != nil {
-		return true
-	}
-	if !fi.IsDir() || fi.Mode()&os.ModeSymlink != 0 {
-		return true
-	}
-	return false
 }
 
 func isSafeRegularFile(path string) bool {

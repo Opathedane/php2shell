@@ -146,7 +146,15 @@ func BuildFleetRows(r *Report) []FleetRow {
 		row.Qualification = "No independently assessed PHP installation version in this scan scope. Not proof PHP is absent."
 		row.ComponentName = "(host)"
 		row.ConfigCorrelatedToInstall = "NO"
-		row.ConfigPrimaryIniPath = ""
+		row.ConfigPrimaryIniPath = FirstUncorrelatedPrimaryIni(r)
+		if row.ConfigPrimaryIniPath == "" {
+			for _, e := range r.Evidence {
+				if e.Type == "php_ini_candidate" {
+					row.ConfigPrimaryIniPath = e.Location
+					break
+				}
+			}
+		}
 		// php.ini-only hosts must never look like a confirmed install/version.
 		if row.VersionEvidence == "php_not_observed_in_scope" || row.PHPVersion == "" {
 			row.VersionEvidence, row.VersionConfidence, row.PHPVersion = fleetHostVersionEvidence(r)
@@ -207,7 +215,7 @@ type hostConfigSummary struct {
 func summarizeHostConfigDiscovery(r *Report) hostConfigSummary {
 	classSet := map[string]struct{}{}
 	primaries, templates, other := 0, 0, 0
-	settings := 0
+	settings, skips, uncorrelated := 0, 0, 0
 	truncated := false
 	for _, c := range r.Coverage {
 		if c.Name == "configuration" && strings.EqualFold(c.Status, "TRUNCATED") {
@@ -230,8 +238,13 @@ func summarizeHostConfigDiscovery(r *Report) hostConfigSummary {
 			default:
 				other++
 			}
+			if iisDetailField(e.Detail, "related_binary") == "" {
+				uncorrelated++
+			}
 		case "configuration_observation":
 			settings++
+		case "php_ini_skip":
+			skips++
 		}
 	}
 	candidates := primaries + templates + other
@@ -240,18 +253,29 @@ func summarizeHostConfigDiscovery(r *Report) hostConfigSummary {
 	switch {
 	case truncated:
 		status = "TRUNCATED"
+	case candidates == 0 && skips > 0:
+		status = "COVERAGE_GAPS_ONLY"
 	case candidates == 0:
 		status = "NONE"
+	case skips > 0 && uncorrelated > 0:
+		status = "CANDIDATES_WITH_COVERAGE_GAPS"
+	case uncorrelated > 0 && primaries > 0 && (templates > 0 || other > 0):
+		status = "MIXED_PRIMARY_AND_TEMPLATE"
 	case primaries > 0 && templates > 0:
 		status = "MIXED_PRIMARY_AND_TEMPLATE"
 	case primaries > 0 && other > 0:
 		status = "CANDIDATES_OBSERVED"
+	case primaries > 0 && uncorrelated == candidates:
+		status = "UNCORRELATED_PRIMARY_CANDIDATES"
 	case primaries > 0:
 		status = "PRIMARY_CANDIDATES_OBSERVED"
 	case templates > 0 && other == 0:
 		status = "TEMPLATES_ONLY"
 	default:
 		status = "CANDIDATES_OBSERVED"
+	}
+	if skips > 0 && status != "TRUNCATED" && status != "COVERAGE_GAPS_ONLY" && status != "CANDIDATES_WITH_COVERAGE_GAPS" {
+		status = status + "_WITH_SKIPS"
 	}
 	return hostConfigSummary{Status: status, Candidates: candidates, Settings: settings, Classes: strings.Join(classes, ";")}
 }
@@ -413,23 +437,35 @@ func fleetLimitationsSummary(r *Report) string {
 		"Not an active HTTP runtime attestation",
 		"Vendor backports require separate verification",
 		"No IOC match is not a compromise clearance",
+		"Discovery scope is bounded; not complete host coverage",
 	}
 	if r.CompromiseStatus == "NOT_ASSESSED" {
 		parts = append(parts, "Compromise not assessed (no trusted IOC pack)")
 	}
-	iniCandidates, settingObs := 0, 0
+	iniCandidates, settingObs, skips, uncorrelated := 0, 0, 0, 0
 	for _, e := range r.Evidence {
 		switch e.Type {
 		case "php_ini_candidate":
 			iniCandidates++
+			if iisDetailField(e.Detail, "related_binary") == "" {
+				uncorrelated++
+			}
 		case "configuration_observation":
 			settingObs++
+		case "php_ini_skip":
+			skips++
 		}
 	}
 	if iniCandidates > 0 || settingObs > 0 {
 		parts = append(parts, fmt.Sprintf(
-			"PHP config candidates observed (%d files, %d whitelisted settings); not proof of effective SAPI settings or PHP version",
-			iniCandidates, settingObs,
+			"PHP config candidates observed (%d files, %d whitelisted settings, %d uncorrelated); not proof of effective SAPI settings or PHP version",
+			iniCandidates, settingObs, uncorrelated,
+		))
+	}
+	if skips > 0 {
+		parts = append(parts, fmt.Sprintf(
+			"%d PHP config candidate(s) skipped (unreadable/oversized/symlink); paths only, secrets not reported",
+			skips,
 		))
 	}
 	return strings.Join(parts, "; ")

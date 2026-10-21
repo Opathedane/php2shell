@@ -4,7 +4,7 @@ Standalone Windows and Linux scanner for **PHP discovery, upstream patch review,
 
 PHP2Shell writes a matching **HTML + CSV** report pair from one read-only scan. It does **not** prove that a host is fully patched or uncompromised.
 
-**Version in this tree:** 2.5.0 (unreleased development). Latest public release: [v2.4.0](https://github.com/Opathedane/php2shell/releases/tag/v2.4.0). Prior: [v2.3.1](https://github.com/Opathedane/php2shell/releases/tag/v2.3.1), [v2.3.0](https://github.com/Opathedane/php2shell/releases/tag/v2.3.0).
+**Version in this tree:** 2.5.1 (unreleased bugfix). Latest public release: [v2.5.0](https://github.com/Opathedane/php2shell/releases/tag/v2.5.0). Prior: [v2.4.0](https://github.com/Opathedane/php2shell/releases/tag/v2.4.0).
 
 ## 1. What PHP2Shell does
 

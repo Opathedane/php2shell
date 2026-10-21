@@ -31,7 +31,7 @@ func TestWindowsPHPIniSidecarDiscoveryAndHTMLCSV(t *testing.T) {
 	r := NewReport("win-ini", "windows", "amd64")
 	r.GeneratedUTC = time.Date(2026, 10, 21, 21, 0, 0, 0, time.UTC)
 	AddBinaryVersionEvidence(r, bin, "php-cgi.exe", "test fixture")
-	scanConfigs(r)
+	scanConfigs(r, HostScanOptions{})
 	EvaluatePatchPosture(r)
 	FinalizeSummary(r)
 
@@ -148,9 +148,9 @@ func TestLinuxPHPIniWellKnownAndPHPRC(t *testing.T) {
 	// Point well-known patterns at the temp tree by invoking observe helpers directly.
 	r := NewReport("linux-ini", "linux", "amd64")
 	st := newPHPIniScanState()
-	st.observePHPIniFile(r, ini, "test well-known", "primary_candidate")
+	st.observePHPIniFile(r, ini, "test well-known", "primary_candidate", false)
 	for _, c := range phpIniEnvCandidates() {
-		st.observePHPIniFile(r, c.path, c.source, c.class)
+		st.observePHPIniFile(r, c.path, c.source, c.class, false)
 	}
 
 	sawPRC, sawExpose := false, false
@@ -216,7 +216,7 @@ func TestIISDashCFeedsPHPIniCandidate(t *testing.T) {
 
 	r := NewReport("iis-ini", "windows", "amd64")
 	ApplyIISApplicationHostInventory(r, filepath.Join(root, "applicationHost.config"), []byte(xml))
-	scanConfigs(r)
+	scanConfigs(r, HostScanOptions{})
 
 	sawIni := false
 	for _, e := range r.Evidence {

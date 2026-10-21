@@ -22,6 +22,10 @@ func FinalizeSummary(r *Report) {
 		s.PHPDiscovery = "PHP_RELATED_EVIDENCE_FOUND_RUNTIME_UNVERIFIED"
 	case strings.HasPrefix(label, "Declared"):
 		s.PHPDiscovery = "PHP_DECLARED_ONLY_NOT_CONFIRMED_INSTALLED"
+	case strings.HasPrefix(label, "PHP configuration candidates"):
+		s.PHPDiscovery = "PHP_CONFIG_CANDIDATES_ONLY_INSTALLATION_UNCONFIRMED"
+	case strings.HasPrefix(label, "PHP configuration coverage"):
+		s.PHPDiscovery = "PHP_CONFIG_COVERAGE_INCOMPLETE_INSTALLATION_UNCONFIRMED"
 	case strings.HasPrefix(label, "Possible"):
 		s.PHPDiscovery = "PHP_ARTIFACTS_ONLY_INSTALLATION_UNCONFIRMED"
 	default:
