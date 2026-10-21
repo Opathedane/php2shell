@@ -42,7 +42,7 @@ func FormatIISHandlerDetail(path, modules, scriptProcessor string) string {
 	if exe == "" {
 		exe = strings.TrimSpace(scriptProcessor)
 	}
-	detail := fmt.Sprintf("path=%s; modules=%s; handler_exe=%s", path, modules, exe)
+	detail := fmt.Sprintf("path=%s; modules=%s; handler_exe=%s", path, modules, normalizeWindowsConfigPath(exe))
 	if args != "" {
 		detail += "; handler_args=" + args
 	}
@@ -67,34 +67,96 @@ func HandlerExecutableFromDetail(detail string) string {
 	return ""
 }
 
-// HandlerExecutableLooksLikePHP returns true when the path basename resembles a PHP binary.
-func HandlerExecutableLooksLikePHP(exe string) bool {
-	if exe == "" {
-		return false
-	}
-	return phpBin.MatchString(filepath.Base(exe))
-}
-
-// ResolveHandlerExecutablePath prepares a configured IIS handler executable path for
-// read-only filesystem inspection. It expands Windows %VAR% references via os.Getenv
-// on every platform (IIS configs are Windows-oriented) and never executes the path.
-func ResolveHandlerExecutablePath(exe string) string {
-	exe = strings.Trim(exe, `"' `)
-	if exe == "" || handlerPathBlocked(exe) {
+// ConfiguredWindowsHandlerPath returns the IIS-configured executable path using Windows semantics
+// (no local filesystem resolution or environment expansion).
+func ConfiguredWindowsHandlerPath(raw string) string {
+	raw = strings.Trim(raw, `"' `)
+	if raw == "" {
 		return ""
 	}
-	exe = expandWindowsPercentEnv(exe)
+	return normalizeWindowsConfigPath(raw)
+}
+
+// HandlerExecutableLooksLikePHP returns true when the configured path basename resembles a PHP binary.
+func HandlerExecutableLooksLikePHP(path string) bool {
+	if path == "" {
+		return false
+	}
+	return phpBin.MatchString(windowsPathBase(path))
+}
+
+// ResolveHandlerExecutablePath maps a configured IIS handler path to a local filesystem path for
+// read-only inspection. It never executes the configured program.
+func ResolveHandlerExecutablePath(configured string) string {
+	configured = ConfiguredWindowsHandlerPath(configured)
+	if configured == "" || handlerPathBlocked(configured) {
+		return ""
+	}
+	expanded := expandWindowsPercentEnv(configured)
 	if runtime.GOOS == "windows" {
-		exe = os.ExpandEnv(exe)
+		expanded = os.ExpandEnv(expanded)
+		return filepath.Clean(expanded)
 	}
-	if runtime.GOOS != "windows" {
-		exe = filepath.FromSlash(filepath.ToSlash(exe))
+	return localPathFromWindowsConfig(expanded)
+}
+
+func normalizeWindowsConfigPath(p string) string {
+	p = strings.ReplaceAll(p, `/`, `\`)
+	for strings.Contains(p, `\\`) {
+		p = strings.ReplaceAll(p, `\\`, `\`)
 	}
-	return filepath.Clean(exe)
+	return p
+}
+
+func windowsPathBase(p string) string {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return ""
+	}
+	p = strings.ReplaceAll(p, `/`, `\`)
+	if i := strings.LastIndex(p, `\`); i >= 0 {
+		return p[i+1:]
+	}
+	return p
+}
+
+func localPathFromWindowsConfig(expanded string) string {
+	if expanded == "" {
+		return ""
+	}
+	slashy := strings.ReplaceAll(expanded, `\`, `/`)
+	if isWindowsDrivePath(slashy) {
+		return ""
+	}
+	if strings.HasPrefix(slashy, "/") {
+		return filepath.Clean(slashy)
+	}
+	var parts []string
+	for _, seg := range strings.Split(slashy, `/`) {
+		if seg == "" || seg == "." {
+			continue
+		}
+		if isWindowsDrivePath(seg) {
+			return ""
+		}
+		parts = append(parts, seg)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return filepath.Clean(strings.Join(parts, string(filepath.Separator)))
+}
+
+func isWindowsDrivePath(s string) bool {
+	if len(s) < 2 || s[1] != ':' {
+		return false
+	}
+	c := s[0]
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
 func handlerPathBlocked(exe string) bool {
-	lower := strings.ToLower(filepath.ToSlash(exe))
+	lower := strings.ToLower(strings.ReplaceAll(exe, `\`, `/`))
 	return strings.Contains(lower, "cmd.exe") || strings.Contains(lower, "powershell") || strings.Contains(lower, "wscript.exe")
 }
 

@@ -24,5 +24,5 @@ func moduleRootDir(t testing.TB) string {
 
 func moduleTestdataPath(t testing.TB, parts ...string) string {
 	t.Helper()
-	return filepath.Join(moduleRootDir(t), append([]string{"testdata"}, parts...)...)
+	return filepath.Join(append([]string{moduleRootDir(t), "testdata"}, parts...)...)
 }

@@ -99,3 +99,62 @@ func TestResolveHandlerExecutablePathBlocksShell(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestWindowsPathBaseCrossPlatform(t *testing.T) {
+	cases := []struct {
+		path, want string
+	}{
+		{`C:\Program Files\PHP\8.4\php-cgi.exe`, `php-cgi.exe`},
+		{`C:/PHP/php-cgi.exe`, `php-cgi.exe`},
+		{`php-cgi.exe`, `php-cgi.exe`},
+		{`\\?\C:\PHP\php-cgi.exe`, `php-cgi.exe`},
+	}
+	for _, tc := range cases {
+		if got := windowsPathBase(tc.path); got != tc.want {
+			t.Fatalf("windowsPathBase(%q) = %q want %q", tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestHandlerExecutableLooksLikePHPWindowsPaths(t *testing.T) {
+	if !HandlerExecutableLooksLikePHP(`C:\inetpub\php\php-cgi.exe`) {
+		t.Fatal("expected php-cgi on Windows-style path")
+	}
+	if HandlerExecutableLooksLikePHP(`C:\Windows\System32\cmd.exe`) {
+		t.Fatal("cmd.exe should not match php binary pattern")
+	}
+}
+
+func TestConfiguredWindowsHandlerPathMixedSeparators(t *testing.T) {
+	got := ConfiguredWindowsHandlerPath(`C:/Program Files/PHP\8.4/php-cgi.exe`)
+	want := `C:\Program Files\PHP\8.4\php-cgi.exe`
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestResolveHandlerExecutablePathDriveLetterNonWindows(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("drive-letter resolution differs on Windows")
+	}
+	if got := ResolveHandlerExecutablePath(`C:\PHP\php-cgi.exe`); got != "" {
+		t.Fatalf("expected empty local path on %s, got %q", runtime.GOOS, got)
+	}
+}
+
+func TestResolveHandlerExecutablePathMixedSeparatorsAfterEnv(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix-style env expansion fixture")
+	}
+	dir := t.TempDir()
+	t.Setenv("PHP2SHELL_TEST_PHPROOT", dir)
+	fake := filepath.Join(dir, "php-cgi.exe")
+	if err := os.WriteFile(fake, []byte("stub"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	exe, _ := ParseIISScriptProcessor(`%PHP2SHELL_TEST_PHPROOT%/php-cgi.exe`)
+	resolved := ResolveHandlerExecutablePath(exe)
+	if filepath.Clean(resolved) != filepath.Clean(fake) {
+		t.Fatalf("resolved %q want %q", resolved, fake)
+	}
+}

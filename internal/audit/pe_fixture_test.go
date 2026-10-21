@@ -2,7 +2,6 @@ package audit
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
