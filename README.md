@@ -4,7 +4,7 @@ Standalone Windows and Linux scanner for **PHP discovery, patch review, and limi
 
 PHP2Shell writes a single self-contained **HTML** report that answers: was PHP found, which versions were observed, whether an update review is required, whether an active web runtime was verified, and what to do next. It does **not** prove that a host is fully patched or uncompromised.
 
-**Current release:** [v2.3.0](https://github.com/Opathedane/php2shell/releases/tag/v2.3.0) (public, unsigned binaries). Real-world validation is ongoing; treat findings as evidence-qualified inventory, not certification.
+**Current release (when published):** [v2.3.1](https://github.com/Opathedane/php2shell/releases/tag/v2.3.1) — Windows PHP version-detection fixes on top of the public [v2.3.0](https://github.com/Opathedane/php2shell/releases/tag/v2.3.0) HTML-only scanner. Until the tag exists, use **Releases → latest**. Real-world validation is ongoing; treat findings as evidence-qualified inventory, not certification.
 
 ## Getting started
 
@@ -95,7 +95,7 @@ Checksums prove bit-for-bit match with published assets; they do **not** replace
 
 ## Documentation
 
-- [Release notes (v2.3.0)](docs/RELEASE-NOTES.md)
+- [Release notes (v2.3.1)](docs/RELEASE-NOTES.md)
 - [Consultant quick start](docs/INSTALL-FOR-CONSULTANTS.md)
 - [Advanced usage and enterprise deployment](docs/ADVANCED-USAGE.md)
 - [Official patch guidance](docs/OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md)
