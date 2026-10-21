@@ -22,6 +22,19 @@ func windowsWellKnownPHPGlobs() []string {
 		`C:\php\php-cgi.exe`,
 		`C:\xampp\php\php.exe`,
 		`C:\xampp\php\php-cgi.exe`,
+		// WampServer / WAMP64 — versioned bin\php\<ver>\php.exe (mirrors existing php.ini globs).
+		`C:\wamp\bin\php\*\php.exe`,
+		`C:\wamp\bin\php\*\php-cgi.exe`,
+		`C:\wamp64\bin\php\*\php.exe`,
+		`C:\wamp64\bin\php\*\php-cgi.exe`,
+		// Laragon — versioned bin\php\<ver>\php.exe
+		`C:\laragon\bin\php\*\php.exe`,
+		`C:\laragon\bin\php\*\php-cgi.exe`,
+		// Chocolatey / manual tools layout (ini already discovered under C:\tools\php).
+		`C:\tools\php\php.exe`,
+		`C:\tools\php\php-cgi.exe`,
+		`C:\tools\php\*\php.exe`,
+		`C:\tools\php\*\php-cgi.exe`,
 		`C:\inetpub\PHP\*\php-cgi.exe`,
 		`C:\Program Files\PHP\*\php.exe`,
 		`C:\Program Files\PHP\*\php-cgi.exe`,

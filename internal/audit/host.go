@@ -85,8 +85,7 @@ func scanBinaries(r *Report, opts HostScanOptions) []deepDiscoverOutcome {
 			}
 		}
 	} else {
-		patterns := []string{`/usr/bin/php*`, `/usr/sbin/php-fpm*`, `/usr/local/bin/php*`, `/usr/local/sbin/php-fpm*`, `/opt/plesk/php/*/bin/php*`, `/opt/plesk/php/*/sbin/php-fpm*`, `/opt/remi/php*/root/usr/bin/php*`, `/opt/cpanel/ea-php*/root/usr/bin/php*`, `/etc/alternatives/php`}
-		for _, pattern := range patterns {
+		for _, pattern := range linuxWellKnownPHPGlobs() {
 			matches, _ := filepath.Glob(pattern)
 			for _, path := range matches {
 				if !addPath(path, "well-known path static binary inspection") {
