@@ -10,7 +10,7 @@ var debianPHPPackage = regexp.MustCompile(`(?i)^php(\d)\.(\d)-(fpm|cli|cgi)$`)
 
 func evidenceRuntimeKey(e Evidence) string {
 	switch e.Type {
-	case "binary_static_version", "binary_path":
+	case "binary_static_version", "binary_path", "binary_path_inferred_version":
 		return "evidence:binary:" + normalizeInstallPath(e.Location)
 	case "installed_package":
 		return "evidence:package:" + e.Name
@@ -19,6 +19,16 @@ func evidenceRuntimeKey(e Evidence) string {
 	default:
 		return "evidence:" + e.Type + ":" + e.Location + ":" + e.Name
 	}
+}
+
+func canonicalBinaryInstallDir(location string, aliasDirs map[string]string) string {
+	dir := normalizeInstallPath(filepath.Dir(location))
+	if aliasDirs != nil {
+		if canon, ok := aliasDirs[dir]; ok && canon != "" {
+			return canon
+		}
+	}
+	return dir
 }
 
 func normalizeInstallPath(p string) string {
@@ -52,6 +62,10 @@ func debianPackageBinaryPaths(packageName string) []string {
 }
 
 func assignInstallKeys(assessments []PatchAssessment) []PatchAssessment {
+	return assignInstallKeysWithAliases(assessments, nil)
+}
+
+func assignInstallKeysWithAliases(assessments []PatchAssessment, aliasDirs map[string]string) []PatchAssessment {
 	binaryInstall := map[string]string{}
 	for i := range assessments {
 		a := &assessments[i]
@@ -59,10 +73,12 @@ func assignInstallKeys(assessments []PatchAssessment) []PatchAssessment {
 			continue
 		}
 		a.RuntimeKey = evidenceRuntimeKey(Evidence{Type: a.EvidenceType, Name: a.Component, Version: a.ObservedVersion, Location: a.Location})
-		if a.EvidenceType == "binary_static_version" {
-			key := "install:binary:" + normalizeInstallPath(a.Location)
+		if a.EvidenceType == "binary_static_version" || a.EvidenceType == "binary_path_inferred_version" {
+			dir := canonicalBinaryInstallDir(a.Location, aliasDirs)
+			key := "install:binary-dir:" + dir
 			a.InstallKey = key
 			binaryInstall[normalizeInstallPath(a.Location)] = key
+			binaryInstall[dir] = key
 		}
 	}
 	for i := range assessments {
@@ -183,7 +199,7 @@ func normalizeVersionKey(v string) string {
 
 func isHostRuntimeEvidence(t string) bool {
 	switch t {
-	case "installed_package", "binary_static_version", "operator_reported_web_runtime":
+	case "installed_package", "binary_static_version", "binary_path_inferred_version", "operator_reported_web_runtime":
 		return true
 	default:
 		return false

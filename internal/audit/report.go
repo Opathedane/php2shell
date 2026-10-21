@@ -46,7 +46,7 @@ func EncodeCSV(r *Report) ([]byte, error) {
 		_ = w.Write([]string{"next_step", fmt.Sprint(i + 1), "", "scanner guidance", "", SpreadsheetSafe(step), "ACTION_REQUIRES_VALIDATION"})
 	}
 	for _, a := range r.PatchAssessments {
-		qual := a.Status + " | min_fixed=" + a.MinimumFixed + " | priority=" + a.Priority + " | " + a.Qualification
+		qual := a.Status + " | min_fixed=" + a.MinimumFixed + " | priority=" + a.Priority + " | confidence=" + a.Confidence + " | " + a.Qualification
 		if a.InstallKey != "" {
 			qual += " | install_key=" + a.InstallKey
 		}
@@ -152,7 +152,11 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 			b.WriteString(`<p><strong>Assessment:</strong> ` + h(g.StatusLabel) + ` &nbsp;·&nbsp; <strong>Priority:</strong> ` + h(g.Priority) + `</p>`)
 			b.WriteString(`<table><thead><tr><th>Component</th><th>Type</th><th>Version</th><th>Action / limitations</th></tr></thead><tbody>`)
 			for _, a := range g.Assessments {
-				b.WriteString(`<tr><td>` + h(a.Component) + `</td><td>` + h(a.EvidenceType) + `</td><td>` + h(a.ObservedVersion) + `</td><td>` + h(a.RequiredAction) + `<br><small>` + h(a.Qualification) + `</small></td></tr>`)
+				conf := a.Confidence
+				if conf != "" {
+					conf = "confidence=" + conf + "; "
+				}
+				b.WriteString(`<tr><td>` + h(a.Component) + `</td><td>` + h(a.EvidenceType) + `</td><td>` + h(a.ObservedVersion) + `</td><td>` + h(a.RequiredAction) + `<br><small>` + h(conf+a.Qualification) + `</small></td></tr>`)
 			}
 			b.WriteString(`</tbody></table>`)
 			if len(g.RelatedEvidence) > 0 {
@@ -179,7 +183,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		count := 0
 		b.WriteString(`<table><thead><tr><th>Name</th><th>Location</th><th>Meaning</th></tr></thead><tbody>`)
 		for _, e := range r.Evidence {
-			if e.Type != "running_process" && e.Type != "iis_php_handler_config" && e.Type != "binary_static_version" && e.Type != "binary_path" && e.Type != "operator_reported_web_runtime" {
+			if e.Type != "running_process" && e.Type != "iis_php_handler_config" && e.Type != "binary_static_version" && e.Type != "binary_path_inferred_version" && e.Type != "binary_path" && e.Type != "operator_reported_web_runtime" {
 				continue
 			}
 			count++
@@ -213,7 +217,11 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 			b.WriteString(`<tr><td colspan="5">No patch assessments.</td></tr>`)
 		}
 		for _, a := range r.PatchAssessments {
-			b.WriteString(`<tr><td>` + h(a.Component) + `<br><small>` + h(a.EvidenceType) + `</small></td><td>` + h(a.ObservedVersion) + `</td><td>` + h(humanPatchStatus(a.Status)) + `</td><td>` + h(a.MinimumFixed) + `</td><td>` + h(a.RequiredAction) + `</td></tr>`)
+			conf := a.Confidence
+			if conf == "" {
+				conf = "n/a"
+			}
+			b.WriteString(`<tr><td>` + h(a.Component) + `<br><small>` + h(a.EvidenceType) + `</small></td><td>` + h(a.ObservedVersion) + `<br><small>confidence=` + h(conf) + `</small></td><td>` + h(humanPatchStatus(a.Status)) + `</td><td>` + h(a.MinimumFixed) + `</td><td>` + h(a.RequiredAction) + `<br><small>` + h(a.Qualification) + `</small></td></tr>`)
 		}
 		b.WriteString(`</tbody></table>`)
 		if len(r.RecommendedActions) > 0 {

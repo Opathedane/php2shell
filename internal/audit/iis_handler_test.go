@@ -88,9 +88,9 @@ func TestResolveHandlerExecutablePathEnv(t *testing.T) {
 	if filepath.Clean(resolved) != filepath.Clean(fake) {
 		t.Fatalf("resolved %q want %q (GOOS=%s)", resolved, fake, runtime.GOOS)
 	}
-	ver, _, cov, err := VersionFromBinary(resolved)
-	if err != nil || ver != "8.4.27" {
-		t.Fatalf("version %q cov=%+v err=%v", ver, cov, err)
+	res := VersionFromBinary(resolved)
+	if res.Err != nil || res.Version != "8.4.27" {
+		t.Fatalf("version %+v", res)
 	}
 }
 
