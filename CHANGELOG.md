@@ -1,7 +1,10 @@
 ## Unreleased
 
-- Fix Windows AppData PHP installs that were discovered but reported "no version marker found": directed PE `.rsrc` reads, labelled path-based version inference (e.g. `Programs\PHP\8.4.24\...`), distinguish inferred vs verified metadata, corroborate `current` aliases without assuming identity, and emit patch assessments with confidence in HTML and CSV. Regression covers the TestVM v2.3.0 report scenario (8.4.24 below 8.4.27). Does not execute PHP or attest CLI as the web runtime.
-- Post-release documentation audit for v2.3.0 (issue templates, governance). v2.3.0 release assets remain unchanged.
+## v2.3.1 — 2026-10-21
+
+- Fix Windows AppData PHP installs that were discovered but reported "no version marker found": directed PE `.rsrc` reads, labelled path-based version inference (e.g. `Programs\PHP\8.4.24\...`), distinguish inferred vs verified metadata, corroborate `current` aliases without assuming identity, and emit patch assessments with confidence in HTML and CSV.
+- Regression covers the TestVM v2.3.0 report scenario (8.4.24 below 8.4.27). Does not execute PHP or attest CLI as the web runtime.
+- Post-2.3.0 documentation/governance updates shipped earlier on `main` remain available; v2.3.0 release assets are unchanged.
 
 ## v2.3.0 — 2026-10-21
 
