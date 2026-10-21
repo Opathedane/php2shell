@@ -47,6 +47,8 @@ Usage:
 
 Scan options:
   --webroot DIR          authorized website document root (file names only)
+  --php-ini PATH         inspect an explicit php.ini (or .ini) path (repeatable; limit 32)
+  --config-root DIR      bounded PHP binary + php.ini/conf.d inspection under DIR (repeatable; limit 8; no drive walk)
   --repo DIR             authorized local repo (repeatable)
   --access-log FILE      local HTTP access log (repeatable; limit 32MiB)
   --docker               local privileged Docker API metadata (opt-in)
@@ -140,14 +142,16 @@ func runScan(args []string) int {
 	updateRules := fs.Bool("update-rules", false, "opt-in download signed indicator rules; requires --rules-url and previously trusted key")
 	rulesURL := fs.String("rules-url", "", "trusted signed rule bundle HTTPS URL")
 	signedRules := fs.String("rules", "", "local Ed25519-signed bundle; requires previously trusted key")
-	var repos, logs paths
+	var repos, logs, phpInis, configRoots paths
 	fs.Var(&repos, "repo", "authorized local repo; repeatable")
 	fs.Var(&logs, "access-log", "local HTTP access log; repeatable; limit 32MiB")
+	fs.Var(&phpInis, "php-ini", "inspect an explicit php.ini path; repeatable; limit 32; not version/runtime authority")
+	fs.Var(&configRoots, "config-root", "bounded PHP binary + php.ini/conf.d under DIR; repeatable; limit 8; no drive walk")
 	if err := fs.Parse(args); err != nil {
 		return audit.ExitFatal
 	}
 	if fs.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "ERROR: unexpected arguments; use --repo PATH or --access-log PATH")
+		fmt.Fprintln(os.Stderr, "ERROR: unexpected arguments; use --repo PATH, --access-log PATH, --php-ini PATH, or --config-root DIR")
 		return audit.ExitFatal
 	}
 	if (*runtimeVersion != "" || *runtimeSAPI != "" || *runtimeSource != "") && (*runtimeVersion == "" || *runtimeSAPI == "" || *runtimeSource == "") {
@@ -160,6 +164,14 @@ func runScan(args []string) int {
 	}
 	if len(repos) > 20 || len(logs) > 20 {
 		fmt.Fprintln(os.Stderr, "ERROR: limit is 20 repositories and 20 log files per scan")
+		return audit.ExitFatal
+	}
+	if len(phpInis) > 32 {
+		fmt.Fprintln(os.Stderr, "ERROR: limit is 32 --php-ini paths per scan")
+		return audit.ExitFatal
+	}
+	if len(configRoots) > 8 {
+		fmt.Fprintln(os.Stderr, "ERROR: limit is 8 --config-root directories per scan")
 		return audit.ExitFatal
 	}
 	var timeout time.Duration
@@ -255,7 +267,12 @@ func runScan(args []string) int {
 
 	if !checkTimeout() {
 		con.Phase("Host and PHP inventory")
-		audit.ScanHost(r, *webroot, *docker)
+		audit.ScanHost(r, audit.HostScanOptions{
+			Webroot:     *webroot,
+			Docker:      *docker,
+			PHPIniPaths: phpInis,
+			ConfigRoots: configRoots,
+		})
 		if *runtimeVersion != "" {
 			r.AddEvidence(audit.Evidence{Type: "operator_reported_web_runtime", Name: *runtimeSAPI, Version: *runtimeVersion, Source: "operator-supplied serving runtime statement: " + *runtimeSource, Interpretation: "UNVERIFIED_OPERATOR_ASSERTION_NO_ACTIVE_RUNTIME_ATTESTATION"})
 			r.EffectiveWebRuntime = "OPERATOR_REPORTED_NOT_ATTESTED"

@@ -6,7 +6,7 @@ import (
 )
 
 const Schema = "php2shell-assessment/v1"
-const Version = "2.5.0"
+const Version = "2.5.1"
 
 type Evidence struct {
 	Type           string `json:"type"`
