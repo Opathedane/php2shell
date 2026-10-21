@@ -1,6 +1,6 @@
 # Historical: PHP2Shell v2.2.0-alpha.2 release notes
 
-> **Status:** Historical prerelease notes only. The current public release is **v2.5.1**. Do not treat this file as current product documentation. Official notes: [RELEASE-NOTES.md](RELEASE-NOTES.md).
+> **Status:** Historical prerelease notes only. The current prepared release is **v2.6.0**. Do not treat this file as current product documentation. Official notes: [RELEASE-NOTES.md](RELEASE-NOTES.md).
 
 ## Original alpha summary (unchanged for history)
 

@@ -4,7 +4,7 @@ Standalone Windows and Linux scanner for **PHP discovery, upstream patch review,
 
 PHP2Shell writes a matching **HTML + CSV** report pair from one read-only scan. It does **not** prove that a host is fully patched or uncompromised.
 
-**Version in this tree:** 2.6.0 (unreleased). Latest public release: [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1). Prior: [v2.5.0](https://github.com/Opathedane/php2shell/releases/tag/v2.5.0), [v2.4.0](https://github.com/Opathedane/php2shell/releases/tag/v2.4.0).
+**Version in this tree:** 2.6.0. Latest public release: [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0). Prior: [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1), [v2.5.0](https://github.com/Opathedane/php2shell/releases/tag/v2.5.0), [v2.4.0](https://github.com/Opathedane/php2shell/releases/tag/v2.4.0).
 
 ## 1. What PHP2Shell does
 
@@ -38,7 +38,7 @@ chmod +x php2shell-linux-amd64
 ./php2shell-linux-amd64 scan --quiet --output-dir "$HOME/.php2shell/reports"
 ```
 
-**Optional Deep Discovery** (custom trees only; never drive-wide; unreleased 2.6.0):
+**Optional Deep Discovery** (custom trees only; never drive-wide):
 
 ```powershell
 .\php2shell-windows-amd64.exe scan --deep-root 'C:\Temp\PHP' --deep-root 'E:\websites'

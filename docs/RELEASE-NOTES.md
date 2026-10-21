@@ -1,12 +1,12 @@
 # PHP2Shell release notes
 
-**Latest public release: [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1)** (21 October 2026).
+**Latest public release: [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0)** (21 October 2026).
 
 Version-specific GitHub Release bodies live under [`docs/releases/`](releases/). The publish workflow uses **only** the matching `docs/releases/vX.Y.Z.md` file — never this index and never draft/unreleased text.
 
 | Version | Notes |
 | --- | --- |
-| [v2.6.0](releases/v2.6.0.md) | **Draft / unreleased** — optional `--deep-root` Deep Discovery |
+| [v2.6.0](releases/v2.6.0.md) | Optional `--deep-root` Deep Discovery; expanded well-known install paths |
 | [v2.5.1](releases/v2.5.1.md) | PATH/junction discovery; multi-install; `--php-ini` / `--config-root` |
 | [v2.5.0](releases/v2.5.0.md) | php.ini discovery; fleet CSV v2 |
 | [v2.4.0](releases/v2.4.0.md) | HTML+CSV pairs; IIS/Apache inventory; fleet rollup |
