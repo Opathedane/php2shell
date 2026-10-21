@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="PHP_84_FastCGI" path="*.php" verb="*" modules="FastCgiModule" scriptProcessor="C:\PHP\8.4\php-cgi.exe|-d cgi.force_redirect=0" />
+    </handlers>
+  </system.webServer>
+</configuration>

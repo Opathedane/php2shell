@@ -23,6 +23,8 @@ type PatchAssessment struct {
 	EvidenceType    string `json:"evidence_type"`
 	Source          string `json:"source"`
 	Location        string `json:"location,omitempty"`
+	RuntimeKey      string `json:"runtime_key,omitempty"`
+	InstallKey      string `json:"install_key,omitempty"`
 	Status          string `json:"status"`
 	MinimumFixed    string `json:"minimum_fixed,omitempty"`
 	Priority        string `json:"priority"`
@@ -72,11 +74,11 @@ func EvaluatePatchPosture(r *Report) {
 	r.PatchAssessments = []PatchAssessment{}
 	// Official patch actions take precedence over generic preview guidance.
 	r.RecommendedActions = []string{}
-	belowPackage, belowRepo, legacy, unknown, observed, fixed := 0, 0, 0, 0, 0, 0
+	belowHost, belowRepo, legacy, observed := 0, 0, 0, 0
 	seen := map[string]bool{}
 	for _, e := range r.Evidence {
 		switch e.Type {
-		case "installed_package", "repository_declaration", "operator_reported_web_runtime":
+		case "installed_package", "repository_declaration", "operator_reported_web_runtime", "binary_static_version":
 		default:
 			continue
 		}
@@ -99,6 +101,9 @@ func EvaluatePatchPosture(r *Report) {
 		if e.Type == "installed_package" {
 			scope += " A vendor may have backported a fix without changing the upstream version string."
 		}
+		if e.Type == "binary_static_version" {
+			scope = "Static binary inspection (embedded string and/or PE metadata); not proof the binary serves HTTP or is the active runtime."
+		}
 		r.PatchAssessments = append(r.PatchAssessments, PatchAssessment{
 			Component: e.Name, ObservedVersion: e.Version, EvidenceType: e.Type, Source: e.Source, Location: e.Location,
 			Status: d.Status, MinimumFixed: d.MinimumFixed, Priority: d.Priority, RequiredAction: d.Action, Qualification: scope + " " + d.Qualification,
@@ -109,33 +114,17 @@ func EvaluatePatchPosture(r *Report) {
 			if e.Type == "repository_declaration" {
 				belowRepo++
 			} else {
-				belowPackage++
+				belowHost++
 			}
 		case "LEGACY_VENDOR_VERIFICATION_REQUIRED":
 			if e.Type != "repository_declaration" {
 				legacy++
 			}
-		case "AT_OR_ABOVE_UPSTREAM_FIX":
-			fixed++
-		default:
-			unknown++
 		}
 	}
-	switch {
-	case belowPackage > 0:
-		r.VulnerabilityStatus = "BELOW_UPSTREAM_FIX_OBSERVED_PATCH_REVIEW_REQUIRED"
-	case legacy > 0:
-		r.VulnerabilityStatus = "LEGACY_PHP_VENDOR_PATCH_VERIFICATION_REQUIRED"
-	case belowRepo > 0:
-		r.VulnerabilityStatus = "REPOSITORY_DECLARATION_BELOW_FIX_DEPLOYMENT_UNKNOWN"
-	case observed == 0:
-		r.VulnerabilityStatus = "NO_COMPARABLE_PHP_VERSION_FOUND_INVENTORY_INCOMPLETE"
-	case fixed > 0 && unknown == 0:
-		r.VulnerabilityStatus = "UPSTREAM_FIX_LEVEL_OBSERVED_ACTIVE_RUNTIME_UNVERIFIED"
-	default:
-		r.VulnerabilityStatus = "INDETERMINATE_REVIEW_REQUIRED"
-	}
-	if belowPackage > 0 {
+	r.PatchAssessments = assignInstallKeys(r.PatchAssessments)
+	r.VulnerabilityStatus = aggregateHostVulnerability(r.PatchAssessments, belowRepo, observed)
+	if belowHost > 0 {
 		r.AddAction("URGENT: Observed installed or operator-reported PHP version below the upstream fixes. Patch all relevant running web SAPIs, not only the CLI binary. Confirm vendor backports where applicable.")
 	}
 	if belowRepo > 0 {
@@ -144,7 +133,7 @@ func EvaluatePatchPosture(r *Report) {
 	if legacy > 0 {
 		r.AddAction("Escalate PHP 8.1 and older for supported-branch upgrade or obtain explicit vendor/LTS patch evidence for both CVEs.")
 	}
-	if observed == 0 || unknown > 0 {
+	if observed == 0 || r.VulnerabilityStatus == "INDETERMINATE_REVIEW_REQUIRED" {
 		r.AddAction("Inventory the exact active PHP patch versions for all production web handlers; static package, binary-name and repository observations may miss deployments.")
 	}
 	r.AddAction("Immediately prioritize internet-reachable mod_php and other web-facing PHP (FPM, CGI, FrankenPHP, LiteSpeed). Determine network reachability separately; this is NOT an external exposure scan.")
@@ -154,5 +143,17 @@ func EvaluatePatchPosture(r *Report) {
 	r.AddAction("Confirm WAF/origin access cannot be bypassed and document time-bounded restrictions if a patch cannot be deployed immediately.")
 	r.AddAction("Preserve and review access/error logs and EDR telemetry from before patching; patched servers may already have been compromised. A clean IOC result does not rule out compromise.")
 	r.AddAction("See official advisories: https://www.php.net/ and https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w and https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp")
-	r.AddCheck("official_php2shell_version_rules", "APPLIED", fmt.Sprintf("Upstream fixes: 8.2.35, 8.3.36, 8.4.27, 8.5.12. Compared %d observations; NOT a vendor backport or active HTTP runtime verification", observed))
+	installs := map[string]struct{}{}
+	for _, a := range r.PatchAssessments {
+		if a.InstallKey != "" && isHostRuntimeEvidence(a.EvidenceType) {
+			installs[a.InstallKey] = struct{}{}
+		}
+	}
+	r.AddCheck("official_php2shell_version_rules", "APPLIED", fmt.Sprintf("Upstream fixes: 8.2.35, 8.3.36, 8.4.27, 8.5.12. Compared %d evidence records across %d correlated install groups; NOT vendor backport or active HTTP runtime verification", observed, len(installs)))
+	if r.VulnerabilityStatus == "INSTALL_EVIDENCE_VERSION_CONFLICT_REVIEW_REQUIRED" {
+		r.AddAction("Conflicting PHP version evidence was observed for the same correlated installation. Reconcile package metadata, binary paths, and deployment records before assigning patch status.")
+	}
+	if r.VulnerabilityStatus == "MULTIPLE_RUNTIMES_MIXED_PATCH_LEVELS_REVIEW_REQUIRED" {
+		r.AddAction("Multiple distinct PHP installations show different patch levels. Patch every web-serving runtime; one at-threshold install does not protect other handlers.")
+	}
 }

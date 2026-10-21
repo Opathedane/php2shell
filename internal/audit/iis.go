@@ -3,7 +3,6 @@ package audit
 import (
 	"bytes"
 	"encoding/xml"
-	"fmt"
 	"io"
 	"strings"
 )
@@ -39,7 +38,7 @@ func parseIISHandlers(path string, data []byte) ([]Evidence, error) {
 			exec = attrs["fullpath"]
 		}
 		if (strings.Contains(module, "fastcgi") && strings.Contains(strings.ToLower(attrs["path"]), "php")) || strings.Contains(strings.ToLower(exec), "php") || strings.Contains(strings.ToLower(attrs["path"]), "*.php") {
-			result = append(result, Evidence{Type: "iis_php_handler_config", Name: attrs["name"], Source: "IIS applicationHost.config (static XML)", Location: path, Detail: fmt.Sprintf("path=%s; modules=%s; handler=%s", attrs["path"], attrs["modules"], exec), Interpretation: "CONFIGURED_HANDLER_NOT_VERIFIED_SERVING_RUNTIME"})
+			result = append(result, Evidence{Type: "iis_php_handler_config", Name: attrs["name"], Source: "IIS applicationHost.config (static XML)", Location: path, Detail: FormatIISHandlerDetail(attrs["path"], attrs["modules"], exec), Interpretation: "CONFIGURED_HANDLER_NOT_VERIFIED_SERVING_RUNTIME"})
 			if len(result) >= 128 {
 				break
 			}
