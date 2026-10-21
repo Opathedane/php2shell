@@ -1,4 +1,5 @@
 name: Build standalone preview (manual, no release)
+# Maintainer convenience artifacts only — not a GitHub Release and not production-approved.
 on:
   workflow_dispatch:
 permissions:

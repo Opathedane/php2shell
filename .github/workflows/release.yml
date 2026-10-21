@@ -1,6 +1,8 @@
 name: Publish standalone release
 # Tagging vX.Y.Z (without -alpha) publishes the official unsigned release assets.
 # Never tag an unreviewed commit. Binaries are not code-signed.
+# Never overwrite an existing release (including v2.3.0). Ship fixes under a new tag.
+# See docs/RELEASE-CHECKLIST.md and docs/GOVERNANCE.md.
 on:
   push:
     tags:

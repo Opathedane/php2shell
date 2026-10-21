@@ -8,7 +8,7 @@ One standalone executable for Windows and Linux: no Python, Go compiler or PHP i
 
 ## Download compiled builds from GitHub Releases
 
-Open [Releases](https://github.com/Opathedane/php2shell/releases), choose the latest **official release**, and download the archive for the destination OS and CPU. See [consultant quick start](INSTALL-FOR-CONSULTANTS.md). Binaries are **not code-signed**; comply with organizational approval. Maintainers publish via **GitHub Actions → Publish standalone release** (`.github/workflows/release.yml`) after tagging `vX.Y.Z`. Historical alpha tags remain available via `release-alpha.yml`.
+Open [Releases](https://github.com/Opathedane/php2shell/releases), choose the latest **official release** (v2.3.0 or newer), and download the archive for the destination OS and CPU. See [consultant quick start](INSTALL-FOR-CONSULTANTS.md). Binaries are **not code-signed**; comply with organizational approval. Maintainers publish via **GitHub Actions → Publish standalone release** (`.github/workflows/release.yml`) after tagging `vX.Y.Z`. Historical alpha tags remain available via `release-alpha.yml` and must stay marked as prereleases.
 
 ## Customer: two commands
 
@@ -73,14 +73,14 @@ For maintainer key generation and signing, see [rules/README.md](../rules/README
 
 ## Results explained
 
-- `Vulnerability` now reports an **evidence-qualified upstream patch comparison**. `BELOW_UPSTREAM_FIX_OBSERVED_PATCH_REVIEW_REQUIRED` does not override a verified vendor backport. `UPSTREAM_FIX_LEVEL_OBSERVED_ACTIVE_RUNTIME_UNVERIFIED` does not certify the web server as patched. See [official patch guidance](OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md).
+- `Vulnerability` reports an **evidence-qualified upstream patch comparison**. `BELOW_UPSTREAM_FIX_OBSERVED_PATCH_REVIEW_REQUIRED` does not override a verified vendor backport. `UPSTREAM_FIX_LEVEL_OBSERVED_ACTIVE_RUNTIME_UNVERIFIED` does not certify the web server as patched. See [official patch guidance](OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md).
 - `Compromise: NOT_ASSESSED`: no usable IOC analysis was possible. `INDICATORS_MATCHED_REVIEW_REQUIRED`: one or more signed rule matches need investigation. `NO_MATCHES_SCOPE_LIMITED`: only a limited scan was conducted; **not a clean verdict**.
 - `Signed rules: VERIFIED`: integrity and publisher-key authentication of the downloaded data passed, **not** proof each detector is accurate or specific to PHP2Shell.
 - Reports preserve file names and server metadata and require confidential handling. Raw HTTP request target and client IP are not written to reports.
 
 ## MSSP report aggregation
 
-`php2shell scan` writes HTML only. The legacy `rollup` command still expects operator-supplied JSON report files (for example from an older scan or an external export):
+`php2shell scan` writes **HTML only**. The legacy `rollup` command expects operator-supplied **JSON** report files (for example from an older alpha scan or an external export). It is not part of the default consultant workflow:
 
 ```bash
 php2shell rollup --tenant-map /secure/trusted-map.json --out reports/fleet.csv reports/*.json
@@ -88,14 +88,13 @@ php2shell rollup --tenant-map /secure/trusted-map.json --out reports/fleet.csv r
 
 Tenant identities require an analyst-maintained exact SHA-256 report hash mapping. Input customer labels are never trusted for tenancy. An unsigned report can be forged and is not an attested chain of custody. Prefer collecting HTML reports via a pre-configured `--output-dir` (local or UNC) rather than automatic upload.
 
-## What is not finished
+## Known product gaps (not fixed by documentation)
 
-- Official minimum patch levels from the PHP **21 October 2026** release are integrated into the scanner. Unverified PoCs and guessed IOC signatures are deliberately **not** imported. Compare `Patch assessments` and `Recommended follow-up` in the HTML report with the official advisories. Static observations still cannot certify the live web handler or vendor security backports.
-- Windows Server/IIS real-world validation, PHP-FPM/Apache/LSAPI integration, RPM/Windows package inventory, code signing, validated incident indicators, and active-runtime/vendor-backport verification are release gates, not completed capabilities.
-- Windows/IIS static parsing and W3C log fixtures, signature and rollback checks have unit tests. Cross-compilation is not a substitute for Windows Server or enterprise production validation.
+- Official minimum patch levels from the PHP **21 October 2026** release are integrated. Unverified PoCs and guessed IOC signatures are deliberately **not** imported. Static observations still cannot certify the live web handler or vendor security backports.
+- Broader Windows Server/IIS field validation, PHP-FPM/Apache/LSAPI integration depth, RPM inventory completeness, code signing, and validated incident indicators remain open gates for future releases (see [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md)).
 - Filesystem reads may have TOCTOU race limits. Very large or rotated logs, nested symlinks and cloud hosting are not comprehensively checked.
 
-Read [security policy](../SECURITY.md), [review](SECURITY-REVIEW-2026-10-21.md), [release checklist](RELEASE-CHECKLIST.md), and [IOC limitations](IOC-RULE-LIMITATIONS.md). **Do not use PHP2Shell alone to certify systems as patched or uncompromised.**
+Read [security policy](../SECURITY.md), [governance](GOVERNANCE.md), [release checklist](RELEASE-CHECKLIST.md), and [IOC limitations](IOC-RULE-LIMITATIONS.md). **Do not use PHP2Shell alone to certify systems as patched or uncompromised.**
 
 No outbound customer data transfer is implemented. `--docker` accesses a privileged local Docker socket when requested; never grant Docker daemon permissions just for scanning.
 
@@ -111,7 +110,7 @@ CI runs on GitHub-hosted Linux, Windows and macOS Intel runners for pull request
 
 ## Ownership and licensing
 
-`LICENSE.proposed` is a draft only. Open-source licensing and third-party branding must be authorized before making the repo public. Go module: `github.com/Opathedane/php2shell`.
+`LICENSE.proposed` is a draft only. Do not add or assert an open-source license without explicit owner approval. Go module: `github.com/Opathedane/php2shell`.
 
 ## Additional official-patch assessment option (operator-reported runtime)
 

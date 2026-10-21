@@ -1,8 +1,10 @@
 # PHP2Shell – consultant quick start
 
-**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory and evidence-qualified patch review.
+**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory and evidence-qualified patch review. Current public release: **v2.3.0** (HTML reports only).
 
 Download the build matching the destination server from GitHub **Releases**. No Python, Go, PHP, installer, or network access is required for the basic local inventory. The optional IOC update requires an independently authenticated rule signing key and a reviewed signed ruleset; the repository does **not** include a validated PHP2Shell-specific rulepack yet.
+
+**Privacy:** keep HTML reports inside the engagement boundary. Do not attach customer reports, credentials, or raw logs to public GitHub issues — use the issue templates and redact paths/hostnames.
 
 ## Windows Server x64 (PowerShell)
 

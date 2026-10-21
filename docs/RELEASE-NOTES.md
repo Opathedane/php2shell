@@ -13,6 +13,19 @@ Standalone binaries (no Python, PHP, or Go required on the target host):
 
 Verify checksums in `SHA256SUMS`. Release binaries are **not code-signed**.
 
+### Verify download integrity
+
+```bash
+# Linux / macOS — from the directory containing the binary and SHA256SUMS
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+```powershell
+Get-FileHash .\php2shell-windows-amd64.exe -Algorithm SHA256
+```
+
+Confirm the release is published by the `Opathedane/php2shell` repository and that the tag matches the embedded `php2shell version` string.
+
 ## What this release does
 
 - Discovers PHP-related packages, binaries, processes, and configuration on authorized hosts (read-only).

@@ -1,0 +1,94 @@
+name: PHP installation not detected
+description: PHP is present on the host but PHP2Shell did not report it (or coverage is incomplete).
+title: "[detection] PHP not detected — "
+labels: ["detection", "false-negative"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when PHP exists on the host but the scanner missed it, or discovery coverage was incomplete.
+
+        **Privacy — do not upload:**
+        - Full customer reports or screenshots that show client names
+        - Credentials, private keys, or signing material
+        - Access logs or production request data
+        - Internal hostnames if they identify a customer (use placeholders)
+
+        You may share: OS family, PHP branch/version, install method, generic path patterns (e.g. `%LOCALAPPDATA%\Programs\PHP\...`), and redacted coverage/error text.
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and version
+      placeholder: Windows 11 24H2 / Windows Server 2022 / Ubuntu 22.04
+    validations:
+      required: true
+  - type: input
+    id: scanner_version
+    attributes:
+      label: Scanner version
+      description: Exact `php2shell version` output or release tag.
+      placeholder: 2.3.0
+    validations:
+      required: true
+  - type: input
+    id: php_version
+    attributes:
+      label: PHP version (as installed)
+      placeholder: 8.4.24
+    validations:
+      required: true
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Installation method
+      options:
+        - Official windows.php.net / PHP for Windows zip
+        - Windows AppData / user Programs\PHP layout
+        - IIS FastCGI / PHP Manager
+        - OS package manager (apt/yum/dnf/apk)
+        - Remi / vendor / LTS backport package
+        - phpbrew / phpenv / asdf / custom build
+        - Container image only
+        - Other (describe below)
+    validations:
+      required: true
+  - type: input
+    id: install_path
+    attributes:
+      label: Installation path (redacted if needed)
+      description: Directory containing `php` / `php.exe`, or package name. Use placeholders for customer-specific segments.
+      placeholder: C:\Users\<user>\AppData\Local\Programs\PHP\php-8.4.24
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: What should the HTML report have shown (e.g. version 8.4.24 under installations).
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: What the report showed instead (PHP not found, incomplete coverage, wrong path). Quote redacted coverage rows if useful.
+    validations:
+      required: true
+  - type: textarea
+    id: coverage
+    attributes:
+      label: Detection coverage and relevant errors
+      description: Redacted coverage table lines, warnings, and exit code. Do not paste the full report.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before filing
+      options:
+        - label: I verified SHA256SUMS for the binary I ran (or built from a known commit).
+          required: false
+        - label: I ran `php2shell doctor` and (optionally) a default `scan` without attaching the report.
+          required: false
+        - label: I have redacted customer-identifying information from this issue.
+          required: true

@@ -1,0 +1,79 @@
+name: Incorrect vulnerability assessment
+description: Observed PHP version or patch status appears wrong relative to upstream thresholds or vendor reality.
+title: "[assessment] "
+labels: ["assessment", "accuracy"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use when the HTML report's patch comparison, priority, or qualification looks wrong.
+
+        Remember: PHP2Shell compares against **official upstream** fix versions. Vendor/LTS security backports may fix CVEs without matching upstream version numbers — that is often expected, not a scanner bug. Say so if that applies.
+
+        **Privacy — do not upload** customer reports, credentials, logs, or production endpoints. Redact hostnames and paths.
+  - type: input
+    id: scanner_version
+    attributes:
+      label: Scanner version
+      placeholder: 2.3.0
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and version
+    validations:
+      required: true
+  - type: input
+    id: observed_version
+    attributes:
+      label: Observed PHP version (as reported by the scanner or package)
+      placeholder: 8.3.27 / 8.3.27-1ubuntu0.24.04.1
+    validations:
+      required: true
+  - type: dropdown
+    id: packaging
+    attributes:
+      label: Packaging / provenance
+      options:
+        - Upstream / php.net binary
+        - Distro package (apt/yum/dnf/apk) without known backport
+        - Vendor or LTS security backport (documented advisory)
+        - Windows IIS / custom build
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: report_status
+    attributes:
+      label: Status / priority shown in the report
+      description: e.g. BELOW_UPSTREAM_FIX_OBSERVED_PATCH_REVIEW_REQUIRED, priority HIGH. Do not paste full report HTML.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected assessment
+      description: What you believe is correct and why (link public advisories if relevant).
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual assessment
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Supporting evidence (redacted)
+      description: Package name/version string, vendor advisory URL, or operator-reported runtime flags used. No secrets.
+  - type: checkboxes
+    id: acknowledgements
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: I understand upstream version comparison does not attest the live HTTP SAPI or vendor backports.
+          required: true
+        - label: I have not attached customer reports, credentials, or raw logs.
+          required: true

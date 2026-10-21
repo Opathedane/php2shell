@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security / responsible disclosure
+    url: https://github.com/Opathedane/php2shell/blob/main/SECURITY.md
+    about: Do not file public issues for security vulnerabilities. Follow SECURITY.md and contact the maintainer privately.
+  - name: Release notes and downloads
+    url: https://github.com/Opathedane/php2shell/releases
+    about: Official builds, SHA256SUMS, and version history.

@@ -1,6 +1,7 @@
 name: Publish standalone ALPHA downloads
-# Explicitly tagging an alpha is the approval to make the unsigned preview public.
-# Never tag an unreviewed commit. All release assets are for testing only.
+# Historical / optional prerelease path for v*-alpha.* tags only.
+# Prefer docs/RELEASE-NOTES.md and the official release.yml for customer-facing builds.
+# Never tag an unreviewed commit. All alpha assets are for testing only; keep --prerelease.
 on:
   push:
     tags:

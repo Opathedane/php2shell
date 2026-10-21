@@ -1,0 +1,52 @@
+name: Feature request
+description: Suggest a capability that does not change existing v2.3.0 release assets.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem first, then a proposed solution. Detection and assessment changes are reviewed carefully against false-assurance risk.
+
+        Do not attach customer data. Security-sensitive ideas that could enable abuse should go through private maintainer contact instead.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: Who needs this (consultant, MSSP, enterprise admin) and what is hard today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: High-level behavior only. No exploit techniques or offensive payloads.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Discovery / platform coverage
+        - Reporting / UX
+        - CLI / automation
+        - Signed IOC / rules workflow
+        - Documentation
+        - Supply chain / signing
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope awareness
+      options:
+        - label: I am not requesting changes to already-published v2.3.0 release binaries.
+          required: true
+        - label: I understand PHP2Shell must not claim patch or compromise clearance without evidence.
+          required: true
