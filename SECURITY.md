@@ -18,9 +18,10 @@ Do not attach customer HTML reports, access logs, network architecture, credenti
 - It does not prevent tampering with logs or package databases on a compromised host.
 - The local Docker socket is inherently privileged even for read-only requests; `--docker` is strictly opt-in.
 - There is no Authenticode signature, notarization, or remotely attested chain of custody for binaries or reports. Verify `SHA256SUMS` from a trusted release page.
-- HTML reports escape dynamic content and use a restrictive local CSP. Legacy CSV helpers (tests / optional `rollup` inputs) apply formula sanitization; treat all exported files as untrusted inputs.
+- HTML reports escape dynamic content and use a restrictive local CSP. Fleet and legacy CSV outputs apply spreadsheet formula sanitization; treat all exported files as untrusted inputs.
 - Report files are mode `0600` on systems honoring POSIX permissions; Windows output privacy depends on the parent directory ACL.
+- HTML and CSV from one scan may contain hostnames, paths, and package metadata — keep them inside the engagement boundary.
 
 ## Supply chain
 
-Release publication is gated by `.github/workflows/release.yml` (tag must match embedded version; existing releases are not overwritten). See `docs/GOVERNANCE.md` and `docs/RELEASE-CHECKLIST.md` before publishing a new version. Never overwrite published release assets for an existing tag such as `v2.3.0`.
+Release publication is gated by `.github/workflows/release.yml` (tag must match embedded version; existing releases are not overwritten). See `docs/GOVERNANCE.md` and `docs/RELEASE-CHECKLIST.md` before publishing a new version. Never overwrite published release assets for existing tags such as `v2.3.0`, `v2.3.1`, or a prior `v2.4.0`.

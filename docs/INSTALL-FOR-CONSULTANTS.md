@@ -1,79 +1,91 @@
 # PHP2Shell – consultant quick start
 
-**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory and evidence-qualified patch review. Current public release: **v2.3.0** (HTML reports only).
+**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory and evidence-qualified patch review. Target release: **v2.4.0** (HTML + CSV pair).
 
 Download the build matching the destination server from GitHub **Releases**. No Python, Go, PHP, installer, or network access is required for the basic local inventory. The optional IOC update requires an independently authenticated rule signing key and a reviewed signed ruleset; the repository does **not** include a validated PHP2Shell-specific rulepack yet.
 
-**Privacy:** keep HTML reports inside the engagement boundary. Do not attach customer reports, credentials, or raw logs to public GitHub issues — use the issue templates and redact paths/hostnames.
+**Privacy:** keep HTML/CSV reports inside the engagement boundary. Do not attach customer reports, credentials, or raw logs to public GitHub issues — use the issue templates and redact paths/hostnames.
 
 ## Windows Server x64 (PowerShell)
 
-Download `php2shell-windows-amd64.zip`, extract, and run in PowerShell:
-
 ```powershell
 .\php2shell-windows-amd64.exe doctor
-.\php2shell-windows-amd64.exe scan
+.\php2shell-windows-amd64.exe scan --quiet --output-dir C:\ProgramData\PHP2Shell\Reports
 ```
 
-For an explicitly authorized IIS assessment (adjust paths):
+### Windows / IIS — what is automatic vs `--webroot`
+
+**Automatic (when `applicationHost.config` is readable; read-only, bounded):**
+
+- IIS site, nested application, and virtualDirectory `physicalPath` values (any drive, e.g. `E:\websites\prod\somewebsite`)
+- Global and `<location>` PHP FastCGI/handler executables (including installs on `D:` / `E:`); `scriptProcessor` arguments are redacted
+- Per-mapping `web.config` PHP handlers when that physical path is accessible (top-level file only; no deep tree walk)
+- Static version inspection of those handler binaries when readable (never executed)
+- Site↔handler↔version↔patch correlation where handler site context and a readable binary allow it
+
+**Not automatic / not claimed:**
+
+- Full IIS inheritance merge (`lockItem` / clear / remove) — see [ADVANCED-USAGE.md](ADVANCED-USAGE.md)
+- Recursive `web.config` discovery under site trees beyond mapped physical roots
+- Active HTTP-serving PHP runtime attestation
+- A “safe/patched” conclusion when a handler is configured but its binary is inaccessible (coverage is **INCOMPLETE**)
+
+### Apache HTTP Server vs Tomcat
+
+**Apache HTTP Server** (when a well-known config directory is readable): VirtualHost document roots, mod_php modules, and PHP handler/proxy directives are inventoried passively. Local handler binaries may receive version inspection. Remote PHP-FPM targets are reported as configured remote backends (not local installs). Active serving runtime is still **not** attested from config.
+
+**Apache Tomcat** is a Java Servlet/JSP container. PHP2Shell does **not** scan Tomcat/Catalina and does **not** treat Tomcat as evidence of PHP. Do not expect Java CVE coverage from this tool.
+
+**Requires explicit `--webroot`:**
+
+- Listing `.php` filenames under a document root (including non-`C:` sites or Apache DocumentRoots)
+- Bounded file-hash IOC checks under that root
+
+Example for a site on `E:`:
 
 ```powershell
-.\php2shell-windows-amd64.exe scan --webroot 'C:\inetpub\wwwroot' --access-log 'C:\inetpub\logs\LogFiles\W3SVC1\u_ex261021.log'
+.\php2shell-windows-amd64.exe scan `
+  --webroot 'E:\websites\prod\somewebsite' `
+  --access-log 'C:\inetpub\logs\LogFiles\W3SVC1\u_ex261021.log' `
+  --output-dir C:\ProgramData\PHP2Shell\Reports
 ```
 
-Windows executables are **not Authenticode signed** and may generate SmartScreen warnings. Do not bypass endpoint protection or organizational application-control policy. Contact your security administrator for approval; do not run with admin privileges unless reading specific authorized artifacts requires them.
+A configured site path or `.php` files under it is **not** proof of an active patched PHP runtime. Handler config is labelled as configured-only.
+
+Windows executables are **not Authenticode signed** and may generate SmartScreen warnings. Do not bypass endpoint protection. Prefer least privilege.
 
 ## Linux x86-64
-
-Download `php2shell-linux-amd64.tar.gz`, extract, and run:
 
 ```bash
 tar xzf php2shell-linux-amd64.tar.gz
 chmod +x php2shell-linux-amd64
 ./php2shell-linux-amd64 doctor
-./php2shell-linux-amd64 scan
+./php2shell-linux-amd64 scan --quiet --output-dir "$HOME/.php2shell/reports"
 ```
 
-Optional authorized evidence (adjust paths):
+## Reports
+
+Each scan writes **two** files with the same basename:
+
+- HTML — human-readable single-server assessment
+- CSV — fleet schema for Excel / Power BI / rollup ([CSV-SCHEMA.md](CSV-SCHEMA.md))
+
+Defaults: `C:\ProgramData\PHP2Shell\Reports` or `$HOME/.php2shell/reports`. Use `--output-dir` or `--out path.html` (CSV → `path.csv`). Never overwrites existing files.
+
+**Customer-wide overview** (one customer’s servers only):
+
+```powershell
+php2shell rollup --input-dir C:\ProgramData\PHP2Shell\Reports --out C:\ProgramData\PHP2Shell\customer-summary.csv
+```
 
 ```bash
-./php2shell-linux-amd64 scan --webroot /var/www --access-log /var/log/nginx/access.log
+php2shell rollup --input-dir ./server-reports --out ./customer-summary.csv
 ```
 
-Linux ARM64 has `php2shell-linux-arm64.tar.gz`; macOS builds are included for consultant convenience.
+Exit codes: `0` pair written, `1` fatal, `2` pair written but incomplete.
 
-## Reports and integrity
-
-Each scan writes **one HTML report** only (unique hostname + UTC timestamp). Defaults:
-
-- Windows: `C:\ProgramData\PHP2Shell\Reports`
-- Linux/macOS: `$HOME/.php2shell/reports`
-
-Use `--output-dir` for a central share (including UNC when the account already has access) or `--out path.html` for an explicit name. Existing files are never overwritten. Keep reports private: they may contain server names and file paths.
-
-**Unattended / GPO / scheduled task:** prefer `scan --quiet --output-dir DIR`. No prompts, no browser, no elevation request. Exit codes: `0` report written, `1` fatal error, `2` report written but incomplete. When running as SYSTEM to a UNC path, grant the computer account (`DOMAIN\MACHINE$`) share and NTFS permissions; the scanner does not map drives or upload data.
-
-Verify download against `SHA256SUMS` **from a trusted GitHub release** (checksums do not replace binary signing):
-
-- Linux/macOS: `sha256sum php2shell-linux-amd64` and compare to the published checksum.
-- Windows: `Get-FileHash .\php2shell-windows-amd64.exe -Algorithm SHA256`.
-
-If no approved signed IOC pack is configured, the scanner performs inventory and coverage assessment **only**. Even with signed IOCs, no match does **not** prove there was no compromise. The actual runtime behind the web service and backported vendor fixes are not attested by this scanner.
+Verify downloads with `SHA256SUMS` from a trusted release. Checksums do not replace code signing.
 
 ## Official PHP2Shell patch assessment (21 October 2026)
 
-The HTML action report now compares observed PHP package and repository patch versions with the official upstream minima: **8.5.12 / 8.4.27 / 8.3.36 / 8.2.35**. It suggests the next steps for every comparable observation.
-
-When you have independently examined a web-serving PHP runtime (such as an approved IIS/FastCGI deployment inventory or FPM pool change record), record the *reported* version and evidence source:
-
-```powershell
-.\php2shell-windows-amd64.exe scan --runtime-version 8.4.26 --runtime-sapi iis-fastcgi --runtime-source "verified IIS FastCGI deployment record 2026-10-21"
-```
-
-```bash
-./php2shell-linux-amd64 scan --runtime-version 8.5.11 --runtime-sapi apache-mod_php --runtime-source "approved Apache module deployment record 2026-10-21"
-```
-
-This is **operator-supplied** information, not an automatic verification: confirm the running worker after the update. A Linux vendor security backport may fix both CVEs without matching the upstream version numbers. Record the exact package release and vendor advisory separately; do not classify it as unpatched on version comparison alone.
-
-See [official patch guidance](OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md) for interim mitigation limits and post-patch verification. No IOC match cannot rule out previous exploitation.
+Upstream minima: **8.5.12 / 8.4.27 / 8.3.36 / 8.2.35**. Vendor backports need separate verification. Operator-reported runtime flags are available; they are not automatic attestation. See [official patch guidance](OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md).

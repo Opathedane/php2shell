@@ -1,8 +1,17 @@
-# Release checklist — post v2.3.0
+# Release checklist — post v2.4.0 preparation
 
-v2.3.0 is the first official public (non-prerelease) release. This checklist covers **ongoing quality**, **field validation**, and gates for the **next** tagged release. Do not overwrite assets for an existing tag.
+Do not overwrite assets for an existing tag (`v2.3.0`, `v2.3.1`, …). Ship fixes under a new tag only.
 
-## Achieved in v2.3.0
+## Achieved in v2.4.0 (this tree; tag pending approval)
+
+- [x] Automatic HTML + CSV report pair from every `scan`
+- [x] Fleet CSV schema `php2shell-fleet-csv/v1` documented
+- [x] Offline `rollup --input-dir` / CSV file consolidation with customer-label conflict checks
+- [x] Preserve v2.3.1 Windows PHP version detection + TestVM regression
+- [x] CI expects CSV beside HTML smoke output
+- [x] Docs / CONTRIBUTING / licensing notes updated (Apache-2.0 still pending owner approval)
+
+## Achieved in v2.3.0 / v2.3.1
 
 - [x] Native Go builds; no Python or PHP interpreter required on the scanning host.
 - [x] HTML-only assessment report (executive summary, grouped installations, next steps, collapsible evidence).
@@ -18,7 +27,8 @@ v2.3.0 is the first official public (non-prerelease) release. This checklist cov
 
 - [ ] Collect authorized real-world feedback via issue templates (detection misses, assessment disputes, crashes).
 - [ ] Windows Server 2019/2022/2025 + IIS 10: handler inheritance, URL Rewrite, restricted accounts, app pools, log rotation.
-- [ ] Linux: Apache/mod_php, nginx/PHP-FPM, LiteSpeed/LSAPI, containers, dpkg/apk/RPM and vendor backport packages.
+- [ ] Linux: Apache/mod_php (bounded config inventory in v2.4.0 — validate on real hosts), nginx/PHP-FPM, LiteSpeed/LSAPI, containers, dpkg/apk/RPM and vendor backport packages.
+- [ ] Confirm Tomcat-only hosts produce no false PHP web-server evidence.
 - [ ] Confirm AppData / PATH / package discovery against representative PHP layouts (no timeout or hang regressions).
 - [ ] Confirm `--quiet` / `--output-dir` (including UNC) under GPO / scheduled task / SYSTEM identities.
 

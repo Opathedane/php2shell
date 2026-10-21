@@ -43,7 +43,7 @@ func ReconcileBinaryInstallAliases(r *Report) {
 		if err != nil || !fi.Mode().IsRegular() {
 			continue
 		}
-		m := binMeta{idx: i, path: e.Location, dir: filepath.Dir(e.Location), base: strings.ToLower(filepath.Base(e.Location)), same: fi}
+		m := binMeta{idx: i, path: e.Location, dir: parentDirAnyOS(e.Location), base: strings.ToLower(filepath.Base(e.Location)), same: fi}
 		if size, sum, err := binaryFingerprint(e.Location); err == nil {
 			m.fp = fmt.Sprintf("%d:%s", size, sum)
 			m.hasFP = true
@@ -96,7 +96,7 @@ func ReconcileBinaryInstallAliases(r *Report) {
 		if !isBinaryEvidenceType(e.Type) || e.Version != "" {
 			continue
 		}
-		dirKey := normalizeInstallPath(filepath.Dir(e.Location))
+		dirKey := normalizeInstallPath(parentDirAnyOS(e.Location))
 		canon, ok := aliasDir[dirKey]
 		if !ok {
 			continue
@@ -107,7 +107,7 @@ func ReconcileBinaryInstallAliases(r *Report) {
 			if !isBinaryEvidenceType(o.Type) || o.Version == "" {
 				continue
 			}
-			if normalizeInstallPath(filepath.Dir(o.Location)) != canon {
+			if normalizeInstallPath(parentDirAnyOS(o.Location)) != canon {
 				continue
 			}
 			if strings.ToLower(filepath.Base(o.Location)) != strings.ToLower(filepath.Base(e.Location)) {
@@ -123,7 +123,7 @@ func ReconcileBinaryInstallAliases(r *Report) {
 				if !isBinaryEvidenceType(o.Type) || o.Version == "" {
 					continue
 				}
-				if normalizeInstallPath(filepath.Dir(o.Location)) == canon {
+				if normalizeInstallPath(parentDirAnyOS(o.Location)) == canon {
 					donor = o
 					break
 				}

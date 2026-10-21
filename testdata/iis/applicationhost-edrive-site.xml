@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic IIS inventory: site on E: and PHP FastCGI outside Program Files / C:\PHP defaults. -->
+<configuration>
+  <system.applicationHost>
+    <sites>
+      <site name="somewebsite" id="7">
+        <application path="/">
+          <virtualDirectory path="/" physicalPath="E:\websites\prod\somewebsite" />
+        </application>
+        <bindings>
+          <binding protocol="http" bindingInformation="*:80:somewebsite.example.local" />
+        </bindings>
+      </site>
+      <site name="Default Web Site" id="1">
+        <application path="/">
+          <virtualDirectory path="/" physicalPath="%SystemDrive%\inetpub\wwwroot" />
+        </application>
+      </site>
+    </sites>
+  </system.applicationHost>
+  <system.webServer>
+    <fastCgi>
+      <application fullPath="E:\runtime\PHP\8.4.24\nts\x64\php-cgi.exe" />
+    </fastCgi>
+    <handlers>
+      <add name="PHP_via_FastCGI" path="*.php" verb="*" modules="FastCgiModule"
+           scriptProcessor="E:\runtime\PHP\8.4.24\nts\x64\php-cgi.exe|-c E:\runtime\PHP\8.4.24\nts\x64\php.ini" />
+    </handlers>
+  </system.webServer>
+</configuration>

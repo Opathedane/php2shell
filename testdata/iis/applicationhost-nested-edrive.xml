@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Nested site/app/vdir on E: plus FastCGI with arguments (args must not appear in reports). -->
+<configuration>
+  <system.applicationHost>
+    <sites>
+      <site name="somewebsite" id="7">
+        <application path="/">
+          <virtualDirectory path="/" physicalPath="E:\websites\prod\somewebsite" />
+          <virtualDirectory path="/assets" physicalPath="E:\websites\prod\somewebsite-assets" />
+        </application>
+        <application path="/api">
+          <virtualDirectory path="/" physicalPath="E:\websites\prod\somewebsite-api" />
+        </application>
+      </site>
+    </sites>
+  </system.applicationHost>
+  <location path="somewebsite">
+    <system.webServer>
+      <handlers>
+        <add name="PHP_via_FastCGI" path="*.php" verb="*" modules="FastCgiModule"
+             scriptProcessor="E:\PHP\8.4.24\php-cgi.exe|-c E:\PHP\8.4.24\php.ini|-d display_errors=0" />
+      </handlers>
+    </system.webServer>
+  </location>
+  <system.webServer>
+    <fastCgi>
+      <application fullPath="E:\PHP\8.4.24\php-cgi.exe" />
+    </fastCgi>
+  </system.webServer>
+</configuration>

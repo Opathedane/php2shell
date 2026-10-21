@@ -183,7 +183,9 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		count := 0
 		b.WriteString(`<table><thead><tr><th>Name</th><th>Location</th><th>Meaning</th></tr></thead><tbody>`)
 		for _, e := range r.Evidence {
-			if e.Type != "running_process" && e.Type != "iis_php_handler_config" && e.Type != "binary_static_version" && e.Type != "binary_path_inferred_version" && e.Type != "binary_path" && e.Type != "operator_reported_web_runtime" {
+			if e.Type != "running_process" && e.Type != "iis_php_handler_config" && e.Type != "iis_site_config" &&
+				e.Type != "apache_vhost_config" && e.Type != "apache_php_handler_config" && e.Type != "apache_php_module_config" && e.Type != "apache_remote_php_backend" &&
+				e.Type != "binary_static_version" && e.Type != "binary_path_inferred_version" && e.Type != "binary_path" && e.Type != "operator_reported_web_runtime" {
 				continue
 			}
 			count++
@@ -293,34 +295,81 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 }
 
 // Save writes a single self-contained HTML report as owner-readable only and refuses overwrite.
-// JSON and CSV are not written during normal scanning; EncodeCSV and json.Marshal remain for tests and legacy rollup.
+// Prefer SaveReportPair for normal scanning (HTML + fleet CSV).
 func Save(r *Report, htmlPath string) error {
 	htmlPath = strings.TrimSpace(htmlPath)
 	if htmlPath == "" {
 		return fmt.Errorf("empty HTML report path")
 	}
-	if !strings.HasSuffix(strings.ToLower(htmlPath), ".html") {
+	if !strings.HasSuffix(strings.ToLower(htmlPath), ".html") && !strings.HasSuffix(strings.ToLower(htmlPath), ".htm") {
 		htmlPath = htmlPath + ".html"
+	}
+	return writeExclusiveFile(htmlPath, EncodeHTML(r))
+}
+
+// SaveReportPair writes matching HTML and fleet CSV reports from the same assessment.
+// Both paths must not already exist. If the CSV write fails after HTML succeeds, the HTML
+// file is removed so operators are not left believing a complete pair was produced.
+func SaveReportPair(r *Report, htmlPath, csvPath string) error {
+	htmlPath = strings.TrimSpace(htmlPath)
+	csvPath = strings.TrimSpace(csvPath)
+	if htmlPath == "" || csvPath == "" {
+		return fmt.Errorf("HTML and CSV report paths are required")
+	}
+	if !strings.HasSuffix(strings.ToLower(htmlPath), ".html") && !strings.HasSuffix(strings.ToLower(htmlPath), ".htm") {
+		htmlPath += ".html"
+	}
+	if !strings.HasSuffix(strings.ToLower(csvPath), ".csv") {
+		csvPath += ".csv"
+	}
+	if filepath.Clean(MatchingCSVPath(htmlPath)) != filepath.Clean(csvPath) {
+		return fmt.Errorf("CSV path %q does not match HTML sibling of %q (expected %q)", csvPath, htmlPath, MatchingCSVPath(htmlPath))
 	}
 	if err := MakeReportDirectory(htmlPath); err != nil {
 		return err
 	}
-	if _, err := os.Lstat(htmlPath); err == nil {
-		return fmt.Errorf("output exists, refusing overwrite: %s", htmlPath)
+	if err := MakeReportDirectory(csvPath); err != nil {
+		return err
+	}
+	for _, p := range []string{htmlPath, csvPath} {
+		if _, err := os.Lstat(p); err == nil {
+			return fmt.Errorf("output exists, refusing overwrite: %s", p)
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
+	csvData, err := EncodeFleetCSV(r)
+	if err != nil {
+		return fmt.Errorf("encode fleet CSV: %w", err)
+	}
+	if err := writeExclusiveFile(htmlPath, EncodeHTML(r)); err != nil {
+		return fmt.Errorf("HTML report: %w", err)
+	}
+	if err := writeExclusiveFile(csvPath, csvData); err != nil {
+		_ = os.Remove(htmlPath)
+		return fmt.Errorf("CSV report failed after HTML write; removed incomplete HTML %s: %w", htmlPath, err)
+	}
+	return nil
+}
+
+func writeExclusiveFile(path string, data []byte) error {
+	if err := MakeReportDirectory(path); err != nil {
+		return err
+	}
+	if _, err := os.Lstat(path); err == nil {
+		return fmt.Errorf("output exists, refusing overwrite: %s", path)
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	// Excl prevents following an existing destination symlink.
-	fp, err := os.OpenFile(htmlPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	fp, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return err
 	}
-	data := EncodeHTML(r)
 	_, werr := fp.Write(data)
 	serr := fp.Sync()
 	cerr := fp.Close()
 	if werr != nil || serr != nil || cerr != nil {
-		_ = os.Remove(htmlPath)
+		_ = os.Remove(path)
 		return fmt.Errorf("cannot complete report output: %v %v %v", werr, serr, cerr)
 	}
 	return nil
@@ -328,9 +377,9 @@ func Save(r *Report, htmlPath string) error {
 
 // Exit codes for php2shell scan (operational, not a security clearance).
 const (
-	ExitOK         = 0 // HTML written; findings may exist
-	ExitFatal      = 1 // tool/config/I/O failure
-	ExitIncomplete = 2 // HTML written but scan incomplete
+	ExitOK         = 0 // HTML+CSV pair written; findings may exist
+	ExitFatal      = 1 // tool/config/I/O failure (including incomplete report pair)
+	ExitIncomplete = 2 // report pair written but scan incomplete
 )
 
 // ScanExitCode returns the process exit code after a scan attempt.

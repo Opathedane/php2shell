@@ -15,7 +15,7 @@ func TestQuietSuppressesProgressAndSummary(t *testing.T) {
 	p.Banner("1.0", "linux", "amd64", "host")
 	p.Phase("host inventory")
 	r := audit.NewReport("host", "linux", "amd64")
-	p.Summary(r, "/tmp/report.html", time.Second, false)
+	p.Summary(r, "/tmp/report.html", "/tmp/report.csv", time.Second, false)
 	if out.Len() != 0 {
 		t.Fatalf("quiet should silence stdout, got %q", out.String())
 	}
@@ -52,7 +52,7 @@ func TestSummaryIncludesReportPathAndDisclaimer(t *testing.T) {
 	r := audit.NewReport("host", "linux", "amd64")
 	r.Summary.PHPDiscovery = "found"
 	r.AddWarning("partial check")
-	p.Summary(r, `/reports/php2shell-host.html`, 2*time.Second, true)
+	p.Summary(r, `/reports/php2shell-host.html`, `/reports/php2shell-host.csv`, 2*time.Second, true)
 	s := out.String()
 	if !strings.Contains(s, `/reports/php2shell-host.html`) {
 		t.Fatal(s)

@@ -84,11 +84,13 @@ func humanPHPDetected(r *Report) (label string, versions []string) {
 			}
 			confirmed = true
 			confirmedVers[e.Version] = struct{}{}
-		case "binary_path", "binary_static_version", "binary_path_inferred_version", "iis_php_handler_config", "operator_reported_web_runtime":
+		case "binary_path", "binary_static_version", "binary_path_inferred_version", "iis_php_handler_config", "apache_php_handler_config", "apache_php_module_config", "operator_reported_web_runtime":
 			confirmed = true
 			if e.Version != "" {
 				confirmedVers[e.Version] = struct{}{}
 			}
+		case "apache_vhost_config", "apache_remote_php_backend":
+			artifacts = true
 		case "running_process":
 			if e.Name != "w3wp.exe" {
 				confirmed = true
@@ -138,7 +140,8 @@ func humanRuntime(r *Report) (label, detail string) {
 				hasCandidate = true
 				break
 			}
-			if e.Type == "iis_php_handler_config" || e.Type == "binary_static_version" || e.Type == "binary_path_inferred_version" || e.Type == "binary_path" {
+			if e.Type == "iis_php_handler_config" || e.Type == "apache_php_handler_config" || e.Type == "apache_php_module_config" ||
+				e.Type == "binary_static_version" || e.Type == "binary_path_inferred_version" || e.Type == "binary_path" {
 				hasCandidate = true
 				break
 			}
@@ -348,12 +351,31 @@ func relatedEvidenceForGroup(r *Report, g *InstallGroup) []Evidence {
 		seen[key] = true
 		out = append(out, e)
 	}
+	matchedHandlerSites := map[string]struct{}{}
+	matchedDocRoots := map[string]struct{}{}
 	for _, e := range r.Evidence {
 		loc := normalizeInstallPath(e.Location)
 		low := strings.ToLower(e.Name)
 		sharedInventoryDB := loc == normalizeInstallPath("/var/lib/dpkg/status") || loc == normalizeInstallPath("/lib/apk/db/installed")
 		if _, ok := wantLocs[loc]; ok && loc != "." && loc != "" && !sharedInventoryDB {
 			add(e)
+			continue
+		}
+		if e.Type == "iis_php_handler_config" && iisHandlerRelatedToGroup(e, g) {
+			add(e)
+			if site := iisDetailField(e.Detail, "site"); site != "" {
+				matchedHandlerSites[iisSiteRootName(site)] = struct{}{}
+			}
+			continue
+		}
+		if (e.Type == "apache_php_handler_config" || e.Type == "apache_php_module_config") && apacheHandlerRelatedToGroup(e, g) {
+			add(e)
+			if site := iisDetailField(e.Detail, "site"); site != "" {
+				matchedHandlerSites[iisSiteRootName(site)] = struct{}{}
+			}
+			if doc := iisDetailField(e.Detail, "document_root"); doc != "" {
+				matchedDocRoots[normalizeInstallPath(doc)] = struct{}{}
+			}
 			continue
 		}
 		if binaryScoped {
@@ -370,7 +392,100 @@ func relatedEvidenceForGroup(r *Report, g *InstallGroup) []Evidence {
 			}
 		}
 	}
+	// Attach site/app/vdir or Apache vhost rows that share a site name or DocumentRoot
+	// with a handler already correlated to this PHP install (where supported).
+	for _, e := range r.Evidence {
+		switch e.Type {
+		case "iis_site_config":
+			if _, ok := matchedHandlerSites[iisSiteRootName(e.Name)]; ok {
+				add(e)
+			}
+		case "apache_vhost_config":
+			if _, ok := matchedHandlerSites[iisSiteRootName(e.Name)]; ok {
+				add(e)
+				continue
+			}
+			if _, ok := matchedDocRoots[normalizeInstallPath(e.Location)]; ok {
+				add(e)
+			}
+		}
+	}
 	return out
+}
+
+func apacheHandlerRelatedToGroup(e Evidence, g *InstallGroup) bool {
+	if g == nil {
+		return false
+	}
+	exe := HandlerExecutableFromDetail(e.Detail)
+	if exe == "" {
+		exe = iisDetailField(e.Detail, "handler_exe")
+	}
+	exeKey := normalizeInstallPath(exe)
+	exeDir := normalizeInstallPath(parentDirAnyOS(exe))
+	backend := strings.ToLower(iisDetailField(e.Detail, "backend"))
+	for _, a := range g.Assessments {
+		aLoc := normalizeInstallPath(a.Location)
+		aDir := normalizeInstallPath(parentDirAnyOS(a.Location))
+		if exeKey != "" && (exeKey == aLoc || (exeDir != "." && exeDir != "" && exeDir == aDir)) {
+			return true
+		}
+		// Correlate versioned FPM socket/path hints (e.g. php8.4-fpm.sock) to the install branch.
+		if backend != "" {
+			if branch := phpBranchFromVersion(a.ObservedVersion); branch != "" && strings.Contains(backend, "php"+branch) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func phpBranchFromVersion(ver string) string {
+	parts := strings.Split(ver, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+	return parts[0] + "." + parts[1]
+}
+
+func iisDetailField(detail, key string) string {
+	prefix := key + "="
+	for _, part := range strings.Split(detail, ";") {
+		part = strings.TrimSpace(part)
+		if strings.HasPrefix(part, prefix) {
+			return strings.TrimPrefix(part, prefix)
+		}
+	}
+	return ""
+}
+
+// iisSiteRootName strips app/vdir suffixes from site labels ("somewebsite/api" → "somewebsite").
+func iisSiteRootName(label string) string {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return ""
+	}
+	if i := strings.IndexAny(label, "/ "); i >= 0 {
+		return strings.ToLower(label[:i])
+	}
+	return strings.ToLower(label)
+}
+
+func iisHandlerRelatedToGroup(e Evidence, g *InstallGroup) bool {
+	if g == nil {
+		return false
+	}
+	exe := HandlerExecutableFromDetail(e.Detail)
+	exeKey := normalizeInstallPath(exe)
+	exeDir := normalizeInstallPath(parentDirAnyOS(exe))
+	for _, a := range g.Assessments {
+		aLoc := normalizeInstallPath(a.Location)
+		aDir := normalizeInstallPath(parentDirAnyOS(a.Location))
+		if exeKey != "" && (exeKey == aLoc || (exeDir != "." && exeDir != "" && exeDir == aDir)) {
+			return true
+		}
+	}
+	return false
 }
 
 // BuildFocusedNextSteps returns short, finding-specific actions (not a generic dump).
