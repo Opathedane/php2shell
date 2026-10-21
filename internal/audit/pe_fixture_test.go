@@ -8,7 +8,7 @@ import (
 )
 
 func TestPHPPEFixtureEmbeddedVersionAllPlatforms(t *testing.T) {
-	path := filepath.Join("..", "..", "testdata", "windows", "php-pe-version-resource.bin")
+	path := moduleTestdataPath(t, "windows", "php-pe-version-resource.bin")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		t.Skip(err)

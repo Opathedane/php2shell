@@ -2,7 +2,9 @@ package audit
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -71,4 +73,54 @@ func HandlerExecutableLooksLikePHP(exe string) bool {
 		return false
 	}
 	return phpBin.MatchString(filepath.Base(exe))
+}
+
+// ResolveHandlerExecutablePath prepares a configured IIS handler executable path for
+// read-only filesystem inspection. It expands Windows %VAR% references via os.Getenv
+// on every platform (IIS configs are Windows-oriented) and never executes the path.
+func ResolveHandlerExecutablePath(exe string) string {
+	exe = strings.Trim(exe, `"' `)
+	if exe == "" || handlerPathBlocked(exe) {
+		return ""
+	}
+	exe = expandWindowsPercentEnv(exe)
+	if runtime.GOOS == "windows" {
+		exe = os.ExpandEnv(exe)
+	}
+	if runtime.GOOS != "windows" {
+		exe = filepath.FromSlash(filepath.ToSlash(exe))
+	}
+	return filepath.Clean(exe)
+}
+
+func handlerPathBlocked(exe string) bool {
+	lower := strings.ToLower(filepath.ToSlash(exe))
+	return strings.Contains(lower, "cmd.exe") || strings.Contains(lower, "powershell") || strings.Contains(lower, "wscript.exe")
+}
+
+// expandWindowsPercentEnv replaces %NAME% segments using the process environment.
+func expandWindowsPercentEnv(path string) string {
+	var b strings.Builder
+	for i := 0; i < len(path); i++ {
+		if path[i] != '%' {
+			b.WriteByte(path[i])
+			continue
+		}
+		end := i + 1
+		for end < len(path) && path[end] != '%' {
+			end++
+		}
+		if end >= len(path) {
+			b.WriteByte('%')
+			break
+		}
+		name := path[i+1 : end]
+		if val, ok := os.LookupEnv(name); ok {
+			b.WriteString(val)
+		} else {
+			b.WriteString(path[i : end+1])
+		}
+		i = end
+	}
+	return b.String()
 }

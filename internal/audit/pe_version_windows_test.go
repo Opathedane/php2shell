@@ -11,7 +11,7 @@ import (
 // TestPEVersionWithPHPResourceMetadata uses a fixture patterned after official PHP for Windows
 // builds: PE version resource includes ProductName "PHP" and FileVersion aligned with 8.4.27.
 func TestPEVersionWithPHPResourceMetadata(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "windows", "php-pe-version-resource.bin"))
+	data, err := os.ReadFile(moduleTestdataPath(t, "windows", "php-pe-version-resource.bin"))
 	if err != nil {
 		t.Skip("fixture missing:", err)
 	}
