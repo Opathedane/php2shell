@@ -25,6 +25,9 @@ jobs:
         run: go vet ./...
       - name: Native build smoke
         run: go run ./cmd/php2shell doctor
+      - name: Release documentation consistency
+        shell: bash
+        run: bash scripts/check-release-docs.sh
       - name: IIS W3C log smoke (portable fixture)
         shell: bash
         run: |

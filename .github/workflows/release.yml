@@ -1,7 +1,8 @@
 name: Publish standalone release
 # Tagging vX.Y.Z (without -alpha) publishes the official unsigned release assets.
 # Never tag an unreviewed commit. Binaries are not code-signed.
-# Never overwrite an existing release (including v2.3.0 / v2.3.1 / v2.4.0). Ship fixes under a new tag.
+# Never overwrite an existing release (including v2.3.0–v2.5.1). Ship fixes under a new tag.
+# Release body MUST come from docs/releases/vX.Y.Z.md (version-specific), not the notes index.
 # See docs/RELEASE-CHECKLIST.md and docs/GOVERNANCE.md.
 on:
   push:
@@ -10,9 +11,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release version to publish, e.g. v2.4.0'
+        description: 'Release version to publish, e.g. v2.6.0 (must match model.go Version; leave empty only when unused)'
         type: string
-        default: v2.4.0
+        default: ''
         required: true
 permissions:
   contents: read
@@ -33,6 +34,9 @@ jobs:
       - run: go test ./...
       - run: go vet ./...
       - run: go run ./cmd/php2shell doctor
+      - name: Release documentation consistency
+        shell: bash
+        run: bash scripts/check-release-docs.sh
   publish:
     name: Build and publish release
     needs: test
@@ -59,6 +63,10 @@ jobs:
           TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
+          if [[ -z "${TAG}" ]]; then
+            echo "Refusing to publish: empty tag (set workflow_dispatch input or push a vX.Y.Z tag)" >&2
+            exit 1
+          fi
           built="$(./dist/php2shell-linux-amd64 version | awk '{print $2}')"
           if [[ "$TAG" != "v${built}" ]]; then
             echo "Refusing to publish: tag $TAG does not match built version v${built}" >&2
@@ -68,6 +76,16 @@ jobs:
             echo "Refusing to publish prerelease tag $TAG via the official release workflow" >&2
             exit 1
           fi
+          bash scripts/check-release-docs.sh --for-tag "$TAG"
+          NOTES="docs/releases/${TAG}.md"
+          if [[ ! -f "$NOTES" ]]; then
+            echo "Refusing to publish: missing version-specific notes $NOTES" >&2
+            exit 1
+          fi
+          if grep -Eiq 'unreleased draft|do not tag or publish until' "$NOTES"; then
+            echo "Refusing to publish: $NOTES still contains draft/unreleased language" >&2
+            exit 1
+          fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists; do not silently overwrite assets" >&2
             exit 1
@@ -75,4 +93,4 @@ jobs:
           gh release create "$TAG" dist/php2shell-* dist/SHA256SUMS \
             --target "${GITHUB_SHA}" \
             --title "PHP2Shell $TAG" \
-            --notes-file docs/RELEASE-NOTES.md
+            --notes-file "$NOTES"

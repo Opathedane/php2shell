@@ -1,9 +1,18 @@
-## Unreleased (toward v2.5.0)
+## Unreleased
+
+- Roadmap only (not implemented): optional `--deep-root`, RPM DB inventory, advanced runtime correlation — [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## v2.5.1 — 2026-10-21
+
+- Fix: PATH / Programs\PHP discovery no longer skips directory junctions/symlinks such as `...\PHP\current` (bounded reparse resolve, max 4 hops, cycle detection; binaries never executed).
+- Fix: php.ini inspection beside PATH-resolved directories; `--php-ini` / `--config-root` for non-standard layouts; configuration-only labelling and skip coverage diagnostics in HTML+CSV.
+- Fix: multi-version hosts — discover all eligible PATH entries (not only the first), combine well-known/IIS/Apache/custom roots, keep independent install records (alias merge only when corroborated), assess each against its upstream threshold, list all in HTML+CSV/rollup; coverage text states discovery is not complete host coverage.
+- Regression: TestVM-style `Temp\PHP\current`; three Windows installs (PATH + IIS + `--config-root`); hermetic php.ini CI isolation.
+
+## v2.5.0 — 2026-10-21
 
 - Windows + Linux bounded `php.ini` discovery: well-known roots, binary sidecars, `PHPRC` / `PHP_INI_SCAN_DIR`, IIS `-c` / Apache `PHPIniDir` path follow-up; sample/template classification; whitelist setting observations remain OBSERVED≠EFFECTIVE.
 - Fleet CSV schema **`php2shell-fleet-csv/v2`**: structured `config_*` columns for discovery status, counts, install correlation, and primary ini path; rollup accepts v1+v2 and writes v2. php.ini alone never fills `php_version` / confirmed install.
-- Roadmap only (not implemented): optional `--deep-root`, RPM DB inventory, advanced runtime correlation — [docs/ROADMAP-2.5.0.md](docs/ROADMAP-2.5.0.md).
-- Docs: governance CI wording for HTML+CSV; README/release notes clarify v2.4.0 is published and 2.5.0 is unreleased.
 
 ## v2.4.0 — 2026-10-21
 

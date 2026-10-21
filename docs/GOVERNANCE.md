@@ -1,6 +1,6 @@
 # Security and release governance
 
-Post-v2.4.0 notes for maintainers and reviewers. This document does **not** change scanner behavior or published release assets.
+Post-v2.5.1 notes for maintainers and reviewers. This document does **not** change scanner behavior or published release assets.
 
 ## Licensing and ownership
 
@@ -34,7 +34,7 @@ Also enable Dependabot or equivalent for Go modules and Actions, and require sig
 | `release-alpha.yml` | `v*-alpha.*` prerelease | Historical / optional; keep `--prerelease` |
 | `build-preview.yml` | Manual unsigned artifacts | Not a release; do not distribute as production |
 
-**Do not** re-run publish against an existing tag to replace binaries (e.g. do not modify `v2.3.0` / `v2.3.1` / `v2.4.0` assets). Ship fixes under a new tag only.
+**Do not** re-run publish against an existing tag to replace binaries (e.g. do not modify `v2.3.0`–`v2.5.1` assets). Ship fixes under a new tag only. GitHub Release bodies must come from `docs/releases/vX.Y.Z.md` via `scripts/check-release-docs.sh --for-tag`.
 
 ## Artifact integrity (current and future)
 

@@ -1,13 +1,13 @@
-# Documentation audit vs v2.3.0 implementation
+# Documentation audit (historical)
 
-Performed after the public v2.3.0 release. Separates **documentation fixes** (addressed on branch `docs/post-2.3.0-quality`) from **implementation / product gaps** (not bugs in the docs).
+Originally performed after the public v2.3.0 release. Current public release is **v2.5.1** — see [RELEASE-NOTES.md](RELEASE-NOTES.md). Separates **documentation fixes** from **implementation / product gaps** (not bugs in the docs).
 
 ## Documentation inconsistencies corrected on this branch
 
 | Topic | Finding | Resolution |
 | --- | --- | --- |
 | Alpha / preview status | `RELEASE-CHECKLIST.md` and some advanced docs still framed the product as alpha-only | Checklist rewritten for post-2.3.0; README/SECURITY updated |
-| JSON / CSV reporting | User-facing docs and SECURITY still implied scan-time JSON/CSV exports | Clarified: `scan` is HTML-only; JSON/CSV remain for tests and legacy `rollup` inputs |
+| JSON / CSV reporting | Early docs implied scan-time JSON exports | Clarified: `scan` writes HTML+CSV pairs (since v2.4.0); legacy JSON remains for some rollup inputs |
 | Release checklist age | Gates still listed “never run on Windows” / alpha publish steps | Replaced with field-validation and next-release gates; preserve history in CHANGELOG |
 | Alpha release notes | Could be read as current product status | Marked historical in `ALPHA-RELEASE-NOTES.md` |
 | Admin audience | README was short but light on verification and platform matrix | Expanded getting started, matrix, limitations, verification |
@@ -20,7 +20,7 @@ These reflect intentional or unfinished product behavior — do **not** “fix�
 - No bundled validated PHP2Shell-specific IOC pack (`rules/template.json` empty by design).
 - No automatic attestation of the live HTTP-serving SAPI.
 - No automatic verification of vendor security backports.
-- `rollup` still expects operator-supplied JSON report files; `scan` does not emit them.
+- Default `rollup` consolidates fleet CSV; legacy `--format json` remains for older inputs.
 - Windows Server / IIS / enterprise package layouts need continued field validation.
 - `LICENSE.proposed` is not an approved license (ownership decision pending).
 - Actions are pinned to major tags (`@v5` / `@v6`), not immutable commit SHAs yet (see `GOVERNANCE.md`).

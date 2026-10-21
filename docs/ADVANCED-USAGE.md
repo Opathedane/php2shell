@@ -2,13 +2,13 @@
 
 # Advanced usage — PHP2Shell Assessment
 
-Latest public release: **v2.4.0**. Tree may target unreleased **2.5.0** features (php.ini discovery, fleet CSV v2).
+Latest public release: **v2.5.1** (PATH/`current` junction discovery, multi-install retention, `--php-ini` / `--config-root`).
 
 PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory and evidence-qualified patch review for CVE-2026-109618 / CVE-2026-109619.
 
 ## Download
 
-Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.4.0** (or newer), and download the archive for the destination OS/CPU. Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags such as `v2.3.0` / `v2.3.1`.
+Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.5.1** (or newer), and download the archive for the destination OS/CPU. Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.5.1`, …).
 
 ## Scan output pair
 
@@ -105,10 +105,23 @@ On Windows and Linux, `scan` performs bounded discovery of `php.ini` and related
 - Well-known install trees, directories next to discovered PHP binaries, `PHPRC` / `PHP_INI_SCAN_DIR` (process environment only)
 - Paths referenced by Apache `PHPIniDir` or IIS FastCGI `-c` (path only; handler arguments remain redacted)
 - Sample/template names (`php.ini-development`, `php.ini-production`, …) labelled separately from primary candidates
+- Optional nearby PHP executable probe in the same directory / parent `bin`/`sbin` when a `php.ini` is found (still not runtime attestation)
+- PATH directories (and `%LOCALAPPDATA%\Programs\PHP` trees) may resolve a **bounded** directory junction/symlink chain (e.g. `current` → versioned dir; max 4 hops, cycle detection). File symlinks are never followed. Binaries are never executed.
+- Unreadable, oversized, or symlink *file* candidates emit `php_ini_skip` (path + reason only; no secrets)
 
-Whitelisted settings (for example `memory_limit`, `session.upload_progress.enabled`) appear as `configuration_observation` with interpretation **OBSERVED_NOT_EFFECTIVE_SETTING_NOT_VERIFIED_MITIGATION**. A `php.ini` file never supplies the authoritative PHP version and never attests the active HTTP runtime. Secrets and full file dumps are not reported. Fleet CSV `limitations_summary` notes when config candidates were observed.
+**Operator-authorized custom locations** (no drive-wide walk):
 
-Optional full-tree “deep discovery” is **not** enabled in this tree; see [ROADMAP-2.5.0.md](ROADMAP-2.5.0.md).
+```bash
+php2shell scan --php-ini 'D:\Apps\CustomPHP\php.ini'
+php2shell scan --config-root /opt/app/php/etc
+php2shell scan --php-ini /etc/custom/php.ini --config-root C:\tools\php
+```
+
+`--php-ini` inspects an explicit file (repeatable, max 32). `--config-root` authorizes a bounded walk for PHP binaries under that directory (same depth/reparse caps as Programs\\PHP) plus `php.ini` / sample names and one `conf.d/*.ini` layer (repeatable, max 8). Multiple independent installs from PATH, well-known roots, IIS/Apache handlers, and custom roots are retained as separate records (aliases such as `current` merge only when content-corroborated). Configuration-only findings appear in HTML/CSV without claiming installation, version, or active HTTP runtime. Discovery is never complete host coverage.
+
+Whitelisted settings (for example `memory_limit`, `session.upload_progress.enabled`) appear as `configuration_observation` with interpretation **OBSERVED_NOT_EFFECTIVE_SETTING_NOT_VERIFIED_MITIGATION**. A `php.ini` file never supplies the authoritative PHP version and never attests the active HTTP runtime. Secrets and full file dumps are not reported. Fleet CSV `limitations_summary` notes when config candidates or skips were observed.
+
+Optional full-tree “deep discovery” is **not** enabled in this tree; see [ROADMAP.md](ROADMAP.md).
 
 ## Results vocabulary
 

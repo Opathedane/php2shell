@@ -24,4 +24,4 @@ Do not attach customer HTML reports, access logs, network architecture, credenti
 
 ## Supply chain
 
-Release publication is gated by `.github/workflows/release.yml` (tag must match embedded version; existing releases are not overwritten). See `docs/GOVERNANCE.md` and `docs/RELEASE-CHECKLIST.md` before publishing a new version. Never overwrite published release assets for existing tags such as `v2.3.0`, `v2.3.1`, or a prior `v2.4.0`.
+Release publication is gated by `.github/workflows/release.yml` (tag must match embedded version; version-specific `docs/releases/vX.Y.Z.md`; `scripts/check-release-docs.sh`; existing releases are not overwritten). See `docs/GOVERNANCE.md` and `docs/RELEASE-CHECKLIST.md` before publishing a new version. Never overwrite published release assets for existing tags (`v2.3.0`–`v2.5.1`, …).
