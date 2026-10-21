@@ -1,6 +1,6 @@
 # Documentation audit (historical)
 
-Originally performed after the public v2.3.0 release. Current public release is **v2.5.1** — see [RELEASE-NOTES.md](RELEASE-NOTES.md). Separates **documentation fixes** from **implementation / product gaps** (not bugs in the docs).
+Originally performed after the public v2.3.0 release. Current prepared release is **v2.6.0** — see [RELEASE-NOTES.md](RELEASE-NOTES.md). Separates **documentation fixes** from **implementation / product gaps** (not bugs in the docs).
 
 ## Documentation inconsistencies corrected on this branch
 

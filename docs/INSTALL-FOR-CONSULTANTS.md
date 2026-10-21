@@ -1,6 +1,6 @@
 # PHP2Shell – consultant quick start
 
-**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory and evidence-qualified patch review. Latest public release: **v2.5.1** (this development tree may be **2.6.0 unreleased** with optional `--deep-root`). Confirm `php2shell version` on the binary you run matches the release you downloaded.
+**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory and evidence-qualified patch review. Latest public release: **v2.6.0**. Confirm `php2shell version` on the binary you run matches the release you downloaded.
 
 Download the build matching the destination server from GitHub **Releases**. No Python, Go, PHP, installer, or network access is required for the basic local inventory. The optional IOC update requires an independently authenticated rule signing key and a reviewed signed ruleset; the repository does **not** include a validated PHP2Shell-specific rulepack yet.
 
@@ -54,7 +54,7 @@ A configured site path or `.php` files under it is **not** proof of an active pa
 
 Windows executables are **not Authenticode signed** and may generate SmartScreen warnings. Do not bypass endpoint protection. Prefer least privilege.
 
-### When to use Deep Discovery (`--deep-root`, unreleased 2.6.0)
+### When to use Deep Discovery (`--deep-root`)
 
 | Situation | Recommendation |
 | --- | --- |
@@ -78,7 +78,7 @@ tar xzf php2shell-linux-amd64.tar.gz
 chmod +x php2shell-linux-amd64
 ./php2shell-linux-amd64 doctor
 ./php2shell-linux-amd64 scan --quiet --output-dir "$HOME/.php2shell/reports"
-# Optional (unreleased 2.6.0):
+# Optional Deep Discovery:
 # ./php2shell-linux-amd64 scan --deep-root /opt --deep-root /usr/local --output-dir "$HOME/.php2shell/reports"
 ```
 

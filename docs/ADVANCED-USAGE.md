@@ -2,13 +2,13 @@
 
 # Advanced usage — PHP2Shell Assessment
 
-Latest public release: **v2.5.1**. This tree may include **unreleased 2.6.0** optional `--deep-root` Deep Discovery (see below).
+Latest public release: **v2.6.0** (optional `--deep-root` Deep Discovery; expanded well-known install paths).
 
 PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory and evidence-qualified patch review for CVE-2026-109618 / CVE-2026-109619.
 
 ## Download
 
-Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.5.1** (or newer when published), and download the archive for the destination OS/CPU. Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.5.1`, …).
+Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.6.0** (or newer), and download the archive for the destination OS/CPU. Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.6.0`, …).
 
 ## Scan output pair
 
@@ -121,7 +121,7 @@ php2shell scan --php-ini /etc/custom/php.ini --config-root C:\tools\php
 
 Whitelisted settings (for example `memory_limit`, `session.upload_progress.enabled`) appear as `configuration_observation` with interpretation **OBSERVED_NOT_EFFECTIVE_SETTING_NOT_VERIFIED_MITIGATION**. A `php.ini` file never supplies the authoritative PHP version and never attests the active HTTP runtime. Secrets and full file dumps are not reported. Fleet CSV `limitations_summary` notes when config candidates or skips were observed.
 
-## Optional Deep Discovery (`--deep-root`) — unreleased 2.6.0
+## Optional Deep Discovery (`--deep-root`)
 
 Use **default scan** (and `--php-ini` / `--config-root` when you already know shallow install roots) first. Add `--deep-root` only when consultants have authorized specific custom trees that may hold PHP installs **not** on PATH (for example `C:\Temp\PHP`, `E:\Applications\PHP`, `/opt/app/php`).
 
