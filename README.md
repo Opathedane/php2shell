@@ -25,7 +25,7 @@ chmod +x php2shell-linux-amd64
 ./php2shell-linux-amd64 scan
 ```
 
-The scanner creates an **HTML action report**, plus JSON and CSV, under `reports/`. Open the HTML file first.
+The scanner creates a **single self-contained HTML report** (no JSON/CSV sidecars). Default locations: `C:\ProgramData\PHP2Shell\Reports` on Windows, `$HOME/.php2shell/reports` on Unix. Use `--output-dir` for a custom or UNC path, or `--out` for an explicit filename. Open the HTML file locally; the scanner never opens a browser or uploads data.
 
 The report answers, with qualifications:
 

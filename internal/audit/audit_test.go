@@ -79,18 +79,45 @@ func TestHTMLEscaping(t *testing.T) {
 }
 func TestSaveNeverOverwrites(t *testing.T) {
 	dir := t.TempDir()
-	pre := filepath.Join(dir, "assessment")
+	path := filepath.Join(dir, "assessment.html")
 	r := NewReport("host", "linux", "amd64")
-	if err := Save(r, pre); err != nil {
+	if err := Save(r, path); err != nil {
 		t.Fatal(err)
 	}
-	if err := Save(r, pre); err == nil {
+	if err := Save(r, path); err == nil {
 		t.Fatal("should never overwrite output")
 	}
-	for _, e := range []string{".json", ".csv", ".html"} {
-		if _, err := os.Stat(pre + e); err != nil {
-			t.Fatal(err)
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range []string{".json", ".csv"} {
+		if _, err := os.Stat(filepath.Join(dir, "assessment"+e)); !os.IsNotExist(err) {
+			t.Fatalf("unexpected sidecar file assessment%s: %v", e, err)
 		}
+	}
+}
+func TestSaveHTMLOnly(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "only.html")
+	r := NewReport("host", "linux", "amd64")
+	r.AddEvidence(Evidence{Type: "test", Name: "php", Version: "8.4.1", Source: "unit", Interpretation: "TEST"})
+	if err := Save(r, path); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "only.html" {
+		t.Fatalf("expected single HTML file, got %+v", entries)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	if !strings.Contains(s, "PHP2Shell") || !strings.Contains(s, "Coverage") {
+		t.Fatal("HTML missing expected sections")
 	}
 }
 func TestSaveRefusesDestinationSymlink(t *testing.T) {
@@ -100,11 +127,11 @@ func TestSaveRefusesDestinationSymlink(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "secret")
 	_ = os.WriteFile(target, []byte("unchanged"), 0600)
-	pre := filepath.Join(dir, "assessment")
-	if err := os.Symlink(target, pre+".csv"); err != nil {
+	path := filepath.Join(dir, "assessment.html")
+	if err := os.Symlink(target, path); err != nil {
 		t.Fatal(err)
 	}
-	if err := Save(NewReport("host", "linux", "amd64"), pre); err == nil {
+	if err := Save(NewReport("host", "linux", "amd64"), path); err == nil {
 		t.Fatal("symlink was overwritten")
 	}
 	b, _ := os.ReadFile(target)

@@ -1,7 +1,9 @@
 name: Go tests (Linux, Windows, macOS)
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
 permissions:
   contents: read
 jobs:
@@ -9,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-latest, macos-latest]
+        os: [ubuntu-24.04, windows-latest, macos-15-intel]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -28,5 +30,7 @@ jobs:
         run: |
           echo '#Fields: date time cs-method cs-uri-stem cs-uri-query sc-status' > iis-fixture.log
           echo '2026-10-21 12:00:00 POST /upload.php - 200' >> iis-fixture.log
-          go run ./cmd/php2shell scan --access-log iis-fixture.log --out reports/ci-smoke
-          test -s reports/ci-smoke.json
+          go run ./cmd/php2shell scan --access-log iis-fixture.log --out reports/ci-smoke.html
+          test -s reports/ci-smoke.html
+          test ! -e reports/ci-smoke.json
+          test ! -e reports/ci-smoke.csv

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/Opathedane/php2shell/internal/rules"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,6 +12,8 @@ import (
 	"time"
 
 	"github.com/Opathedane/php2shell/internal/audit"
+	"github.com/Opathedane/php2shell/internal/console"
+	"github.com/Opathedane/php2shell/internal/rules"
 )
 
 type paths []string
@@ -29,11 +30,12 @@ func (p *paths) Set(s string) error {
 const help = `PHP2Shell Assessment (standalone preview)
 
 No PHP execution. No network scanning. No exploit tests. No customer data upload.
-Reports official upstream patch-level comparisons but cannot attest the serving SAPI or exclude compromise.
+No automatic remediation or browser opening. Reports official upstream patch-level
+comparisons but cannot attest the serving SAPI or exclude compromise.
 
 Usage:
   php2shell doctor
-  php2shell scan [--webroot DIR] [--repo DIR] [--access-log FILE] [--docker] [--out PREFIX]
+  php2shell scan [options]
   php2shell rules trust --key trusted-public.hex
   php2shell rules update --url https://raw.githubusercontent.com/Opathedane/php2shell/main/rules/signed.json
   php2shell rules status
@@ -42,105 +44,205 @@ Usage:
   php2shell rollup [--tenant-map JSON] --out FILE.csv REPORT.json [REPORT.json ...]
   php2shell version
 
-Examples:
-  php2shell scan --out reports/my-webserver
-  php2shell scan --runtime-version 8.4.26 --runtime-sapi fpm --runtime-source "approved FPM status evidence" --out reports/fpm-reviewed
-  php2shell scan --webroot /var/www --access-log /var/log/nginx/access.log --out reports/server-1
-  php2shell scan --repo /srv/project --out reports/project-1
-  php2shell rollup --tenant-map /private/tenant-map.json --out reports/fleet.csv reports/server-1.json
+Scan options:
+  --webroot DIR          authorized website document root (file names only)
+  --repo DIR             authorized local repo (repeatable)
+  --access-log FILE      local HTTP access log (repeatable; limit 32MiB)
+  --docker               local privileged Docker API metadata (opt-in)
+  --output-dir DIR       directory for the HTML report (local or UNC if accessible)
+  --out PATH             explicit HTML path or prefix (overrides --output-dir)
+  --quiet                unattended mode: no progress, no ANSI, stdout silent on success
+  --timeout DURATION     wall-clock budget (e.g. 30m); incomplete scan exits 2
+  --customer LABEL       optional self-declared label (not authenticated)
+  --runtime-version VER  operator-supplied WEB runtime (with --runtime-sapi and --runtime-source)
+  --rules PATH           local Ed25519-signed indicator bundle
+  --update-rules         opt-in download signed rules (requires --rules-url)
 
-Each scan creates PREFIX.json, PREFIX.csv and PREFIX.html, never overwrites files.
+Default report directory:
+  Windows: C:\ProgramData\PHP2Shell\Reports
+  Unix:    $HOME/.php2shell/reports (or /var/tmp/php2shell/reports if HOME unset)
+
+Each scan writes one HTML file with a unique hostname+timestamp name (unless --out).
+Existing reports are never overwritten. JSON/CSV are not written by scan.
+
+Exit codes:
+  0  scan finished and HTML written (findings may exist; not a clearance)
+  1  fatal tool, configuration, or report write failure
+  2  HTML written but scan incomplete (permissions, truncation, timeout)
+
+Examples:
+  php2shell scan
+  php2shell scan --output-dir \\fileserver\php2shell$\fleet --quiet
+  php2shell scan --webroot /var/www --access-log /var/log/nginx/access.log
+  php2shell scan --out reports/customer-check.html
+
 Read the limitations in README.md. Run only on authorized systems.
 `
 
 func main() {
-	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "ERROR:", err)
-		os.Exit(1)
-	}
+	os.Exit(run(os.Args[1:]))
 }
-func run(args []string) error {
+
+func run(args []string) int {
 	if len(args) == 0 {
 		fmt.Print(help)
-		return nil
+		return audit.ExitOK
 	}
 	switch args[0] {
 	case "help", "--help", "-h":
 		fmt.Print(help)
-		return nil
+		return audit.ExitOK
 	case "rules":
-		return runRules(args[1:])
+		if err := runRules(args[1:]); err != nil {
+			fmt.Fprintln(os.Stderr, "ERROR:", err)
+			return audit.ExitFatal
+		}
+		return audit.ExitOK
 	case "version":
 		fmt.Printf("php2shell %s %s/%s\n", audit.Version, runtime.GOOS, runtime.GOARCH)
-		return nil
+		return audit.ExitOK
 	case "doctor":
 		fmt.Printf("PHP2Shell standalone %s (%s/%s)\nNo Python or PHP required. No external modules.\n", audit.Version, runtime.GOOS, runtime.GOARCH)
 		fmt.Println("Host metadata: best-effort; Linux dpkg/apk and /proc; macOS/Windows partial.")
 		fmt.Println("Official upstream PHP2Shell fix thresholds: AVAILABLE. Web-runtime patch attestation: NOT IMPLEMENTED.")
 		fmt.Println("Signed indicator packs: manually trusted Ed25519 key; no automatic internet access.")
-		fmt.Println("Default: offline, no code execution, reports written only to local files.")
-		return nil
+		fmt.Println("Default: offline, no code execution, single HTML report, no automatic browser or upload.")
+		fmt.Println("Exit codes: 0=report written, 1=fatal error, 2=report written but incomplete.")
+		return audit.ExitOK
 	case "scan":
-		fs := flag.NewFlagSet("scan", flag.ContinueOnError)
-		webroot := fs.String("webroot", "", "authorized website document root (file names only)")
-		out := fs.String("out", "", "private output prefix; auto-generate if omitted; fail if exists")
-		customer := fs.String("customer", "", "optional self-declared label; not authenticated tenant")
-		runtimeVersion := fs.String("runtime-version", "", "operator-supplied WEB runtime PHP version; requires --runtime-sapi and --runtime-source; NOT independently verified")
-		runtimeSAPI := fs.String("runtime-sapi", "", "web SAPI of operator-reported version, e.g. fpm, apache/mod_php, cgi, litespeed")
-		runtimeSource := fs.String("runtime-source", "", "human-readable evidence provenance for operator-reported WEB runtime; NOT attestation")
-		docker := fs.Bool("docker", false, "read local privileged Unix Docker API container metadata (opt-in)")
-		updateRules := fs.Bool("update-rules", false, "opt-in download signed indicator rules; requires --rules-url and previously trusted key")
-		rulesURL := fs.String("rules-url", "", "trusted signed rule bundle HTTPS URL")
-		signedRules := fs.String("rules", "", "local Ed25519-signed bundle; requires previously trusted key")
-		var repos, logs paths
-		fs.Var(&repos, "repo", "authorized local repo; repeatable")
-		fs.Var(&logs, "access-log", "local HTTP access log; repeatable; limit 32MiB")
+		return runScan(args[1:])
+	case "rollup":
+		fs := flag.NewFlagSet("rollup", flag.ContinueOnError)
+		out := fs.String("out", "reports/rollup.csv", "exclusive output CSV path")
+		m := fs.String("tenant-map", "", "optional JSON object: SHA-256 of exact report file to trusted tenant")
 		if err := fs.Parse(args[1:]); err != nil {
-			return err
+			return audit.ExitFatal
 		}
-		if fs.NArg() != 0 {
-			return fmt.Errorf("unexpected arguments; use --repo PATH or --access-log PATH")
+		if err := audit.Rollup(fs.Args(), *m, *out); err != nil {
+			fmt.Fprintln(os.Stderr, "ERROR:", err)
+			return audit.ExitFatal
 		}
-		if (*runtimeVersion != "" || *runtimeSAPI != "" || *runtimeSource != "") && (*runtimeVersion == "" || *runtimeSAPI == "" || *runtimeSource == "") {
-			return fmt.Errorf("--runtime-version, --runtime-sapi and --runtime-source must be supplied together")
+		fmt.Printf("MSSP rollup saved: %s (reports are NOT authenticated; unmapped tenant identifiers remain UNMAPPED)\n", *out)
+		fmt.Println("Note: scan no longer writes JSON; rollup expects operator-supplied JSON report files.")
+		return audit.ExitOK
+	default:
+		fmt.Fprintf(os.Stderr, "ERROR: unknown command %q\n%s", args[0], help)
+		return audit.ExitFatal
+	}
+}
+
+func runScan(args []string) int {
+	fs := flag.NewFlagSet("scan", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	webroot := fs.String("webroot", "", "authorized website document root (file names only)")
+	out := fs.String("out", "", "explicit HTML path or prefix; overrides --output-dir")
+	outputDir := fs.String("output-dir", "", "directory for unique HTML report (local or accessible UNC)")
+	quiet := fs.Bool("quiet", false, "unattended: no progress, no ANSI; stdout silent on success")
+	timeoutStr := fs.String("timeout", "", "wall-clock scan budget (e.g. 30m)")
+	customer := fs.String("customer", "", "optional self-declared label; not authenticated tenant")
+	runtimeVersion := fs.String("runtime-version", "", "operator-supplied WEB runtime PHP version; requires --runtime-sapi and --runtime-source; NOT independently verified")
+	runtimeSAPI := fs.String("runtime-sapi", "", "web SAPI of operator-reported version, e.g. fpm, apache/mod_php, cgi, litespeed")
+	runtimeSource := fs.String("runtime-source", "", "human-readable evidence provenance for operator-reported WEB runtime; NOT attestation")
+	docker := fs.Bool("docker", false, "read local privileged Unix Docker API container metadata (opt-in)")
+	updateRules := fs.Bool("update-rules", false, "opt-in download signed indicator rules; requires --rules-url and previously trusted key")
+	rulesURL := fs.String("rules-url", "", "trusted signed rule bundle HTTPS URL")
+	signedRules := fs.String("rules", "", "local Ed25519-signed bundle; requires previously trusted key")
+	var repos, logs paths
+	fs.Var(&repos, "repo", "authorized local repo; repeatable")
+	fs.Var(&logs, "access-log", "local HTTP access log; repeatable; limit 32MiB")
+	if err := fs.Parse(args); err != nil {
+		return audit.ExitFatal
+	}
+	if fs.NArg() != 0 {
+		fmt.Fprintln(os.Stderr, "ERROR: unexpected arguments; use --repo PATH or --access-log PATH")
+		return audit.ExitFatal
+	}
+	if (*runtimeVersion != "" || *runtimeSAPI != "" || *runtimeSource != "") && (*runtimeVersion == "" || *runtimeSAPI == "" || *runtimeSource == "") {
+		fmt.Fprintln(os.Stderr, "ERROR: --runtime-version, --runtime-sapi and --runtime-source must be supplied together")
+		return audit.ExitFatal
+	}
+	if len(*runtimeVersion) > 60 || len(*runtimeSAPI) > 80 || len(*runtimeSource) > 256 {
+		fmt.Fprintln(os.Stderr, "ERROR: runtime evidence fields too long")
+		return audit.ExitFatal
+	}
+	if len(repos) > 20 || len(logs) > 20 {
+		fmt.Fprintln(os.Stderr, "ERROR: limit is 20 repositories and 20 log files per scan")
+		return audit.ExitFatal
+	}
+	var timeout time.Duration
+	if strings.TrimSpace(*timeoutStr) != "" {
+		var err error
+		timeout, err = time.ParseDuration(*timeoutStr)
+		if err != nil || timeout <= 0 {
+			fmt.Fprintln(os.Stderr, "ERROR: invalid --timeout; use a positive duration such as 30m")
+			return audit.ExitFatal
 		}
-		if len(*runtimeVersion) > 60 || len(*runtimeSAPI) > 80 || len(*runtimeSource) > 256 {
-			return fmt.Errorf("runtime evidence fields too long")
+	}
+
+	started := time.Now()
+	name, _ := os.Hostname()
+	con := console.New(console.Options{Quiet: *quiet})
+	con.Banner(audit.Version, runtime.GOOS, runtime.GOARCH, name)
+
+	r := audit.NewReport(name, runtime.GOOS, runtime.GOARCH)
+	r.CustomerLabel = *customer
+
+	var deadline time.Time
+	if timeout > 0 {
+		deadline = started.Add(timeout)
+	}
+	timedOut := false
+	checkTimeout := func() bool {
+		if timeout <= 0 || timedOut {
+			return timedOut
 		}
-		if len(repos) > 20 || len(logs) > 20 {
-			return fmt.Errorf("limit is 20 repositories and 20 log files per scan")
+		if time.Now().After(deadline) {
+			timedOut = true
+			r.AddCheck("scan_timeout", "TIMEOUT", "Wall-clock scan budget exhausted; remaining phases skipped")
+			r.AddWarning("Scan timeout reached; report coverage may be incomplete")
+			con.Warn("Scan timeout reached; finishing with available evidence")
+			return true
 		}
-		name, _ := os.Hostname()
-		r := audit.NewReport(name, runtime.GOOS, runtime.GOARCH)
-		r.CustomerLabel = *customer
-		var indicators []rules.Indicator
+		return false
+	}
+
+	var indicators []rules.Indicator
+	if !checkTimeout() {
+		con.Phase("Loading indicator rules")
 		if *updateRules {
 			key, e := rules.InstalledPublic()
 			if e != nil {
-				return fmt.Errorf("rules update requires trusted Ed25519 public key: %w", e)
+				con.Error("rules update requires trusted Ed25519 public key: " + e.Error())
+				return audit.ExitFatal
 			}
 			if *rulesURL == "" {
-				return fmt.Errorf("--update-rules requires --rules-url HTTPS_URL")
+				con.Error("--update-rules requires --rules-url HTTPS_URL")
+				return audit.ExitFatal
 			}
 			payload, e := rules.FetchHTTPS(*rulesURL)
 			if e != nil {
-				return fmt.Errorf("rules update failed: %w", e)
+				con.Error("rules update failed: " + e.Error())
+				return audit.ExitFatal
 			}
 			if _, e = rules.InstallSigned(payload, key); e != nil {
-				return fmt.Errorf("rule verification/update failed: %w", e)
+				con.Error("rule verification/update failed: " + e.Error())
+				return audit.ExitFatal
 			}
 		} else if *rulesURL != "" {
-			return fmt.Errorf("--rules-url needs --update-rules")
+			con.Error("--rules-url needs --update-rules")
+			return audit.ExitFatal
 		}
 		var bundle *rules.Bundle
 		if *signedRules != "" {
 			key, e := rules.InstalledPublic()
 			if e != nil {
-				return fmt.Errorf("no trusted rule key: %w", e)
+				con.Error("no trusted rule key: " + e.Error())
+				return audit.ExitFatal
 			}
 			bundle, e = rules.LoadSignedPath(*signedRules, key)
 			if e != nil {
-				return fmt.Errorf("invalid signed rules: %w", e)
+				con.Error("invalid signed rules: " + e.Error())
+				return audit.ExitFatal
 			}
 		} else {
 			var e error
@@ -156,12 +258,23 @@ func run(args []string) error {
 			r.RuleCount = len(bundle.Indicators)
 			r.AddCheck("signed_indicator_rules", "VERIFIED", fmt.Sprintf("Signed Ed25519 bundle sequence %d with %d validated data-only indicators", bundle.Sequence, len(bundle.Indicators)))
 		}
+	}
+
+	if !checkTimeout() {
+		con.Phase("Host and PHP inventory")
 		audit.ScanHost(r, *webroot, *docker)
 		if *runtimeVersion != "" {
 			r.AddEvidence(audit.Evidence{Type: "operator_reported_web_runtime", Name: *runtimeSAPI, Version: *runtimeVersion, Source: "operator-supplied serving runtime statement: " + *runtimeSource, Interpretation: "UNVERIFIED_OPERATOR_ASSERTION_NO_ACTIVE_RUNTIME_ATTESTATION"})
 			r.EffectiveWebRuntime = "OPERATOR_REPORTED_NOT_ATTESTED"
 		}
+	}
+
+	if !checkTimeout() {
+		con.Phase("Repository declarations")
 		for _, p := range repos {
+			if checkTimeout() {
+				break
+			}
 			audit.ScanRepository(r, p)
 		}
 		if len(repos) == 0 {
@@ -176,14 +289,20 @@ func run(args []string) error {
 			}
 			r.AddCheck("repositories", status, fmt.Sprintf("Requested %d repositories; see detailed coverage; declarations are not deployed runtimes", len(repos)))
 		}
+	}
+
+	if !checkTimeout() {
+		con.Phase("Access logs and file indicators")
 		for _, p := range logs {
+			if checkTimeout() {
+				break
+			}
 			audit.ScanAccessLogWithIndicators(r, p, indicators)
 		}
 		audit.ScanFileHashes(r, *webroot, indicators)
-		audit.EvaluatePatchPosture(r)
 		if len(r.Findings) > 0 {
 			r.CompromiseStatus = "INDICATORS_MATCHED_REVIEW_REQUIRED"
-		} else if bundle != nil && len(indicators) > 0 && (len(logs) > 0 || *webroot != "") {
+		} else if len(indicators) > 0 && (len(logs) > 0 || *webroot != "") {
 			r.CompromiseStatus = "NO_MATCHES_SCOPE_LIMITED"
 		}
 		if len(logs) == 0 {
@@ -201,50 +320,31 @@ func run(args []string) error {
 			}
 			r.AddCheck("historical_access_logs", status, fmt.Sprintf("Requested %d log files; see detailed coverage. Matched indicators require validation, and missing matches do not prove safety", len(logs)))
 		}
-		audit.FinalizeSummary(r)
-		if *out == "" {
-			*out = fmt.Sprintf("reports/assessment-%s-%d", time.Now().UTC().Format("20060102T150405Z"), os.Getpid())
-		}
-		if err := audit.Save(r, *out); err != nil {
-			return err
-		}
-		fmt.Printf("Assessment saved: %s.json, %s.csv, %s.html\n", *out, *out, *out)
-		fmt.Printf("PHP evidence: %s | Patch review: %s | Compromise review: %s\n", r.Summary.PHPDiscovery, r.Summary.PatchReview, r.Summary.CompromiseReview)
-		fmt.Printf("Evidence observations: %d | Vulnerability: %s | Compromise: %s | Serving runtime: %s\n", len(r.Evidence), r.VulnerabilityStatus, r.CompromiseStatus, r.EffectiveWebRuntime)
-		fmt.Printf("Signed rules: %d (sequence %d) | Matched indicators: %d\n", r.RuleCount, r.RuleSequence, len(r.Findings))
-		criticalShown := 0
-		for _, a := range r.PatchAssessments {
-			if a.Priority != "CRITICAL" {
-				continue
-			}
-			if criticalShown == 0 {
-				fmt.Println("IMMEDIATE PATCH REVIEW:")
-			}
-			if criticalShown >= 8 {
-				fmt.Println("  ... additional findings and required actions are in the HTML / JSON report")
-				break
-			}
-			fmt.Printf("  - %s %s (%s): %s\n", a.Component, a.ObservedVersion, a.Status, a.RequiredAction)
-			criticalShown++
-		}
-		fmt.Println("Next steps and source qualifications: open the .html report > Official PHP2Shell patch assessment / Recommended follow-up.")
-		fmt.Println("IMPORTANT: Patch-level comparison does not attest the active HTTP runtime or exclude compromise. Review assessments, coverage and required actions.")
-		return nil
-	case "rollup":
-		fs := flag.NewFlagSet("rollup", flag.ContinueOnError)
-		out := fs.String("out", "reports/rollup.csv", "exclusive output CSV path")
-		m := fs.String("tenant-map", "", "optional JSON object: SHA-256 of exact report file to trusted tenant")
-		if err := fs.Parse(args[1:]); err != nil {
-			return err
-		}
-		if err := audit.Rollup(fs.Args(), *m, *out); err != nil {
-			return err
-		}
-		fmt.Printf("MSSP rollup saved: %s (reports are NOT authenticated; unmapped tenant identifiers remain UNMAPPED)\n", *out)
-		return nil
-	default:
-		return fmt.Errorf("unknown command %q\n%s", args[0], help)
 	}
+
+	if !checkTimeout() {
+		con.Phase("Patch assessment")
+		audit.EvaluatePatchPosture(r)
+	}
+
+	con.Phase("Writing HTML report")
+	audit.FinalizeSummary(r)
+
+	htmlPath, err := audit.ResolveScanReportPath(*out, *outputDir, name, time.Now().UTC())
+	if err != nil {
+		con.Error(err.Error())
+		return audit.ExitFatal
+	}
+	saveErr := audit.Save(r, htmlPath)
+	if saveErr != nil {
+		con.Error("cannot write HTML report: " + saveErr.Error())
+		return audit.ExitFatal
+	}
+
+	incomplete := audit.ScanIncomplete(r)
+	elapsed := time.Since(started)
+	con.Summary(r, htmlPath, elapsed, incomplete)
+	return audit.ScanExitCode(r, nil)
 }
 
 func runRules(args []string) error {
