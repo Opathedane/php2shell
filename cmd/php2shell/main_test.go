@@ -140,8 +140,12 @@ func TestRunScanDeepRootCLIWritesPairAndRejectsUNC(t *testing.T) {
 			t.Fatalf("CSV missing %s", ver)
 		}
 	}
-	if strings.Contains(html, "password=") || strings.Contains(csv, "secret") {
-		t.Fatal("unexpected secret-like content in reports")
+	// Reject credential-shaped leaks only. Legitimate copy may say "secrets not reported".
+	for _, blob := range []string{html, csv} {
+		low := strings.ToLower(blob)
+		if strings.Contains(low, "password=") || strings.Contains(low, "secret=") || strings.Contains(low, "api_key=") {
+			t.Fatal("unexpected credential-shaped content in reports")
+		}
 	}
 
 	// Without --deep-root, the same hidden tree must not appear.
