@@ -42,7 +42,14 @@ Linux ARM64 has `php2shell-linux-arm64.tar.gz`; macOS is also included as a deve
 
 ## Reports and integrity
 
-The default command creates `.html`, `.json`, `.csv` in `reports/` without overwriting files. Open `.html` locally. Keep files private: they may contain server names and file paths.
+Each scan writes **one HTML report** only (unique hostname + UTC timestamp). Defaults:
+
+- Windows: `C:\ProgramData\PHP2Shell\Reports`
+- Linux/macOS: `$HOME/.php2shell/reports`
+
+Use `--output-dir` for a central share (including UNC when the account already has access) or `--out path.html` for an explicit name. Existing files are never overwritten. Keep reports private: they may contain server names and file paths.
+
+**Unattended / GPO / scheduled task:** prefer `scan --quiet --output-dir DIR`. No prompts, no browser, no elevation request. Exit codes: `0` report written, `1` fatal error, `2` report written but incomplete. When running as SYSTEM to a UNC path, grant the computer account (`DOMAIN\MACHINE$`) share and NTFS permissions; the scanner does not map drives or upload data.
 
 Verify download against `SHA256SUMS` **from a trusted GitHub release** (checksums do not replace binary signing):
 

@@ -145,56 +145,83 @@ func EncodeHTML(r *Report) []byte {
 	return []byte(b.String())
 }
 
-// Save creates all files as owner-readable only and refuses to overwrite any existing target.
-// If a later file fails, only newly created files from this invocation are removed.
-func Save(r *Report, outPrefix string) error {
-	if strings.TrimSpace(outPrefix) == "" {
-		return fmt.Errorf("empty output prefix")
+// Save writes a single self-contained HTML report as owner-readable only and refuses overwrite.
+// JSON and CSV are not written during normal scanning; EncodeCSV and json.Marshal remain for tests and legacy rollup.
+func Save(r *Report, htmlPath string) error {
+	htmlPath = strings.TrimSpace(htmlPath)
+	if htmlPath == "" {
+		return fmt.Errorf("empty HTML report path")
 	}
-	if err := MakeReportDirectory(outPrefix); err != nil {
+	if !strings.HasSuffix(strings.ToLower(htmlPath), ".html") {
+		htmlPath = htmlPath + ".html"
+	}
+	if err := MakeReportDirectory(htmlPath); err != nil {
 		return err
 	}
-	js, err := json.MarshalIndent(r, "", "  ")
+	if _, err := os.Lstat(htmlPath); err == nil {
+		return fmt.Errorf("output exists, refusing overwrite: %s", htmlPath)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	// Excl prevents following an existing destination symlink.
+	fp, err := os.OpenFile(htmlPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return err
 	}
-	csvB, err := EncodeCSV(r)
-	if err != nil {
-		return err
-	}
-	files := []struct {
-		path string
-		data []byte
-	}{{outPrefix + ".json", append(js, '\n')}, {outPrefix + ".csv", csvB}, {outPrefix + ".html", EncodeHTML(r)}}
-	for _, f := range files {
-		if _, err := os.Lstat(f.path); err == nil {
-			return fmt.Errorf("output exists, refusing overwrite: %s", f.path)
-		} else if !os.IsNotExist(err) {
-			return err
-		}
-	}
-	created := []string{}
-	for _, target := range files {
-		// Excl prevents following an existing destination symlink.
-		fp, err := os.OpenFile(target.path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-		if err != nil {
-			for _, c := range created {
-				_ = os.Remove(c)
-			}
-			return err
-		}
-		created = append(created, target.path)
-		_, werr := fp.Write(target.data)
-		serr := fp.Sync()
-		cerr := fp.Close()
-		if werr != nil || serr != nil || cerr != nil {
-			for _, c := range created {
-				_ = os.Remove(c)
-			}
-			return fmt.Errorf("cannot complete report output: %v %v %v", werr, serr, cerr)
-		}
+	data := EncodeHTML(r)
+	_, werr := fp.Write(data)
+	serr := fp.Sync()
+	cerr := fp.Close()
+	if werr != nil || serr != nil || cerr != nil {
+		_ = os.Remove(htmlPath)
+		return fmt.Errorf("cannot complete report output: %v %v %v", werr, serr, cerr)
 	}
 	return nil
+}
+
+// Exit codes for php2shell scan (operational, not a security clearance).
+const (
+	ExitOK         = 0 // HTML written; findings may exist
+	ExitFatal      = 1 // tool/config/I/O failure
+	ExitIncomplete = 2 // HTML written but scan incomplete
+)
+
+// ScanExitCode returns the process exit code after a scan attempt.
+func ScanExitCode(r *Report, saveErr error) int {
+	if saveErr != nil || r == nil {
+		return ExitFatal
+	}
+	if ScanIncomplete(r) {
+		return ExitIncomplete
+	}
+	return ExitOK
+}
+
+// ScanIncomplete reports whether coverage indicates inaccessible resources or truncated checks.
+// Exit code 2 uses this after a successful HTML write; it is not a security clearance signal.
+func ScanIncomplete(r *Report) bool {
+	if r == nil {
+		return true
+	}
+	for _, c := range r.Coverage {
+		switch strings.ToUpper(c.Status) {
+		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED", "TIMEOUT":
+			return true
+		}
+	}
+	for _, repo := range r.Repositories {
+		switch strings.ToUpper(repo.Status) {
+		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED":
+			return true
+		}
+	}
+	for _, log := range r.Logs {
+		switch strings.ToUpper(log.Status) {
+		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED":
+			return true
+		}
+	}
+	return false
 }
 
 type RollupRow struct {

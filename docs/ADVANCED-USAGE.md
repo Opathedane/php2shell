@@ -25,17 +25,25 @@ Windows Server (PowerShell):
 .\php2shell-windows-amd64.exe scan
 ```
 
-Generates local `reports/assessment-<timestamp>-<pid>.json/.csv/.html`. Existing reports are not overwritten. **Always read the coverage table**. No PHP installation found is not a clean bill of health.
+Writes a single HTML report under the platform default directory (`C:\ProgramData\PHP2Shell\Reports` or `$HOME/.php2shell/reports`) with a unique `php2shell-<hostname>-<timestamp>.html` name. Existing reports are not overwritten. Use `--output-dir` / `--out` / `--quiet` / `--timeout` for automation. **Always read the coverage table**. No PHP installation found is not a clean bill of health. Process exit `0` is not a security clearance.
 
 ## Consultant: examine the authorized evidence
 
 ```bash
-./php2shell-linux-amd64 scan --webroot /var/www --access-log /var/log/nginx/access.log --repo /srv/source --out reports/customer-check
+./php2shell-linux-amd64 scan --webroot /var/www --access-log /var/log/nginx/access.log --repo /srv/source --out reports/customer-check.html
 ```
 
 ```powershell
-.\php2shell-windows-amd64.exe scan --webroot C:\inetpub\wwwroot --access-log C:\inetpub\logs\LogFiles\W3SVC1\u_ex261021.log --out reports\customer-check
+.\php2shell-windows-amd64.exe scan --webroot C:\inetpub\wwwroot --access-log C:\inetpub\logs\LogFiles\W3SVC1\u_ex261021.log --output-dir C:\ProgramData\PHP2Shell\Reports
 ```
+
+Enterprise / scheduled example (no console progress; HTML only):
+
+```powershell
+.\php2shell-windows-amd64.exe scan --quiet --output-dir \\fileserver\php2shell$\fleet --timeout 30m
+```
+
+UNC writes use the process identity (user or `DOMAIN\MACHINE$` under SYSTEM). Configure share ACLs explicitly; the scanner does not transfer reports by itself.
 
 IIS uses static `applicationHost.config` PHP FastCGI/handler references and a limited live Windows process list. Linux has partial dpkg/apk, PHP binary/config paths and /proc data. Neither platform establishes the actual HTTP-serving PHP SAPI or validates vendor security backports. Windows W3C and Apache/nginx combined logs can be summarized and checked against signed indicators. No logs are read unless explicitly requested.
 
@@ -72,11 +80,13 @@ For maintainer key generation and signing, see [rules/README.md](../rules/README
 
 ## MSSP report aggregation
 
+`php2shell scan` writes HTML only. The legacy `rollup` command still expects operator-supplied JSON report files (for example from an older scan or an external export):
+
 ```bash
 php2shell rollup --tenant-map /secure/trusted-map.json --out reports/fleet.csv reports/*.json
 ```
 
-Tenant identities require an analyst-maintained exact SHA-256 report hash mapping. Input customer labels are never trusted for tenancy. An unsigned report can be forged and is not an attested chain of custody.
+Tenant identities require an analyst-maintained exact SHA-256 report hash mapping. Input customer labels are never trusted for tenancy. An unsigned report can be forged and is not an attested chain of custody. Prefer collecting HTML reports via a pre-configured `--output-dir` (local or UNC) rather than automatic upload.
 
 ## What is not finished
 
