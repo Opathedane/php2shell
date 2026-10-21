@@ -43,34 +43,56 @@ func ScanHost(r *Report, webroot string, docker bool) {
 }
 
 func scanBinaries(r *Report) {
-	var paths []string
-	if runtime.GOOS == "windows" {
-		paths = []string{`C:\php\php.exe`, `C:\php\php-cgi.exe`, `C:\xampp\php\php.exe`, `C:\xampp\php\php-cgi.exe`, `C:\inetpub\PHP\*\php-cgi.exe`, `C:\Program Files\PHP\*\php.exe`}
-	} else {
-		paths = []string{`/usr/bin/php*`, `/usr/sbin/php-fpm*`, `/usr/local/bin/php*`, `/usr/local/sbin/php-fpm*`, `/opt/plesk/php/*/bin/php*`, `/opt/plesk/php/*/sbin/php-fpm*`, `/opt/remi/php*/root/usr/bin/php*`, `/opt/cpanel/ea-php*/root/usr/bin/php*`, `/etc/alternatives/php`}
-	}
 	found := 0
 	seen := map[string]bool{}
-	for _, pattern := range paths {
-		matches, _ := filepath.Glob(pattern)
-		for _, path := range matches {
-			if found >= 400 {
-				r.AddWarning("PHP binary discovery limited to 400 results")
-				r.AddCheck("binary_paths", "TRUNCATED", "Path discovery limit reached; binaries not executed")
+	addPath := func(path, source string) bool {
+		if found >= maxWindowsPHPDiscover {
+			r.AddWarning("PHP binary discovery limited to 400 results")
+			r.AddCheck("binary_paths", "TRUNCATED", "Path discovery limit reached; binaries not executed")
+			return false
+		}
+		path = filepath.Clean(path)
+		key := normalizeInstallPath(path)
+		if !phpBin.MatchString(filepath.Base(path)) || seen[key] {
+			return true
+		}
+		if !isSafeRegularFile(path) {
+			return true
+		}
+		seen[key] = true
+		found++
+		AddBinaryVersionEvidence(r, path, filepath.Base(path), source)
+		return true
+	}
+
+	if runtime.GOOS == "windows" {
+		candidates, warnings := collectWindowsPHPBinaryCandidates(maxWindowsPHPDiscover)
+		for _, w := range warnings {
+			r.AddWarning(w)
+		}
+		for _, path := range candidates {
+			source := "Windows well-known/LocalAppData/PATH static binary inspection"
+			if strings.Contains(strings.ToLower(path), `\appdata\local\programs\php\`) {
+				source = "Windows LocalAppData Programs\\PHP static binary inspection"
+			} else if onPATHDirectory(path) {
+				source = "Windows PATH directory static binary inspection"
+			}
+			if !addPath(path, source) {
 				return
 			}
-			if !phpBin.MatchString(filepath.Base(path)) || seen[path] {
-				continue
+		}
+	} else {
+		patterns := []string{`/usr/bin/php*`, `/usr/sbin/php-fpm*`, `/usr/local/bin/php*`, `/usr/local/sbin/php-fpm*`, `/opt/plesk/php/*/bin/php*`, `/opt/plesk/php/*/sbin/php-fpm*`, `/opt/remi/php*/root/usr/bin/php*`, `/opt/cpanel/ea-php*/root/usr/bin/php*`, `/etc/alternatives/php`}
+		for _, pattern := range patterns {
+			matches, _ := filepath.Glob(pattern)
+			for _, path := range matches {
+				if !addPath(path, "well-known path static binary inspection") {
+					return
+				}
 			}
-			fi, err := os.Stat(path)
-			if err != nil || !fi.Mode().IsRegular() {
-				continue
-			}
-			seen[path] = true
-			found++
-			AddBinaryVersionEvidence(r, path, filepath.Base(path), "well-known path static binary inspection")
 		}
 	}
+
 	versioned, partialInspect := 0, 0
 	for _, e := range r.Evidence {
 		if e.Type == "binary_static_version" {
@@ -81,11 +103,36 @@ func scanBinaries(r *Report) {
 		}
 	}
 	status := "PARTIAL"
-	detail := fmt.Sprintf("Found %d PHP-like binary paths (%d with static version markers); common paths only, no binaries executed", found, versioned)
+	detail := fmt.Sprintf("Found %d PHP-like binary paths (%d with static version markers); no binaries executed", found, versioned)
+	if runtime.GOOS == "windows" {
+		detail += `; searched well-known dirs, %LOCALAPPDATA%\Programs\PHP, and PATH entries`
+	} else {
+		detail += "; common Unix paths only"
+	}
+	detail += "; absence of findings is not proof PHP is absent"
 	if partialInspect > 0 {
 		detail += fmt.Sprintf("; %d oversized/partial binary inspections (see warnings)", partialInspect)
 	}
+	if found == 0 {
+		detail += "; inventory may miss per-user or nonstandard installs"
+		r.AddWarning("No PHP binaries discovered in scanned locations; this does not prove PHP is absent on the host")
+	}
 	r.AddCheck("binary_paths", status, detail)
+}
+
+func onPATHDirectory(binPath string) bool {
+	dir := filepath.Clean(filepath.Dir(binPath))
+	sep := string(os.PathListSeparator)
+	for _, p := range strings.Split(os.Getenv("PATH"), sep) {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		if normalizeInstallPath(filepath.Clean(p)) == normalizeInstallPath(dir) {
+			return true
+		}
+	}
+	return false
 }
 
 func scanPackages(r *Report) {
