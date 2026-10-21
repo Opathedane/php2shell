@@ -1,0 +1,14 @@
+reports/
+*.exe
+php2shell-linux-*
+php2shell-darwin-*
+dist/
+coverage.out
+*.test
+.DS_Store
+# Signing key must NEVER be included in repository or releases
+rule-signing-private.hex
+*.private.hex
+*-signing-private.*
+# Local scratch test fixtures
+iis-fixture.log

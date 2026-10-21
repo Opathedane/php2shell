@@ -1,0 +1,70 @@
+name: Publish standalone ALPHA downloads
+# Explicitly tagging an alpha is the approval to make the unsigned preview public.
+# Never tag an unreviewed commit. All release assets are for testing only.
+on:
+  push:
+    tags:
+      - 'v*-alpha.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Alpha version to publish, e.g. v2.1.0-alpha.2'
+        type: string
+        default: v2.1.0-alpha.2
+        required: true
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - run: go vet ./...
+      - run: go run ./cmd/php2shell doctor
+  publish:
+    name: Build and publish alpha prerelease
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build five portable executable variants
+        run: bash scripts/build-release.sh
+      - name: Inspect assets
+        run: |
+          set -euo pipefail
+          ./dist/php2shell-linux-amd64 version
+          file dist/php2shell-* | head -20
+          (cd dist && sha256sum --check --status SHA256SUMS)
+      - name: Publish GitHub Release as prerelease (NOT production-approved)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          built="$(./dist/php2shell-linux-amd64 version | awk '{print $2}')"
+          if [[ "$TAG" != "v${built}" || "$TAG" != *-alpha.* ]]; then
+            echo "Refusing to publish: tag $TAG does not match built alpha version v${built}" >&2
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; do not silently overwrite assets" >&2
+            exit 1
+          fi
+          gh release create "$TAG" dist/php2shell-* dist/SHA256SUMS \
+            --target "${GITHUB_SHA}" --prerelease \
+            --title "PHP2Shell $TAG – unsigned development preview" \
+            --notes-file docs/ALPHA-RELEASE-NOTES.md
