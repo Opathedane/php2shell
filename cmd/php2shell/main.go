@@ -27,7 +27,7 @@ func (p *paths) Set(s string) error {
 	return nil
 }
 
-const help = `PHP2Shell Assessment (standalone preview)
+const help = `PHP2Shell Security Assessment
 
 No PHP execution. No network scanning. No exploit tests. No customer data upload.
 No automatic remediation or browser opening. Reports official upstream patch-level
@@ -102,12 +102,13 @@ func run(args []string) int {
 		fmt.Printf("php2shell %s %s/%s\n", audit.Version, runtime.GOOS, runtime.GOARCH)
 		return audit.ExitOK
 	case "doctor":
-		fmt.Printf("PHP2Shell standalone %s (%s/%s)\nNo Python or PHP required. No external modules.\n", audit.Version, runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("PHP2Shell %s (%s/%s)\nNo Python or PHP required. No external modules.\n", audit.Version, runtime.GOOS, runtime.GOARCH)
 		fmt.Println("Host metadata: best-effort; Linux dpkg/apk and /proc; macOS/Windows partial.")
 		fmt.Println("Official upstream PHP2Shell fix thresholds: AVAILABLE. Web-runtime patch attestation: NOT IMPLEMENTED.")
 		fmt.Println("Signed indicator packs: manually trusted Ed25519 key; no automatic internet access.")
 		fmt.Println("Default: offline, no code execution, single HTML report, no automatic browser or upload.")
 		fmt.Println("Exit codes: 0=report written, 1=fatal error, 2=report written but incomplete.")
+		fmt.Println("Not a clearance: missing findings do not prove a host is patched or uncompromised.")
 		return audit.ExitOK
 	case "scan":
 		return runScan(args[1:])

@@ -85,6 +85,11 @@ func EvaluatePatchPosture(r *Report) {
 		if e.Version == "" {
 			continue
 		}
+		// Extension packages share the install version; keep them in evidence but avoid
+		// duplicating identical vulnerability rows for every module package.
+		if e.Type == "installed_package" && IsPHPExtensionPackage(e.Name) {
+			continue
+		}
 		key := e.Type + "\x00" + e.Location + "\x00" + e.Name + "\x00" + e.Version
 		if seen[key] {
 			continue

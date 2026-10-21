@@ -1,0 +1,60 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>PHP2Shell Security Assessment</title><style>
+:root{--ink:#1a2332;--muted:#5b6573;--line:#d7dde6;--bg:#f7f8fa;--card:#fff;--accent:#1f4b7a;--warn:#8a4b12;--warnbg:#fff7ed}
+*{box-sizing:border-box}body{font:16px/1.55 "Segoe UI",system-ui,sans-serif;margin:0;color:var(--ink);background:linear-gradient(180deg,#eef2f7, #f7f8fa 180px);padding:28px 18px 48px}
+main{max-width:980px;margin:0 auto}.header{margin-bottom:22px}h1{font-size:1.75rem;margin:0 0 8px;color:var(--accent)}
+.meta{color:var(--muted);font-size:.95rem}.priority{display:inline-block;margin-top:12px;padding:8px 12px;border-radius:6px;background:var(--warnbg);color:var(--warn);font-weight:600}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:22px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}.card h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px}.card .value{font-size:1.05rem;font-weight:650;margin:0 0 6px}.card .detail{color:var(--muted);font-size:.9rem;margin:0}
+.notice{background:var(--warnbg);border-left:4px solid #c2741a;padding:14px 16px;margin:18px 0}
+h2.section{font-size:1.2rem;margin:28px 0 10px;color:var(--accent)}
+table{border-collapse:collapse;width:100%;margin:10px 0 18px;background:var(--card)}th,td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}th{background:#eef2f6}
+details{border:1px solid var(--line);border-radius:8px;background:var(--card);margin:10px 0}details>summary{cursor:pointer;padding:12px 14px;font-weight:650;color:var(--accent)}details .body{padding:12px 14px}
+.footer{margin-top:28px;color:var(--muted);font-size:.85rem}
+</style></head><body><main>
+<header class="header">
+<h1>PHP2Shell Security Assessment</h1>
+<p class="meta"><strong>Host:</strong> app-web-01.example.local &nbsp;·&nbsp; <strong>Assessed (UTC):</strong> 2026-10-21 16:05:00 &nbsp;·&nbsp; <strong>Scanner:</strong> 2.3.0</p>
+<p class="priority">Overall priority: High — update review required</p>
+</header>
+<div class="notice"><strong>This report is not a clearance.</strong> It does not prove that a host is fully patched, that the correct PHP runtime is serving HTTP, or that the server is uncompromised. Missing findings are not proof of safety.</div>
+<section class="cards" aria-label="Executive summary">
+<article class="card"><h2>PHP detected</h2><p class="value">Yes</p><p class="detail">Observed versions: 8.3.24, 8.4.11</p></article>
+<article class="card"><h2>Vulnerability assessment</h2><p class="value">Update review required</p><p class="detail">Upstream thresholds (21 Oct 2026): 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35. Vendor backports require separate verification.</p></article>
+<article class="card"><h2>Active web runtime</h2><p class="value">Candidates identified</p><p class="detail">Installed packages, binaries, or processes were observed; the HTTP-serving PHP runtime is not verified.</p></article>
+<article class="card"><h2>Compromise assessment</h2><p class="value">Not assessed</p><p class="detail">IOC matches require analyst review; no matches within scope do not clear the host.</p></article>
+</section>
+<h2 class="section">Recommended next steps</h2>
+<ol>
+<li>Update or verify vendor backports for: PHP 8.3.24 (update toward 8.3.36 or verify an equivalent vendor security backport); PHP 8.4.11 (update toward 8.4.27 or verify an equivalent vendor security backport). Restart PHP-FPM, Apache/mod_php, IIS FastCGI, or other workers that may load these builds, then confirm the serving runtime version.</li>
+<li>Identify which PHP binary or SAPI actually serves HTTP (FPM pool, Apache module, IIS handler, container entrypoint). Package and CLI versions alone are not sufficient.</li>
+<li>Compromise was not assessed with a validated PHP2Shell-specific indicator pack. Retain access/error logs and EDR telemetry if investigation is required.</li>
+<li>Validate remediation by checking the active web handler version after restart, and review official guidance at https://www.php.net/archive/2026.php#2026-10-21-1.</li>
+</ol>
+<h2 class="section">PHP installations (grouped)</h2>
+<table><thead><tr><th>PHP version</th><th>Minimum fixed</th><th>Assessment</th></tr></thead><tbody>
+<tr><td>PHP 8.3.24</td><td>8.3.36</td><td>Update review required</td></tr>
+<tr><td>PHP 8.4.11</td><td>8.4.27</td><td>Update review required</td></tr>
+</tbody></table>
+<details><summary>PHP 8.3.24 — packages, binaries and evidence</summary><div class="body">
+<p><strong>Assessment:</strong> Update review required · <strong>Priority:</strong> CRITICAL</p>
+<table><thead><tr><th>Component</th><th>Type</th><th>Version</th><th>Action / limitations</th></tr></thead><tbody>
+<tr><td>php8.3-fpm</td><td>installed_package</td><td>8.3.24</td><td>Update the PHP web-serving runtime to 8.3.36 or later…</td></tr>
+<tr><td>php8.3-cli</td><td>installed_package</td><td>8.3.24</td><td>Update the PHP web-serving runtime to 8.3.36 or later…</td></tr>
+<tr><td>php8.3-common</td><td>installed_package</td><td>8.3.24</td><td>Update the PHP web-serving runtime to 8.3.36 or later…</td></tr>
+</tbody></table>
+<p><strong>Related evidence</strong> (includes extension packages kept for completeness):</p>
+<table><thead><tr><th>Name</th><th>Version</th><th>Type</th><th>Source</th></tr></thead><tbody>
+<tr><td>php8.3-mysql</td><td>8.3.24</td><td>installed_package</td><td>dpkg installed package metadata</td></tr>
+<tr><td>php-fpm8.3</td><td>8.3.24</td><td>binary_static_version</td><td>well-known path static binary inspection</td></tr>
+</tbody></table>
+</div></details>
+<details><summary>PHP 8.4.11 — packages, binaries and evidence</summary><div class="body">
+<p>…</p>
+</div></details>
+<details><summary>Runtime and process information</summary><div class="body"><p>php-fpm8.3 (PID=2214) — process name only; active HTTP SAPI unverified. Scanner process php2shell-linux is excluded.</p></div></details>
+<details><summary>Vulnerability and patch assessment details</summary><div class="body"><p>Full per-component patch table (collapsed by default in live reports).</p></div></details>
+<details><summary>Compromise indicators and investigation coverage</summary><div class="body"><p>No trusted signed indicator bundle was loaded for this scan.</p></div></details>
+<details><summary>Scan coverage and limitations</summary><div class="body"><p>packages: PARTIAL · active_http_sapi_verification: NOT_IMPLEMENTED</p></div></details>
+<details><summary>Full technical evidence (8)</summary><div class="body"><p>Includes php-common packaging metadata (24.04.1) without treating it as a PHP runtime version.</p></div></details>
+<p class="footer">Synthetic sample illustrating the simplified HTML layout. Live reports are generated by PHP2Shell 2.3.0 EncodeHTML.</p>
+</main></body></html>

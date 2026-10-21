@@ -119,8 +119,12 @@ func scanPackages(r *Report) {
 				r.AddWarning("Package result count truncated at 1000")
 				break
 			}
-			ver := versionNumber.FindString(fields["Version"])
-			r.AddEvidence(Evidence{Type: "installed_package", Name: name, Version: ver, Source: "dpkg installed package metadata", Location: dpkgPath, Detail: "Package version: " + fields["Version"], Interpretation: "PACKAGE_VERSION_ONLY_VENDOR_BACKPORT_AND_ACTIVE_SAPI_UNVERIFIED"})
+			ver := PackagePHPVersion(name, fields["Version"])
+			interp := "PACKAGE_VERSION_ONLY_VENDOR_BACKPORT_AND_ACTIVE_SAPI_UNVERIFIED"
+			if ver == "" && fields["Version"] != "" {
+				interp = "PACKAGE_METADATA_ONLY_NOT_PHP_RUNTIME_VERSION"
+			}
+			r.AddEvidence(Evidence{Type: "installed_package", Name: name, Version: ver, Source: "dpkg installed package metadata", Location: dpkgPath, Detail: "Package version: " + fields["Version"], Interpretation: interp})
 			found++
 		}
 	} else if !os.IsNotExist(err) {
@@ -143,7 +147,12 @@ func scanPackages(r *Report) {
 				r.AddWarning("Package result count truncated at 1000")
 				break
 			}
-			r.AddEvidence(Evidence{Type: "installed_package", Name: fields["P"], Version: versionNumber.FindString(fields["V"]), Source: "apk installed package metadata", Location: apkPath, Detail: "Package version: " + fields["V"], Interpretation: "PACKAGE_VERSION_ONLY_VENDOR_BACKPORT_AND_ACTIVE_SAPI_UNVERIFIED"})
+			ver := PackagePHPVersion(fields["P"], fields["V"])
+			interp := "PACKAGE_VERSION_ONLY_VENDOR_BACKPORT_AND_ACTIVE_SAPI_UNVERIFIED"
+			if ver == "" && fields["V"] != "" {
+				interp = "PACKAGE_METADATA_ONLY_NOT_PHP_RUNTIME_VERSION"
+			}
+			r.AddEvidence(Evidence{Type: "installed_package", Name: fields["P"], Version: ver, Source: "apk installed package metadata", Location: apkPath, Detail: "Package version: " + fields["V"], Interpretation: interp})
 			found++
 		}
 	} else if !os.IsNotExist(err) {
@@ -167,8 +176,13 @@ func scanProcesses(r *Report) {
 		return
 	}
 	found, missing := 0, 0
+	selfPID := scannerSelfPID()
 	for _, e := range entries {
-		if _, err := strconv.Atoi(e.Name()); err != nil {
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil {
+			continue
+		}
+		if pid == selfPID {
 			continue
 		}
 		b, err := ReadRegular(filepath.Join("/proc", e.Name(), "comm"), 4096)
@@ -177,7 +191,7 @@ func scanProcesses(r *Report) {
 			continue
 		}
 		name := strings.TrimSpace(string(b))
-		if !strings.HasPrefix(strings.ToLower(name), "php") && !strings.HasPrefix(strings.ToLower(name), "lsphp") {
+		if !IsPHPRuntimeProcessName(name) {
 			continue
 		}
 		if found >= 500 {

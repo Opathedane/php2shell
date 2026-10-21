@@ -189,4 +189,3 @@ func isHostRuntimeEvidence(t string) bool {
 		return false
 	}
 }
-

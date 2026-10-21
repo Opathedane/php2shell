@@ -22,13 +22,16 @@ func scanWindowsSpecific(r *Report) {
 		if syscall.Process32First(snap, &entry) == nil {
 			for {
 				n := syscall.UTF16ToString(entry.ExeFile[:])
-				low := strings.ToLower(n)
-				if phpBin.MatchString(n) || low == "w3wp.exe" {
-					if count < 256 {
-						r.AddEvidence(Evidence{Type: "running_process", Name: n, Source: "Windows Toolhelp32 process snapshot", Location: fmt.Sprintf("PID=%d", entry.ProcessID), Interpretation: "PROCESS_NAME_ONLY_NOT_PROOF_OF_ACTIVE_PHP_OR_PATCH_STATE"})
-					}
-					count++
+				if int(entry.ProcessID) == scannerSelfPID() {
+					continue
 				}
+				if !IsPHPRuntimeProcessName(n) {
+					continue
+				}
+				if count < 256 {
+					r.AddEvidence(Evidence{Type: "running_process", Name: n, Source: "Windows Toolhelp32 process snapshot", Location: fmt.Sprintf("PID=%d", entry.ProcessID), Interpretation: "PROCESS_NAME_ONLY_NOT_PROOF_OF_ACTIVE_PHP_OR_PATCH_STATE"})
+				}
+				count++
 				if syscall.Process32Next(snap, &entry) != nil {
 					break
 				}

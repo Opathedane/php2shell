@@ -1,4 +1,13 @@
-## v2.2.0-alpha.2 — 2026-10-21
+## v2.3.0 — 2026-10-21
+
+- First official public release (non-prerelease).
+- Redesigned HTML-only assessment report: executive summary cards, grouped PHP installations, prioritized next steps, and collapsible technical sections (`<details>`).
+- Fix false PHP version extraction from Ubuntu `php-common` packaging revisions (e.g. `24.04.1`).
+- Exclude the scanner process (`php2shell*`) from PHP process discovery; tighten process-name matching.
+- CLI: HTML-only output, `--output-dir`, `--quiet`, operational exit codes `0`/`1`/`2`.
+- Preserve security limitations: no active-runtime attestation, no compromise clearance from empty IOC results, no automatic remediation or data upload.
+
+## v2.2.0-alpha.2 — 2026-10-21 (prerelease)
 
 - Add a concise, evidence-qualified summary to HTML, JSON and CSV reports: PHP discovery, patch review and compromise review.
 - Add prioritized next steps and tests ensuring no evidence/no IOC matches never mean safe.

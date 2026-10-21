@@ -1,14 +1,14 @@
-# PHP2Shell Assessment
+# PHP2Shell Security Assessment
 
-Standalone Windows and Linux scanner for **PHP discovery, patch review and limited compromise-indicator triage**.
+Standalone Windows and Linux scanner for **PHP discovery, patch review, and limited compromise-indicator triage**.
 
-> **Alpha / testing only.** The scanner does not verify the live HTTP-serving PHP runtime, cannot verify distro backports, and cannot rule out compromise. Never interpret a missing finding as proof of safety.
+PHP2Shell produces a single self-contained HTML report that answers: was PHP found, which versions were observed, whether an update review is required, whether the active web runtime was verified, and what to do next. It does **not** prove that a host is fully patched or uncompromised.
 
 ## Download
 
-[**Download the latest standalone release**](https://github.com/Opathedane/php2shell/releases)
+[**Latest release**](https://github.com/Opathedane/php2shell/releases/latest)
 
-Choose `php2shell-windows-amd64.zip`, `php2shell-linux-amd64.tar.gz`, or `php2shell-linux-arm64.tar.gz`. No Python, PHP or Go installation is required. Release builds are **not code-signed**; verify checksums and seek authorization before production use.
+Choose `php2shell-windows-amd64.zip`, `php2shell-linux-amd64.tar.gz`, or `php2shell-linux-arm64.tar.gz`. No Python, PHP, or Go installation is required. Release builds are **not code-signed**; verify `SHA256SUMS` and obtain authorization before use.
 
 ## Scan
 
@@ -25,38 +25,42 @@ chmod +x php2shell-linux-amd64
 ./php2shell-linux-amd64 scan
 ```
 
-The scanner creates a **single self-contained HTML report** (no JSON/CSV sidecars). Default locations: `C:\ProgramData\PHP2Shell\Reports` on Windows, `$HOME/.php2shell/reports` on Unix. Use `--output-dir` for a custom or UNC path, or `--out` for an explicit filename. Open the HTML file locally; the scanner never opens a browser or uploads data.
+Reports are HTML-only. Defaults: `C:\ProgramData\PHP2Shell\Reports` on Windows, `$HOME/.php2shell/reports` on Unix. Use `--output-dir` or `--out`. The scanner never opens a browser and never uploads data.
 
-The report answers, with qualifications:
+### What the report covers
 
-- **Was PHP-related evidence found?** A negative discovery is *not* proof that PHP is absent.
-- **Does an observed PHP version require an urgent patch review?** It compares evidence to official PHP security releases and gives concrete upgrade targets.
-- **Were compromise indicators matched?** Only when verified signed rules and eligible evidence are available. **No validated PHP2Shell-specific IOC pack is bundled**, so the default scan does not determine whether exploitation occurred.
-- **What next?** It lists actions and records incomplete checks.
+| Question | How PHP2Shell answers |
+| --- | --- |
+| Was PHP detected? | Package, binary, process, and config evidence (coverage may be incomplete) |
+| Which versions? | Grouped installation summary with expandable technical detail |
+| Updates required? | Comparison to official upstream thresholds; vendor backports need separate verification |
+| Active web runtime? | Candidates may be identified; serving HTTP runtime is not attested by default |
+| Compromise? | Only when a trusted signed indicator pack is loaded; no match is not a clearance |
 
 ### Official minimum fixed versions (21 October 2026)
 
 | PHP branch | First upstream fixed release |
-|---|---|
+| --- | --- |
 | 8.5 | 8.5.12 |
 | 8.4 | 8.4.27 |
 | 8.3 | 8.3.36 |
 | 8.2 | 8.2.35 |
 | 8.1 and older | Upgrade to a supported branch, or verify documented vendor/LTS backport |
 
-**Use the update method for your actual deployment** (OS vendor packages, PHP Windows build, or rebuilt container), then restart workers and verify the web-serving runtime. A PHP CLI version is not necessarily the deployed runtime. See [official PHP advisory](https://www.php.net/archive/2026.php).
+See the [official PHP advisory archive](https://www.php.net/archive/2026.php).
 
-## More information
+## Documentation
 
-- [Patch instructions, supported branches and mitigations](docs/OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md)
-- [Consultant instructions and log scanning](docs/INSTALL-FOR-CONSULTANTS.md)
-- [IOC rule signing and update limitations](rules/README.md)
-- [Advanced commands and optional integrations](docs/ADVANCED-USAGE.md)
-- [Security and responsible disclosure](SECURITY.md)
-- [Independent checks and open risks](docs/REVIEW-2026-10-21.md) and [release checklist](docs/RELEASE-CHECKLIST.md)
+- [Release notes](docs/RELEASE-NOTES.md)
+- [Consultant quick start](docs/INSTALL-FOR-CONSULTANTS.md)
+- [Advanced usage and enterprise deployment](docs/ADVANCED-USAGE.md)
+- [Official patch guidance](docs/OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md)
+- [IOC rule signing](rules/README.md)
+- [Security policy](SECURITY.md)
+- [Changelog](CHANGELOG.md)
 
 ## Contact
 
-Questions, feedback or responsible security disclosure: **[jesma@itm8.com](mailto:jesma@itm8.com)**. Please do not email customer reports, secrets or raw logs without an agreed secure channel. The contact address is not a statement of company sponsorship.
+Questions or responsible disclosure: **[jesma@itm8.com](mailto:jesma@itm8.com)**. Do not email customer reports, secrets, or raw logs without an agreed secure channel.
 
 > Source code is public, but the project currently has **no approved open-source license** (`LICENSE.proposed` is not a license). Confirm ownership and choose a license before promoting reuse or redistribution.
