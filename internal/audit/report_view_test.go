@@ -91,6 +91,48 @@ func TestHTMLOnlySaveStillHolds(t *testing.T) {
 	}
 }
 
+func TestDistinctInstallationsSameVersionStaySeparate(t *testing.T) {
+	r := NewReport("web01", "linux", "amd64")
+	r.AddEvidence(Evidence{Type: "binary_static_version", Name: "php-fpm", Version: "8.3.24", Source: "static", Location: "/opt/app-a/sbin/php-fpm"})
+	r.AddEvidence(Evidence{Type: "binary_static_version", Name: "php-fpm", Version: "8.3.24", Source: "static", Location: "/opt/app-b/sbin/php-fpm"})
+	EvaluatePatchPosture(r)
+	groups := GroupInstallations(r)
+	if len(groups) != 2 {
+		t.Fatalf("expected 2 distinct install groups for same version, got %d (%+v)", len(groups), groups)
+	}
+	if groups[0].Key == groups[1].Key {
+		t.Fatal("install keys must differ")
+	}
+	if !strings.HasPrefix(groups[0].Key, "install:binary:") || !strings.HasPrefix(groups[1].Key, "install:binary:") {
+		t.Fatalf("expected binary install keys, got %q and %q", groups[0].Key, groups[1].Key)
+	}
+}
+
+func TestRepositoryDeclarationIsNotConfirmedPHPInstall(t *testing.T) {
+	r := NewReport("dev", "linux", "amd64")
+	r.AddEvidence(Evidence{Type: "repository_declaration", Name: "Dockerfile", Version: "8.3.24", Source: "dockerfile", Location: "/repo/Dockerfile"})
+	r.AddEvidence(Evidence{Type: "php_webroot_filename", Name: "index.php", Source: "webroot", Location: "/var/www/index.php"})
+	EvaluatePatchPosture(r)
+	FinalizeSummary(r)
+	label, vers := humanPHPDetected(r)
+	if label != "Declared only (not confirmed installed)" {
+		t.Fatalf("label=%q", label)
+	}
+	if len(vers) != 1 || vers[0] != "8.3.24" {
+		t.Fatal(vers)
+	}
+	if r.Summary.PHPDiscovery != "PHP_DECLARED_ONLY_NOT_CONFIRMED_INSTALLED" {
+		t.Fatal(r.Summary.PHPDiscovery)
+	}
+	html := string(EncodeHTML(r))
+	if strings.Contains(html, `<p class="value">Yes</p>`) {
+		t.Fatal("must not report PHP installed Yes from repository declaration alone")
+	}
+	if !strings.Contains(html, "Declared only") {
+		t.Fatal(html)
+	}
+}
+
 func TestFocusedNextStepsMentionVersions(t *testing.T) {
 	r := NewReport("web01", "linux", "amd64")
 	r.AddEvidence(Evidence{Type: "installed_package", Name: "php8.3-fpm", Version: "8.3.24", Source: "dpkg"})

@@ -85,7 +85,7 @@ func TestPatchActionsIncludedInAllReports(t *testing.T) {
 		t.Fatal("expected patch instructions in CSV")
 	}
 	h := string(EncodeHTML(r))
-	if !strings.Contains(h, "8.2.35") || !strings.Contains(h, "Required action") {
+	if !strings.Contains(h, "8.2.35") || !strings.Contains(h, "Update review required") {
 		t.Fatal("patch actions not in HTML")
 	}
 	b, err := json.Marshal(r)

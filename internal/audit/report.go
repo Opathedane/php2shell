@@ -112,10 +112,19 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 
 	b.WriteString(`<section class="cards" aria-label="Executive summary">`)
 	b.WriteString(`<article class="card"><h2>PHP detected</h2><p class="value">` + h(phpLabel) + `</p><p class="detail">`)
-	if len(versions) == 0 {
+	switch {
+	case strings.HasPrefix(phpLabel, "Declared"):
+		if len(versions) == 0 {
+			b.WriteString("Repository declarations were found, but no confirmed host installation was inventoried.")
+		} else {
+			b.WriteString("Declared versions (not confirmed installed): " + h(strings.Join(versions, ", ")))
+		}
+	case strings.HasPrefix(phpLabel, "Possible"):
+		b.WriteString("Only filenames or configuration hints were seen; treat as unconfirmed.")
+	case len(versions) == 0:
 		b.WriteString("No comparable PHP release versions were extracted from this scan scope.")
-	} else {
-		b.WriteString("Observed versions: " + h(strings.Join(versions, ", ")))
+	default:
+		b.WriteString("Confirmed host evidence versions: " + h(strings.Join(versions, ", ")))
 	}
 	b.WriteString(`</p></article>`)
 	b.WriteString(`<article class="card"><h2>Vulnerability assessment</h2><p class="value">` + h(vulnLabel) + `</p><p class="detail">Upstream thresholds (21 Oct 2026): 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35. Vendor backports require separate verification.</p></article>`)

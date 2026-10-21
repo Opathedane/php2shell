@@ -116,7 +116,7 @@ func TestSaveHTMLOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	if !strings.Contains(s, "PHP2Shell") || !strings.Contains(s, "Coverage") {
+	if !strings.Contains(s, "PHP2Shell") || !strings.Contains(s, "Scan coverage and limitations") {
 		t.Fatal("HTML missing expected sections")
 	}
 }

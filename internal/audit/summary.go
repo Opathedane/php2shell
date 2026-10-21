@@ -1,5 +1,7 @@
 package audit
 
+import "strings"
+
 // ReviewSummary is an evidence-qualified triage summary, not a clearance.
 // It cannot establish active runtime state, internet exposure or prior compromise.
 // HTML rendering maps these identifiers to human-readable labels.
@@ -14,22 +16,15 @@ type ReviewSummary struct {
 // IOC matching and optional log collection.
 func FinalizeSummary(r *Report) {
 	s := ReviewSummary{NextSteps: BuildFocusedNextSteps(r)}
-	detected := false
-	for _, e := range r.Evidence {
-		switch e.Type {
-		case "binary_path", "binary_static_version", "installed_package", "repository_declaration", "operator_reported_web_runtime", "iis_php_handler_config", "configuration_observation", "php_webroot_filename", "docker_container_metadata":
-			if e.Type != "docker_container_metadata" {
-				detected = true
-			}
-		case "running_process":
-			if e.Name != "w3wp.exe" {
-				detected = true
-			}
-		}
-	}
-	if detected {
+	label, _ := humanPHPDetected(r)
+	switch {
+	case strings.HasPrefix(label, "Yes"):
 		s.PHPDiscovery = "PHP_RELATED_EVIDENCE_FOUND_RUNTIME_UNVERIFIED"
-	} else {
+	case strings.HasPrefix(label, "Declared"):
+		s.PHPDiscovery = "PHP_DECLARED_ONLY_NOT_CONFIRMED_INSTALLED"
+	case strings.HasPrefix(label, "Possible"):
+		s.PHPDiscovery = "PHP_ARTIFACTS_ONLY_INSTALLATION_UNCONFIRMED"
+	default:
 		s.PHPDiscovery = "NO_PHP_EVIDENCE_FOUND_COVERAGE_LIMITED"
 	}
 	switch r.VulnerabilityStatus {

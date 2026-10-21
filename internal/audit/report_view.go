@@ -72,36 +72,59 @@ func humanCompromise(status string) string {
 }
 
 func humanPHPDetected(r *Report) (label string, versions []string) {
-	seen := map[string]struct{}{}
-	detected := false
+	confirmedVers := map[string]struct{}{}
+	declaredVers := map[string]struct{}{}
+	confirmed, declared, artifacts := false, false, false
 	for _, e := range r.Evidence {
 		switch e.Type {
-		case "binary_path", "binary_static_version", "installed_package", "repository_declaration", "operator_reported_web_runtime", "iis_php_handler_config", "configuration_observation", "php_webroot_filename":
-			if e.Type == "installed_package" && e.Version == "" && e.Interpretation == "PACKAGE_METADATA_ONLY_NOT_PHP_RUNTIME_VERSION" {
-				detected = true
+		case "installed_package":
+			if e.Version == "" || e.Interpretation == "PACKAGE_METADATA_ONLY_NOT_PHP_RUNTIME_VERSION" {
+				artifacts = true
 				continue
 			}
-			detected = true
+			confirmed = true
+			confirmedVers[e.Version] = struct{}{}
+		case "binary_path", "binary_static_version", "iis_php_handler_config", "operator_reported_web_runtime":
+			confirmed = true
 			if e.Version != "" {
-				seen[e.Version] = struct{}{}
+				confirmedVers[e.Version] = struct{}{}
 			}
 		case "running_process":
 			if e.Name != "w3wp.exe" {
-				detected = true
+				confirmed = true
 			}
+		case "repository_declaration":
+			declared = true
+			if e.Version != "" {
+				declaredVers[e.Version] = struct{}{}
+			}
+		case "configuration_observation", "php_webroot_filename":
+			artifacts = true
 		}
 	}
-	for v := range seen {
-		versions = append(versions, v)
+	collect := func(m map[string]struct{}) []string {
+		out := make([]string, 0, len(m))
+		for v := range m {
+			out = append(out, v)
+		}
+		sort.Strings(out)
+		return out
 	}
-	sort.Strings(versions)
-	if !detected {
-		return "Unable to determine", versions
+	if confirmed {
+		versions = collect(confirmedVers)
+		if len(versions) == 0 {
+			return "Yes (exact versions limited)", versions
+		}
+		return "Yes", versions
 	}
-	if len(versions) == 0 {
-		return "Yes (exact versions limited)", versions
+	if declared {
+		versions = collect(declaredVers)
+		return "Declared only (not confirmed installed)", versions
 	}
-	return "Yes", versions
+	if artifacts {
+		return "Possible PHP-related artifacts only", nil
+	}
+	return "Unable to determine", nil
 }
 
 func humanRuntime(r *Report) (label, detail string) {
@@ -149,25 +172,27 @@ func overallPriority(r *Report) string {
 var phpBranchToken = regexp.MustCompile(`(?i)(?:php-fpm|php-cgi|lsphp|php)(\d)\.(\d)`)
 
 func groupKeyForAssessment(a PatchAssessment) string {
-	if strings.HasPrefix(a.InstallKey, "install:operator:") {
+	// Prefer established install/runtime correlation. Distinct binary installs that
+	// share a PHP version must remain separate (install:binary:<path>).
+	if strings.HasPrefix(a.InstallKey, "install:binary:") || strings.HasPrefix(a.InstallKey, "install:operator:") {
 		return a.InstallKey
 	}
-	// Group by PHP branch + observed release so packages, SAPIs and binaries for the
-	// same install collapse together. Distinct versions stay separate.
-	if branch := debianPHPBranch(a.Component); branch != "" && a.ObservedVersion != "" {
-		return "install:branch:" + branch + ":" + a.ObservedVersion
+	if a.EvidenceType == "repository_declaration" {
+		return "repo:" + a.Location + ":" + a.Component + ":" + a.ObservedVersion
 	}
-	if branch := phpBranchFromToken(a.Component); branch != "" && a.ObservedVersion != "" {
-		return "install:branch:" + branch + ":" + a.ObservedVersion
-	}
-	if branch := phpBranchFromToken(a.Location); branch != "" && a.ObservedVersion != "" {
-		return "install:branch:" + branch + ":" + a.ObservedVersion
+	// Distro package siblings (phpX.Y-fpm/cli/common) without a binary InstallKey
+	// share one host install identity by branch+version — not by raw version alone
+	// across unrelated evidence types.
+	if a.EvidenceType == "installed_package" {
+		if branch := debianPHPBranch(a.Component); branch != "" && a.ObservedVersion != "" {
+			return "install:distro:" + branch + ":" + a.ObservedVersion
+		}
 	}
 	if a.InstallKey != "" {
 		return a.InstallKey
 	}
 	if a.ObservedVersion != "" {
-		return "install:version:" + a.EvidenceType + ":" + a.ObservedVersion + ":" + a.Component
+		return "install:unique:" + a.EvidenceType + ":" + a.Location + ":" + a.Component + ":" + a.ObservedVersion
 	}
 	return "install:unique:" + a.EvidenceType + ":" + a.Component + ":" + a.Location
 }
@@ -232,6 +257,19 @@ func GroupInstallations(r *Report) []InstallGroup {
 }
 
 func installGroupLabel(g *InstallGroup) string {
+	if strings.HasPrefix(g.Key, "install:binary:") && len(g.Assessments) > 0 {
+		loc := g.Assessments[0].Location
+		// Prefer the binary path over shared package-database locations.
+		for _, a := range g.Assessments {
+			if a.EvidenceType == "binary_static_version" && a.Location != "" {
+				loc = a.Location
+				break
+			}
+		}
+		if g.Version != "" && loc != "" && !strings.Contains(loc, "dpkg/status") && !strings.Contains(loc, "apk/db") {
+			return "PHP " + g.Version + " @ " + loc
+		}
+	}
 	if g.Version != "" {
 		return "PHP " + g.Version
 	}
@@ -275,33 +313,50 @@ func worseStatus(a, b string) string {
 
 func relatedEvidenceForGroup(r *Report, g *InstallGroup) []Evidence {
 	wantNames := map[string]struct{}{}
-	wantVers := map[string]struct{}{}
+	wantLocs := map[string]struct{}{}
 	branches := map[string]struct{}{}
+	binaryScoped := strings.HasPrefix(g.Key, "install:binary:")
 	for _, a := range g.Assessments {
 		wantNames[strings.ToLower(a.Component)] = struct{}{}
-		if a.ObservedVersion != "" {
-			wantVers[a.ObservedVersion] = struct{}{}
+		if a.Location != "" {
+			wantLocs[normalizeInstallPath(a.Location)] = struct{}{}
 		}
 		if br := debianPHPBranch(a.Component); br != "" {
 			branches[br] = struct{}{}
 		}
+		if br := phpBranchFromToken(a.Location); br != "" {
+			branches[br] = struct{}{}
+		}
 	}
 	var out []Evidence
+	seen := map[string]bool{}
+	add := func(e Evidence) {
+		key := e.Type + "\x00" + e.Location + "\x00" + e.Name + "\x00" + e.Version
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		out = append(out, e)
+	}
 	for _, e := range r.Evidence {
+		loc := normalizeInstallPath(e.Location)
 		low := strings.ToLower(e.Name)
-		if _, ok := wantNames[low]; ok {
-			out = append(out, e)
+		sharedInventoryDB := loc == normalizeInstallPath("/var/lib/dpkg/status") || loc == normalizeInstallPath("/lib/apk/db/installed")
+		if _, ok := wantLocs[loc]; ok && loc != "." && loc != "" && !sharedInventoryDB {
+			add(e)
 			continue
 		}
-		if e.Version != "" {
-			if _, ok := wantVers[e.Version]; ok {
-				out = append(out, e)
-				continue
-			}
+		if binaryScoped {
+			// Do not attach other installs' same-version packages to a binary path group.
+			continue
+		}
+		if _, ok := wantNames[low]; ok {
+			add(e)
+			continue
 		}
 		if br := debianPHPBranch(e.Name); br != "" {
 			if _, ok := branches[br]; ok {
-				out = append(out, e)
+				add(e)
 			}
 		}
 	}
