@@ -201,7 +201,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		count := 0
 		b.WriteString(`<table><thead><tr><th>Setting / file</th><th>Detail</th><th>Meaning</th></tr></thead><tbody>`)
 		for _, e := range r.Evidence {
-			if e.Type != "configuration_observation" {
+			if e.Type != "configuration_observation" && e.Type != "php_ini_candidate" {
 				continue
 			}
 			count++

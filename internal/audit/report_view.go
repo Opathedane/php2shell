@@ -100,7 +100,7 @@ func humanPHPDetected(r *Report) (label string, versions []string) {
 			if e.Version != "" {
 				declaredVers[e.Version] = struct{}{}
 			}
-		case "configuration_observation", "php_webroot_filename":
+		case "configuration_observation", "php_ini_candidate", "php_webroot_filename":
 			artifacts = true
 		}
 	}
@@ -407,6 +407,16 @@ func relatedEvidenceForGroup(r *Report, g *InstallGroup) []Evidence {
 			}
 			if _, ok := matchedDocRoots[normalizeInstallPath(e.Location)]; ok {
 				add(e)
+			}
+		case "php_ini_candidate", "configuration_observation":
+			if related := iisDetailField(e.Detail, "related_binary"); related != "" {
+				relKey := normalizeInstallPath(related)
+				for _, a := range g.Assessments {
+					if normalizeInstallPath(a.Location) == relKey || normalizeInstallPath(parentDirAnyOS(a.Location)) == normalizeInstallPath(parentDirAnyOS(related)) {
+						add(e)
+						break
+					}
+				}
 			}
 		}
 	}

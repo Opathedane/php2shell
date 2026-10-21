@@ -1,6 +1,8 @@
 > [Back to the quick start](../README.md)
 
-# Advanced usage — PHP2Shell Assessment (v2.4.0)
+# Advanced usage — PHP2Shell Assessment
+
+Latest public release: **v2.4.0**. Tree may target unreleased **2.5.0** features (php.ini discovery, fleet CSV v2).
 
 PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory and evidence-qualified patch review for CVE-2026-109618 / CVE-2026-109619.
 
@@ -95,6 +97,18 @@ On Linux and Windows, when a well-known Apache config root is accessible (`/etc/
 ## Signed indicators
 
 Same Ed25519 trust/update workflow as prior releases. Empty template only in-repo. See [rules/README.md](../rules/README.md).
+
+## PHP configuration (`php.ini`) inventory
+
+On Windows and Linux, `scan` performs bounded discovery of `php.ini` and related fragments:
+
+- Well-known install trees, directories next to discovered PHP binaries, `PHPRC` / `PHP_INI_SCAN_DIR` (process environment only)
+- Paths referenced by Apache `PHPIniDir` or IIS FastCGI `-c` (path only; handler arguments remain redacted)
+- Sample/template names (`php.ini-development`, `php.ini-production`, …) labelled separately from primary candidates
+
+Whitelisted settings (for example `memory_limit`, `session.upload_progress.enabled`) appear as `configuration_observation` with interpretation **OBSERVED_NOT_EFFECTIVE_SETTING_NOT_VERIFIED_MITIGATION**. A `php.ini` file never supplies the authoritative PHP version and never attests the active HTTP runtime. Secrets and full file dumps are not reported. Fleet CSV `limitations_summary` notes when config candidates were observed.
+
+Optional full-tree “deep discovery” is **not** enabled in this tree; see [ROADMAP-2.5.0.md](ROADMAP-2.5.0.md).
 
 ## Results vocabulary
 

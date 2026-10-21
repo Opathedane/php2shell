@@ -344,7 +344,7 @@ func (s *apacheScanState) handlePHPDirective(r *Report, configPath, dir, args, v
 		return
 	}
 	if dir == "phpinidir" {
-		// Path to php.ini only — configuration hint, not a SAPI binary.
+		// Path to php.ini directory/file only — configuration hint, not a SAPI binary.
 		ini := unquoteApache(firstApacheArg(args))
 		r.AddEvidence(Evidence{
 			Type:           "apache_php_handler_config",

@@ -26,9 +26,10 @@ func ScanHost(r *Report, webroot string, docker bool) {
 	scanBinaries(r)
 	scanPackages(r)
 	scanProcesses(r)
-	scanConfigs(r)
+	// Web-server config first so PHPIniDir / IIS -c paths can feed php.ini inventory.
 	scanApacheConfiguration(r)
 	scanWindowsSpecific(r)
+	scanConfigs(r)
 	if webroot != "" {
 		scanWebRoot(r, webroot)
 	} else {
@@ -253,51 +254,6 @@ func scanProcesses(r *Report) {
 		r.AddEvidence(Evidence{Type: "running_process", Name: name, Source: "/proc/PID/comm snapshot", Location: "PID=" + e.Name(), Interpretation: "PROCESS_NAME_ONLY_ACTIVE_HTTP_SAPI_AND_PATCH_STATUS_UNVERIFIED"})
 	}
 	r.AddCheck("processes", "PARTIAL", fmt.Sprintf("Observed %d matching process names; %d entries unreadable/disappeared; mod_php inside Apache and containers may not appear", found, missing))
-}
-
-func scanConfigs(r *Report) {
-	if runtime.GOOS == "windows" {
-		r.AddCheck("configuration", "NOT_SUPPORTED", "Windows php.ini-style inventory not implemented here; see windows_iis_configuration and apache_configuration for web-server config")
-		return
-	}
-	patterns := []string{"/etc/php/*/fpm/php.ini", "/etc/php/*/apache2/php.ini", "/etc/php/*/cgi/php.ini", "/etc/php/*/cli/php.ini", "/etc/php.ini", "/etc/php-fpm.d/*.conf", "/etc/php/*/fpm/pool.d/*.conf", "/usr/local/etc/php/php.ini", "/usr/local/etc/php/conf.d/*.ini", "/opt/plesk/php/*/etc/php.ini"}
-	inspected, seen := 0, map[string]bool{}
-	truncated := false
-	for _, pattern := range patterns {
-		matches, _ := filepath.Glob(pattern)
-		for _, path := range matches {
-			if seen[path] {
-				continue
-			}
-			seen[path] = true
-			if inspected >= 200 {
-				truncated = true
-				break
-			}
-			b, err := ReadRegular(path, 2<<20)
-			if err != nil {
-				r.AddWarning("Configuration file skipped: " + path + " (" + err.Error() + ")")
-				continue
-			}
-			inspected++
-			for _, ln := range strings.Split(string(b), "\n") {
-				val := strings.TrimSpace(ln)
-				if strings.HasPrefix(val, ";") || strings.HasPrefix(val, "#") {
-					continue
-				}
-				m := iniSetting.FindStringSubmatch(ln)
-				if len(m) == 3 {
-					r.AddEvidence(Evidence{Type: "configuration_observation", Name: strings.ToLower(m[1]), Source: "static PHP configuration text", Location: path, Detail: strings.TrimSpace(m[2]), Interpretation: "OBSERVED_NOT_EFFECTIVE_SETTING_NOT_VERIFIED_MITIGATION"})
-				}
-			}
-		}
-	}
-	status := "PARTIAL"
-	if truncated {
-		status = "TRUNCATED"
-		r.AddWarning("Configuration file count limit (200) reached")
-	}
-	r.AddCheck("configuration", status, fmt.Sprintf("Read %d static config files; effective per-SAPI/virtual-host settings not verified", inspected))
 }
 
 func scanWebRoot(r *Report, root string) {

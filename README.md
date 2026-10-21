@@ -4,7 +4,7 @@ Standalone Windows and Linux scanner for **PHP discovery, upstream patch review,
 
 PHP2Shell writes a matching **HTML + CSV** report pair from one read-only scan. It does **not** prove that a host is fully patched or uncompromised.
 
-**Version in this tree:** 2.4.0 (not tagged/published until the maintainer approves a release). Prior public tags: [v2.3.1](https://github.com/Opathedane/php2shell/releases/tag/v2.3.1), [v2.3.0](https://github.com/Opathedane/php2shell/releases/tag/v2.3.0).
+**Version in this tree:** 2.5.0 (unreleased development). Latest public release: [v2.4.0](https://github.com/Opathedane/php2shell/releases/tag/v2.4.0). Prior: [v2.3.1](https://github.com/Opathedane/php2shell/releases/tag/v2.3.1), [v2.3.0](https://github.com/Opathedane/php2shell/releases/tag/v2.3.0).
 
 ## 1. What PHP2Shell does
 
@@ -79,7 +79,8 @@ HTML remains the human-readable single-server report; the consolidated CSV is th
 - Windows: well-known paths, `%LOCALAPPDATA%\Programs\PHP`, PATH, PE resources, path inference, `current` alias corroboration
 - Windows/IIS: site/app/vdir paths from `applicationHost.config` (any drive), global + per-mapping `web.config` PHP handlers, FastCGI binaries on non-`C:` drives when configured, incomplete coverage when handler binaries are inaccessible — **no volume-wide scan**; inheritance merge not fully simulated; `.php` filenames need `--webroot`
 - Apache HTTP Server (Linux/Windows): bounded passive config inventory (VirtualHosts, mod_php, FPM/CGI/FastCGI handler directives, remote backends marked incomplete) — not full merge simulation; **Tomcat is not PHP evidence**
-- Linux: common package/binary paths, partial process/config inventory
+- PHP configuration: bounded `php.ini` / conf.d discovery on Windows and Linux (sidecars, well-known roots, `PHPRC` / `PHP_INI_SCAN_DIR`, web-server `-c` / `PHPIniDir` references) — settings are **observed only**, never attested as effective; ini files are not version authority
+- Linux: common package/binary paths, partial process/config inventory (dpkg/apk; RPM DB not yet inventoried)
 - Patch comparison to upstream 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35
 - Operator-reported runtime flags (never silently attested)
 

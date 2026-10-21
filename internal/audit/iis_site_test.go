@@ -194,7 +194,10 @@ func TestParseIISNestedAppsVDirsAndLocationHandlers(t *testing.T) {
 	if !strings.Contains(d, "site=somewebsite") || !strings.Contains(d, "location_path=somewebsite") {
 		t.Fatalf("expected location site context: %s", d)
 	}
-	if strings.Contains(d, "display_errors") || strings.Contains(d, "php.ini") {
+	if strings.Contains(d, "display_errors") || strings.Contains(d, "password=") {
 		t.Fatalf("args leaked: %s", d)
+	}
+	if !strings.Contains(d, "php_ini=") {
+		t.Fatalf("expected php_ini path from -c: %s", d)
 	}
 }

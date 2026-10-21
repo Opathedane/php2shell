@@ -1,4 +1,9 @@
-## Unreleased
+## Unreleased (toward v2.5.0)
+
+- Windows + Linux bounded `php.ini` discovery: well-known roots, binary sidecars, `PHPRC` / `PHP_INI_SCAN_DIR`, IIS `-c` / Apache `PHPIniDir` path follow-up; sample/template classification; whitelist setting observations remain OBSERVED≠EFFECTIVE.
+- Fleet CSV schema **`php2shell-fleet-csv/v2`**: structured `config_*` columns for discovery status, counts, install correlation, and primary ini path; rollup accepts v1+v2 and writes v2. php.ini alone never fills `php_version` / confirmed install.
+- Roadmap only (not implemented): optional `--deep-root`, RPM DB inventory, advanced runtime correlation — [docs/ROADMAP-2.5.0.md](docs/ROADMAP-2.5.0.md).
+- Docs: governance CI wording for HTML+CSV; README/release notes clarify v2.4.0 is published and 2.5.0 is unreleased.
 
 ## v2.4.0 — 2026-10-21
 
