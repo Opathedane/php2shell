@@ -1,0 +1,7 @@
+{
+  "schema": "php2shell-indicators/v1",
+  "sequence": 1,
+  "issued_utc": "2026-10-21T12:00:00Z",
+  "expires_utc": "2026-11-20T12:00:00Z",
+  "indicators": []
+}

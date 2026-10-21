@@ -6,7 +6,7 @@ import (
 )
 
 const Schema = "php2shell-assessment/standalone-preview-v1"
-const Version = "2.0.0-alpha.1"
+const Version = "2.1.0-alpha.2"
 
 type Evidence struct {
 	Type           string `json:"type"`
@@ -34,6 +34,7 @@ type LogCoverage struct {
 	Methods        map[string]int `json:"methods,omitempty"`
 	StatusClasses  map[string]int `json:"http_status_classes,omitempty"`
 	Detail         string         `json:"detail,omitempty"`
+	MatchedRules   int            `json:"matched_rules,omitempty"`
 }
 
 type RepoCoverage struct {
@@ -44,24 +45,37 @@ type RepoCoverage struct {
 	Detail         string `json:"detail,omitempty"`
 }
 
+type IndicatorFinding struct {
+	RuleID     string `json:"rule_id"`
+	Type       string `json:"type"`
+	Severity   string `json:"severity"`
+	Confidence string `json:"confidence"`
+	Source     string `json:"source"`
+	Location   string `json:"location"`
+	Detail     string `json:"detail"`
+}
+
 type Report struct {
-	Schema              string         `json:"schema"`
-	ToolVersion         string         `json:"tool_version"`
-	GeneratedUTC        time.Time      `json:"generated_utc"`
-	Hostname            string         `json:"hostname"`
-	OS                  string         `json:"os"`
-	Architecture        string         `json:"architecture"`
-	CVEs                []string       `json:"cves"`
-	CustomerLabel       string         `json:"customer_label,omitempty"`
-	VulnerabilityStatus string         `json:"vulnerability_status"`
-	CompromiseStatus    string         `json:"compromise_status"`
-	EffectiveWebRuntime string         `json:"effective_web_runtime"`
-	Evidence            []Evidence     `json:"evidence"`
-	Coverage            []Check        `json:"coverage"`
-	Repositories        []RepoCoverage `json:"repositories,omitempty"`
-	Logs                []LogCoverage  `json:"logs,omitempty"`
-	Warnings            []string       `json:"warnings"`
-	RecommendedActions  []string       `json:"recommended_actions"`
+	Schema              string             `json:"schema"`
+	ToolVersion         string             `json:"tool_version"`
+	GeneratedUTC        time.Time          `json:"generated_utc"`
+	Hostname            string             `json:"hostname"`
+	OS                  string             `json:"os"`
+	Architecture        string             `json:"architecture"`
+	CVEs                []string           `json:"cves"`
+	CustomerLabel       string             `json:"customer_label,omitempty"`
+	VulnerabilityStatus string             `json:"vulnerability_status"`
+	CompromiseStatus    string             `json:"compromise_status"`
+	EffectiveWebRuntime string             `json:"effective_web_runtime"`
+	Evidence            []Evidence         `json:"evidence"`
+	Coverage            []Check            `json:"coverage"`
+	Repositories        []RepoCoverage     `json:"repositories,omitempty"`
+	Logs                []LogCoverage      `json:"logs,omitempty"`
+	RuleSequence        uint64             `json:"rule_sequence,omitempty"`
+	RuleCount           int                `json:"rule_count,omitempty"`
+	Findings            []IndicatorFinding `json:"indicator_findings,omitempty"`
+	Warnings            []string           `json:"warnings"`
+	RecommendedActions  []string           `json:"recommended_actions"`
 }
 
 func NewReport(host, osname, arch string) *Report {

@@ -57,8 +57,18 @@ func EncodeHTML(r *Report) []byte {
 		b.WriteString("<tr><td>" + h(e.Type) + "</td><td>" + h(e.Name) + "</td><td>" + h(e.Version) + "</td><td>" + h(e.Source) + "<br>" + h(e.Location) + "<br>" + h(e.Detail) + "</td><td>" + h(e.Interpretation) + "</td></tr>")
 	}
 	b.WriteString("</tbody></table>")
+	if r.RuleSequence > 0 {
+		b.WriteString("<h2>Signed indicator bundle</h2><p>Sequence: " + fmt.Sprint(r.RuleSequence) + "; approved indicators loaded: " + fmt.Sprint(r.RuleCount) + ". A match requires manual analyst review. No matches cannot prove absence of compromise.</p>")
+	}
+	if len(r.Findings) > 0 {
+		b.WriteString("<h2>Indicator matches (" + fmt.Sprint(len(r.Findings)) + ")</h2><table><tr><th>Rule</th><th>Severity</th><th>Confidence</th><th>Evidence</th><th>Source</th></tr>")
+		for _, f := range r.Findings {
+			b.WriteString("<tr><td>" + h(f.RuleID) + "</td><td>" + h(f.Severity) + "</td><td>" + h(f.Confidence) + "</td><td>" + h(f.Location) + ": " + h(f.Detail) + "</td><td>" + h(f.Source) + "</td></tr>")
+		}
+		b.WriteString("</table>")
+	}
 	if len(r.Logs) > 0 {
-		b.WriteString("<h2>HTTP access log coverage (no CVE signatures)</h2><table><tr><th>File</th><th>Status</th><th>Lines</th><th>Parsed requests</th><th>First / Last</th></tr>")
+		b.WriteString("<h2>HTTP access log coverage (indicators where available)</h2><table><tr><th>File</th><th>Status</th><th>Lines</th><th>Parsed requests</th><th>First / Last</th></tr>")
 		for _, c := range r.Logs {
 			b.WriteString("<tr><td>" + h(c.File) + "</td><td>" + h(c.Status) + "</td><td>" + fmt.Sprint(c.Lines) + "</td><td>" + fmt.Sprint(c.ParsedRequests) + "</td><td>" + h(c.FirstTimestamp) + " / " + h(c.LastTimestamp) + "</td></tr>")
 		}

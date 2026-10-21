@@ -1,3 +1,3 @@
-module example.org/php2shell-assessment
+module github.com/Opathedane/php2shell
 
 go 1.21

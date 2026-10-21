@@ -27,6 +27,7 @@ func ScanHost(r *Report, webroot string, docker bool) {
 	scanPackages(r)
 	scanProcesses(r)
 	scanConfigs(r)
+	scanWindowsSpecific(r)
 	if webroot != "" {
 		scanWebRoot(r, webroot)
 	} else {
@@ -39,7 +40,7 @@ func ScanHost(r *Report, webroot string, docker bool) {
 	}
 	r.AddCheck("active_http_sapi_verification", "NOT_IMPLEMENTED", "Package/process/path observations cannot verify the PHP runtime actually serving HTTP traffic")
 	r.AddCheck("official_php2shell_version_rules", "NOT_CONFIGURED", "No upstream fix or CVE vulnerability rules applied; vendor backports and official advisories need manual verification")
-	r.AddCheck("compromise_detection", "NOT_IMPLEMENTED", "No validated PHP2Shell-specific indicators; missing evidence is never interpreted as clean")
+	r.AddCheck("php2shell_specific_compromise_detection", "NOT_VERIFIED", "No validated CVE-specific indicator pack is provided. Generic signed IOC matching cannot prove exploitation or exclude compromise")
 }
 
 func scanBinaries(r *Report) {
