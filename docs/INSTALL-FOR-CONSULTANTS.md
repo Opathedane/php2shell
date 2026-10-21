@@ -1,6 +1,6 @@
 # PHP2Shell – consultant quick start
 
-**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory and evidence-qualified patch review. Latest public release: **v2.5.1**. Confirm `php2shell version` on the binary you run matches the release you downloaded.
+**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory and evidence-qualified patch review. Latest public release: **v2.5.1** (this development tree may be **2.6.0 unreleased** with optional `--deep-root`). Confirm `php2shell version` on the binary you run matches the release you downloaded.
 
 Download the build matching the destination server from GitHub **Releases**. No Python, Go, PHP, installer, or network access is required for the basic local inventory. The optional IOC update requires an independently authenticated rule signing key and a reviewed signed ruleset; the repository does **not** include a validated PHP2Shell-specific rulepack yet.
 
@@ -54,6 +54,23 @@ A configured site path or `.php` files under it is **not** proof of an active pa
 
 Windows executables are **not Authenticode signed** and may generate SmartScreen warnings. Do not bypass endpoint protection. Prefer least privilege.
 
+### When to use Deep Discovery (`--deep-root`, unreleased 2.6.0)
+
+| Situation | Recommendation |
+| --- | --- |
+| Standard PATH / Programs\\PHP / IIS / Apache layouts | Default `scan` only |
+| Known shallow custom install + `php.ini` / `conf.d` | `--config-root` and/or `--php-ini` |
+| Custom trees that may nest multiple PHP versions (e.g. `C:\Temp\PHP`, `E:\Apps\PHP`) | `--deep-root` on those directories only |
+
+```powershell
+.\php2shell-windows-amd64.exe scan `
+  --deep-root 'C:\Temp\PHP' `
+  --deep-root 'E:\websites' `
+  --output-dir C:\ProgramData\PHP2Shell\Reports
+```
+
+Do **not** pass volume roots or UNC shares. Truncated deep scans exit `2` and must be treated as incomplete.
+
 ## Linux x86-64
 
 ```bash
@@ -61,6 +78,8 @@ tar xzf php2shell-linux-amd64.tar.gz
 chmod +x php2shell-linux-amd64
 ./php2shell-linux-amd64 doctor
 ./php2shell-linux-amd64 scan --quiet --output-dir "$HOME/.php2shell/reports"
+# Optional (unreleased 2.6.0):
+# ./php2shell-linux-amd64 scan --deep-root /opt --deep-root /usr/local --output-dir "$HOME/.php2shell/reports"
 ```
 
 ## Reports

@@ -93,7 +93,7 @@ func TestPATHDiscoversTempPHPCurrentOrdinaryDir(t *testing.T) {
 	for _, p := range discoverPHPBinsFromPATHEnv(os.Getenv("PATH"), 10) {
 		AddBinaryVersionEvidence(r, p, filepath.Base(p), "Windows PATH directory static binary inspection")
 	}
-	scanConfigs(r, HostScanOptions{})
+	scanConfigs(r, HostScanOptions{}, nil)
 	EvaluatePatchPosture(r)
 	FinalizeSummary(r)
 
@@ -155,7 +155,7 @@ func TestPATHDiscoversTempPHPCurrentViaSymlinkJunction(t *testing.T) {
 	for _, p := range got {
 		AddBinaryVersionEvidence(r, p, filepath.Base(p), "Windows PATH directory static binary inspection")
 	}
-	scanConfigs(r, HostScanOptions{})
+	scanConfigs(r, HostScanOptions{}, nil)
 	sawIni := false
 	for _, e := range r.Evidence {
 		if e.Type == "php_ini_candidate" && normalizeInstallPath(e.Location) == normalizeInstallPath(ini) {
@@ -179,7 +179,7 @@ func TestOperatorPHPIniTempPHPCurrentConfigOnly(t *testing.T) {
 	_ = os.WriteFile(ini, []byte("memory_limit = 256M\npassword=secret\n"), 0644)
 
 	r := NewReport("ini-only-temp", runtime.GOOS, "amd64")
-	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{ini}})
+	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{ini}}, nil)
 	FinalizeSummary(r)
 	label, vers := humanPHPDetected(r)
 	if !strings.Contains(label, "configuration candidates") || len(vers) != 0 {

@@ -191,7 +191,7 @@ func TestFleetCSVV2ConfigFieldsAndV1RollupCompat(t *testing.T) {
 	r.GeneratedUTC = time.Date(2026, 10, 21, 22, 0, 0, 0, time.UTC)
 	r.CustomerLabel = "DemoCustomer"
 	AddBinaryVersionEvidence(r, bin, "php-cgi.exe", "test")
-	scanConfigs(r, HostScanOptions{})
+	scanConfigs(r, HostScanOptions{}, nil)
 	EvaluatePatchPosture(r)
 	FinalizeSummary(r)
 

@@ -6,6 +6,7 @@ Version-specific GitHub Release bodies live under [`docs/releases/`](releases/).
 
 | Version | Notes |
 | --- | --- |
+| [v2.6.0](releases/v2.6.0.md) | **Draft / unreleased** — optional `--deep-root` Deep Discovery |
 | [v2.5.1](releases/v2.5.1.md) | PATH/junction discovery; multi-install; `--php-ini` / `--config-root` |
 | [v2.5.0](releases/v2.5.0.md) | php.ini discovery; fleet CSV v2 |
 | [v2.4.0](releases/v2.4.0.md) | HTML+CSV pairs; IIS/Apache inventory; fleet rollup |

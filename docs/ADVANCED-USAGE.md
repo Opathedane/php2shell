@@ -2,13 +2,13 @@
 
 # Advanced usage — PHP2Shell Assessment
 
-Latest public release: **v2.5.1** (PATH/`current` junction discovery, multi-install retention, `--php-ini` / `--config-root`).
+Latest public release: **v2.5.1**. This tree may include **unreleased 2.6.0** optional `--deep-root` Deep Discovery (see below).
 
 PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory and evidence-qualified patch review for CVE-2026-109618 / CVE-2026-109619.
 
 ## Download
 
-Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.5.1** (or newer), and download the archive for the destination OS/CPU. Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.5.1`, …).
+Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.5.1** (or newer when published), and download the archive for the destination OS/CPU. Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.5.1`, …).
 
 ## Scan output pair
 
@@ -117,11 +117,34 @@ php2shell scan --config-root /opt/app/php/etc
 php2shell scan --php-ini /etc/custom/php.ini --config-root C:\tools\php
 ```
 
-`--php-ini` inspects an explicit file (repeatable, max 32). `--config-root` authorizes a bounded walk for PHP binaries under that directory (same depth/reparse caps as Programs\\PHP) plus `php.ini` / sample names and one `conf.d/*.ini` layer (repeatable, max 8). Multiple independent installs from PATH, well-known roots, IIS/Apache handlers, and custom roots are retained as separate records (aliases such as `current` merge only when content-corroborated). Configuration-only findings appear in HTML/CSV without claiming installation, version, or active HTTP runtime. Discovery is never complete host coverage.
+`--php-ini` inspects an explicit file (repeatable, max 32). `--config-root` authorizes a **shallow** bounded walk for PHP binaries under that directory (same depth/reparse caps as Programs\\PHP) plus `php.ini` / sample names and one `conf.d/*.ini` layer (repeatable, max 8) — it does **not** recurse into nested trees. Multiple independent installs from PATH, well-known roots, IIS/Apache handlers, and custom roots are retained as separate records (aliases such as `current` merge only when content-corroborated). Configuration-only findings appear in HTML/CSV without claiming installation, version, or active HTTP runtime. Discovery is never complete host coverage.
 
 Whitelisted settings (for example `memory_limit`, `session.upload_progress.enabled`) appear as `configuration_observation` with interpretation **OBSERVED_NOT_EFFECTIVE_SETTING_NOT_VERIFIED_MITIGATION**. A `php.ini` file never supplies the authoritative PHP version and never attests the active HTTP runtime. Secrets and full file dumps are not reported. Fleet CSV `limitations_summary` notes when config candidates or skips were observed.
 
-Optional full-tree “deep discovery” is **not** enabled in this tree; see [ROADMAP.md](ROADMAP.md).
+## Optional Deep Discovery (`--deep-root`) — unreleased 2.6.0
+
+Use **default scan** (and `--php-ini` / `--config-root` when you already know shallow install roots) first. Add `--deep-root` only when consultants have authorized specific custom trees that may hold PHP installs **not** on PATH (for example `C:\Temp\PHP`, `E:\Applications\PHP`, `/opt/app/php`).
+
+```powershell
+php2shell scan --deep-root 'C:\Temp\PHP' --deep-root 'E:\websites'
+```
+
+```bash
+php2shell scan --deep-root /opt --deep-root /srv/www
+```
+
+Behaviour:
+
+- **Off by default**; omit the flag and behaviour matches v2.5.1 standard discovery
+- Repeatable (max 8 roots); refuses UNC/network paths and volume roots (`C:\`, `/`)
+- Recursive walk: depth ≤ 6, ≤ 25 000 filesystem entries, ≤ 400 PHP-like binaries, ≤ 200 ini candidates, 90s wall-clock budget across deep roots
+- Directory junctions/symlinks followed only when the resolved target stays inside the authorized start directory; file symlinks never followed; binaries never executed
+- Evidence provenance is weaker than well-known/PATH/IIS/`--config-root` sources
+- Truncation, duration, or permission gaps set coverage to **TRUNCATED** / **INCOMPLETE** (process exit **2** when the report pair is written) — empty results are **not** proof PHP is absent outside the authorized roots
+
+Production guidance: keep roots narrow; prefer off-peak windows; do not authorize entire data volumes. Prefer `--config-root` when only a known install directory + `conf.d` is needed.
+
+Further roadmap items (RPM DB, richer runtime correlation): [ROADMAP.md](ROADMAP.md).
 
 ## Results vocabulary
 

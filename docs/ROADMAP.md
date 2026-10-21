@@ -1,6 +1,16 @@
-# PHP2Shell roadmap (after v2.5.1)
+# PHP2Shell roadmap (after v2.5.1 / toward v2.6.0)
 
-**Latest public release: [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1).** This document tracks work **not** yet shipped. Older “unreleased 2.5.0 / 2.5.1” planning notes are superseded.
+**Latest public release: [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1).** In-tree development version may be **2.6.0 (unreleased)**. This document tracks work **not** yet shipped as a public tag.
+
+## In progress / draft
+
+### v2.6.0 — Optional Deep Discovery
+
+See draft notes: [releases/v2.6.0.md](releases/v2.6.0.md).
+
+- CLI: `php2shell scan --deep-root DIR` (repeatable, **off by default**)
+- Limits: max 8 roots, depth ≤ 6, ≤ 25 000 entries, ≤ 400 PHP-like binaries, ≤ 200 ini candidates, 90s budget
+- Skip uncontrolled symlink escapes; never execute binaries; weaker evidence types; explicit TRUNCATED/INCOMPLETE coverage
 
 ## Shipped recently
 
@@ -17,12 +27,6 @@
 - Preserved HTML+CSV pairs, rollup, IIS/Apache inventory, Windows version inference  
 
 ## Planned for a later release (not scheduled)
-
-### Optional Deep Discovery
-
-Proposed CLI: `php2shell scan --deep-root DIR` (repeatable, **off by default**).
-
-Suggested safety limits: max 8 roots, depth ≤ 6, ≤ 25 000 entries, ≤ 400 PHP-like binaries, ≤ 200 ini candidates; skip uncontrolled symlink walks; never execute binaries; weaker evidence types than well-known discovery; explicit TRUNCATED/INCOMPLETE coverage.
 
 ### RPM-based distributions
 
