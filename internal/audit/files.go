@@ -12,10 +12,15 @@ var ErrInvalidReport = errors.New("invalid or unsupported PHP2Shell report schem
 
 // ReadRegular only accepts regular, non-symlink files and enforces a hard size cap.
 // It never executes a file, follows a URL, or reads a special device on purpose.
+// Symlinks and Windows reparse/junction targets are rejected via Lstat (no follow).
 func ReadRegular(path string, max int64) ([]byte, error) {
 	fi, err := os.Lstat(path)
 	if err != nil {
 		return nil, err
+	}
+	// Explicit symlink/reparse rejection before IsRegular (portable across GOOS).
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("symbolic link or reparse point rejected: %s", path)
 	}
 	if !fi.Mode().IsRegular() {
 		return nil, fmt.Errorf("not a regular file or is a symbolic link: %s", path)
@@ -29,7 +34,7 @@ func ReadRegular(path string, max int64) ([]byte, error) {
 	}
 	defer f.Close()
 	opened, err := f.Stat()
-	if err != nil || !opened.Mode().IsRegular() {
+	if err != nil || opened.Mode()&os.ModeSymlink != 0 || !opened.Mode().IsRegular() {
 		return nil, fmt.Errorf("file changed or became nonregular: %s", path)
 	}
 	b, err := io.ReadAll(io.LimitReader(f, max+1))

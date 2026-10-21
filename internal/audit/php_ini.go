@@ -14,6 +14,11 @@ const (
 	maxPHPIniScanDirPerDir = 32
 )
 
+// readPHPIniContents loads a candidate ini for inspection. Defaults to ReadRegular
+// (no symlink follow). Tests may replace this with a deterministic stub; production
+// code must leave it pointing at ReadRegular.
+var readPHPIniContents = ReadRegular
+
 // phpIniScanState collects bounded php.ini / conf.d candidates without claiming
 // effective SAPI settings or exact PHP versions.
 type phpIniScanState struct {
@@ -253,8 +258,10 @@ func (st *phpIniScanState) observePHPIniFile(r *Report, path, source, class stri
 		st.truncated = true
 		return
 	}
-	b, err := ReadRegular(path, maxPHPIniBytes)
+	b, err := readPHPIniContents(path, maxPHPIniBytes)
 	if err != nil {
+		// Inaccessible, symlink/junction, missing, or oversized: no candidate and
+		// no configuration_observation implying contents were inspected.
 		return
 	}
 	st.seenFile[key] = true

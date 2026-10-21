@@ -96,28 +96,67 @@ func TestPHPIniConflictingCandidatesDoNotPickVersion(t *testing.T) {
 }
 
 func TestPHPIniSymlinkAndUnreadableSkipped(t *testing.T) {
+	// Root cause of prior Windows CI failure: chmod 0000 is not reliably enforced on
+	// Windows ACLs for the creating user, so "unreadable via chmod" is not portable.
+	// This test uses (1) real symlink Lstat rejection, (2) non-regular path, (3) missing
+	// path, and (4) a deterministic read-error stub — without skipping on Windows.
 	root := t.TempDir()
 	real := filepath.Join(root, "real.ini")
-	_ = os.WriteFile(real, []byte("memory_limit = 32M\n"), 0644)
+	if err := os.WriteFile(real, []byte("memory_limit = 32M\npassword=s3cret\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	link := filepath.Join(root, "php.ini")
 	if err := os.Symlink(real, link); err != nil {
-		t.Skip("symlinks not supported:", err)
+		t.Fatalf("symlink required for this regression (enable Developer Mode / privileges on Windows): %v", err)
 	}
+	// Directory named like an ini — not a regular file (also covers junction-like non-files).
+	notFile := filepath.Join(root, "dir-as-ini.ini")
+	if err := os.Mkdir(notFile, 0755); err != nil {
+		t.Fatal(err)
+	}
+	missing := filepath.Join(root, "missing.ini")
 	denied := filepath.Join(root, "denied.ini")
-	_ = os.WriteFile(denied, []byte("memory_limit = 1M\n"), 0000)
+	if err := os.WriteFile(denied, []byte("memory_limit = 1M\npassword=must-not-appear\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
-	r := NewReport("skip", "linux", "amd64")
+	orig := readPHPIniContents
+	t.Cleanup(func() { readPHPIniContents = orig })
+	readPHPIniContents = func(path string, max int64) ([]byte, error) {
+		if filepath.Clean(path) == filepath.Clean(denied) {
+			return nil, os.ErrPermission
+		}
+		return ReadRegular(path, max)
+	}
+
+	r := NewReport("skip", "windows", "amd64")
 	st := newPHPIniScanState()
 	st.observePHPIniFile(r, link, "symlink", "primary_candidate")
+	st.observePHPIniFile(r, notFile, "not-regular", "primary_candidate")
 	st.observePHPIniFile(r, denied, "denied", "primary_candidate")
-	st.observePHPIniFile(r, filepath.Join(root, "missing.ini"), "missing", "primary_candidate")
+	st.observePHPIniFile(r, missing, "missing", "primary_candidate")
 
 	for _, e := range r.Evidence {
-		if e.Type == "php_ini_candidate" {
-			t.Fatalf("symlink/unreadable/missing must not yield candidate: %+v", e)
+		switch e.Type {
+		case "php_ini_candidate", "configuration_observation":
+			t.Fatalf("symlink/non-regular/unreadable/missing must not yield evidence: %+v", e)
+		}
+		if strings.Contains(strings.ToLower(e.Detail), "s3cret") || strings.Contains(e.Detail, "must-not-appear") {
+			t.Fatalf("secret leaked: %+v", e)
 		}
 	}
-	_ = os.Chmod(denied, 0644) // cleanup for temp dir removal
+
+	// Control: the same denied path is readable via real ReadRegular when not stubbed —
+	// proves the stub path is what blocks evidence, matching production Open failures.
+	if _, err := ReadRegular(denied, maxPHPIniBytes); err != nil {
+		t.Fatalf("control readable file should open with ReadRegular: %v", err)
+	}
+	if _, err := ReadRegular(link, maxPHPIniBytes); err == nil {
+		t.Fatal("ReadRegular must reject symlink without following")
+	}
+	if _, err := ReadRegular(notFile, maxPHPIniBytes); err == nil {
+		t.Fatal("ReadRegular must reject non-regular path")
+	}
 }
 
 func TestPHPIniDiscoveryLimitTruncated(t *testing.T) {
