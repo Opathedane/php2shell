@@ -2,7 +2,7 @@
 
 Do not overwrite assets for an existing tag (`v2.3.0`, `v2.3.1`, …). Ship fixes under a new tag only.
 
-## Achieved in v2.4.0 (this tree; tag pending approval)
+## Achieved in v2.4.0 (published)
 
 - [x] Automatic HTML + CSV report pair from every `scan`
 - [x] Fleet CSV schema `php2shell-fleet-csv/v1` documented

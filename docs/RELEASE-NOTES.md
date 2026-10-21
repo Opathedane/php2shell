@@ -1,8 +1,34 @@
-# PHP2Shell 2.4.0
+# PHP2Shell 2.5.0 (unreleased draft)
+
+Working notes for the next release. **Do not tag or publish until the maintainer approves.** Latest public release remains [v2.4.0](https://github.com/Opathedane/php2shell/releases/tag/v2.4.0).
+
+## Planned / in-tree for 2.5.0
+
+### PHP configuration discovery
+
+- Bounded Windows and Linux `php.ini` / conf.d inventory (well-known roots, binary sidecars, `PHPRC` / `PHP_INI_SCAN_DIR`, IIS `-c` and Apache `PHPIniDir` path references)
+- Distinguishes primary candidates vs sample/template names
+- Whitelisted setting observations remain **OBSERVED ≠ EFFECTIVE**
+- `php.ini` alone never confirms installation, version, active runtime, or vulnerability status
+- Fleet CSV schema **`php2shell-fleet-csv/v2`** adds structured config columns; **v1 inputs still roll up**
+
+### Explicitly deferred (see [ROADMAP-2.5.0.md](ROADMAP-2.5.0.md))
+
+- Optional `--deep-root` deep discovery  
+- Native RPM package database inventory  
+- Advanced FPM pool ↔ VirtualHost runtime attestation  
+
+### Preserved from 2.4.0
+
+Automatic HTML + CSV pairs, fleet rollup, Windows version inference, IIS/Apache bounded web-server discovery, and security limitations (no active-SAPI attestation, no compromise clearance from empty IOCs).
+
+---
+
+# PHP2Shell 2.4.0 (released)
 
 Consultant-oriented release: every scan writes a matching **HTML + CSV** pair, and fleet CSV reports can be consolidated offline for a single customer.
 
-Does **not** overwrite `v2.3.0` or `v2.3.1` release assets. Publish only as tag `v2.4.0`.
+Does **not** overwrite `v2.3.0` or `v2.3.1` release assets. Published as tag `v2.4.0`.
 
 ## Downloads
 

@@ -141,6 +141,8 @@ func RollupFleetCSV(opts FleetRollupOptions) error {
 		return err
 	}
 	for _, row := range all {
+		// Normalize to current writer schema so v1 inputs gain empty v2 config columns.
+		row.SchemaVersion = FleetCSVSchema
 		if err := w.Write(row.csvFields()); err != nil {
 			return err
 		}

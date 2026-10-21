@@ -1,6 +1,6 @@
 # Security and release governance
 
-Post-v2.3.0 notes for maintainers and reviewers. This document does **not** change scanner behavior or published release assets.
+Post-v2.4.0 notes for maintainers and reviewers. This document does **not** change scanner behavior or published release assets.
 
 ## Licensing and ownership
 
@@ -29,12 +29,12 @@ Also enable Dependabot or equivalent for Go modules and Actions, and require sig
 
 | Workflow | Purpose | Notes |
 | --- | --- | --- |
-| `ci.yml` | Test on push/PR to `main` | Asserts HTML-only smoke output (no `.json`/`.csv` from `scan`) |
+| `ci.yml` | Test on push/PR to `main` | Asserts HTML+CSV smoke pair from `scan` (no `.json`) |
 | `release.yml` | Official `vX.Y.Z` publish | Tag must match embedded version; refuses prerelease suffixes; refuses overwrite of existing release |
 | `release-alpha.yml` | `v*-alpha.*` prerelease | Historical / optional; keep `--prerelease` |
 | `build-preview.yml` | Manual unsigned artifacts | Not a release; do not distribute as production |
 
-**Do not** re-run publish against an existing tag to replace binaries (e.g. do not modify `v2.3.0` assets). Ship fixes under a new tag (`v2.3.1`, `v2.4.0`, …).
+**Do not** re-run publish against an existing tag to replace binaries (e.g. do not modify `v2.3.0` / `v2.3.1` / `v2.4.0` assets). Ship fixes under a new tag only.
 
 ## Artifact integrity (current and future)
 

@@ -109,7 +109,7 @@ func TestWindowsVMReport8424PathInferencePipeline(t *testing.T) {
 		"path-inferred",
 		"confidence=MEDIUM",
 		"PATH-INFERRED",
-		"2.4.0",
+		Version, // scanner version embedded in report header
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("HTML missing %q", want)

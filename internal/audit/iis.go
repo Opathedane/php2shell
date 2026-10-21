@@ -80,6 +80,12 @@ func parseIISHandlersWithContext(configPath string, data []byte, siteName, appPa
 				strings.Contains(strings.ToLower(exec), "php") ||
 				strings.Contains(strings.ToLower(attrs["path"]), "*.php") {
 				detail := FormatIISHandlerDetail(attrs["path"], attrs["modules"], exec)
+				// Capture -c ini path separately (path only) before args are discarded from reports.
+				if _, args := ParseIISScriptProcessor(exec); args != "" {
+					if ini := ExtractDashCIniPath(args); ini != "" {
+						detail += "; php_ini=" + normalizeWindowsConfigPath(ini)
+					}
+				}
 				effSite := siteName
 				if effSite == "" && len(locationStack) > 0 {
 					// location path is typically "SiteName" or "SiteName/app"
@@ -247,6 +253,8 @@ func ingestIISHandlerEvidence(r *Report, entries []Evidence) (inspected, inacces
 	seenExe := map[string]bool{}
 	for _, v := range entries {
 		r.AddEvidence(v)
+		// Extract -c php.ini path from the raw detail only if still present (legacy);
+		// preferred path is noteConfiguredIniFromProcessor before redaction.
 		configured := HandlerExecutableFromDetail(v.Detail)
 		if !HandlerExecutableLooksLikePHP(configured) {
 			continue

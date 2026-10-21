@@ -6,14 +6,20 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
 
-// FleetCSVSchema identifies the consultant-facing per-installation CSV format.
-const FleetCSVSchema = "php2shell-fleet-csv/v1"
+// Fleet CSV schema versions. Writers emit v2; rollup/parsers accept v1 and v2.
+const (
+	FleetCSVSchemaV1 = "php2shell-fleet-csv/v1"
+	FleetCSVSchemaV2 = "php2shell-fleet-csv/v2"
+	FleetCSVSchema   = FleetCSVSchemaV2
+)
 
-// FleetCSVColumns is the stable header for scan CSV output and fleet rollup.
+// FleetCSVColumns is the stable header for scan CSV output and fleet rollup (v2).
+// v2 appends configuration-discovery columns; v1 files remain readable by name.
 var FleetCSVColumns = []string{
 	"schema_version",
 	"scan_id",
@@ -39,6 +45,13 @@ var FleetCSVColumns = []string{
 	"host_vulnerability_status",
 	"discovery_completeness",
 	"limitations_summary",
+	// v2 configuration discovery (supplementary; never version/runtime authority)
+	"config_discovery_status",
+	"config_candidate_count",
+	"config_setting_observation_count",
+	"config_correlated_to_install",
+	"config_primary_ini_path",
+	"config_ini_classes",
 }
 
 // FleetRow is one logical PHP installation (or one host-level placeholder).
@@ -67,6 +80,13 @@ type FleetRow struct {
 	HostVulnerabilityStatus  string
 	DiscoveryCompleteness    string
 	LimitationsSummary       string
+	// v2 fields (empty when parsing legacy v1 rows)
+	ConfigDiscoveryStatus          string
+	ConfigCandidateCount           string
+	ConfigSettingObservationCount  string
+	ConfigCorrelatedToInstall      string
+	ConfigPrimaryIniPath           string
+	ConfigIniClasses               string
 }
 
 // ScanIDForReport returns a stable, non-secret identifier for one scan result.
@@ -94,20 +114,25 @@ func BuildFleetRows(r *Report) []FleetRow {
 	runtimeStatus := fleetRuntimeStatus(r)
 	discovery := fleetDiscoveryCompleteness(r)
 	limits := fleetLimitationsSummary(r)
+	hostCfg := summarizeHostConfigDiscovery(r)
 	base := FleetRow{
-		SchemaVersion:           FleetCSVSchema,
-		ScanID:                  scanID,
-		Hostname:                r.Hostname,
-		OS:                      r.OS,
-		Architecture:            r.Architecture,
-		ScanTimestampUTC:        ts,
-		ScannerVersion:          r.ToolVersion,
-		CustomerLabel:           r.CustomerLabel,
-		ActiveHTTPRuntimeStatus: runtimeStatus,
-		CompromiseStatus:        r.CompromiseStatus,
-		HostVulnerabilityStatus: r.VulnerabilityStatus,
-		DiscoveryCompleteness:   discovery,
-		LimitationsSummary:      limits,
+		SchemaVersion:                 FleetCSVSchema,
+		ScanID:                        scanID,
+		Hostname:                      r.Hostname,
+		OS:                            r.OS,
+		Architecture:                  r.Architecture,
+		ScanTimestampUTC:              ts,
+		ScannerVersion:                r.ToolVersion,
+		CustomerLabel:                 r.CustomerLabel,
+		ActiveHTTPRuntimeStatus:       runtimeStatus,
+		CompromiseStatus:              r.CompromiseStatus,
+		HostVulnerabilityStatus:       r.VulnerabilityStatus,
+		DiscoveryCompleteness:         discovery,
+		LimitationsSummary:            limits,
+		ConfigDiscoveryStatus:         hostCfg.Status,
+		ConfigCandidateCount:          fmt.Sprintf("%d", hostCfg.Candidates),
+		ConfigSettingObservationCount: fmt.Sprintf("%d", hostCfg.Settings),
+		ConfigIniClasses:              hostCfg.Classes,
 	}
 
 	groups := GroupInstallations(r)
@@ -120,6 +145,12 @@ func BuildFleetRows(r *Report) []FleetRow {
 		row.RecommendedAction = firstNonEmpty(firstSummaryAction(r), "Inventory the exact active PHP patch versions for all production web handlers.")
 		row.Qualification = "No independently assessed PHP installation version in this scan scope. Not proof PHP is absent."
 		row.ComponentName = "(host)"
+		row.ConfigCorrelatedToInstall = "NO"
+		row.ConfigPrimaryIniPath = ""
+		// php.ini-only hosts must never look like a confirmed install/version.
+		if row.VersionEvidence == "php_not_observed_in_scope" || row.PHPVersion == "" {
+			row.VersionEvidence, row.VersionConfidence, row.PHPVersion = fleetHostVersionEvidence(r)
+		}
 		return []FleetRow{row}
 	}
 
@@ -155,8 +186,127 @@ func BuildFleetRows(r *Report) []FleetRow {
 			row.VersionEvidence = "unknown"
 			row.VersionConfidence = "NONE"
 		}
+		corr := correlateConfigToInstall(r, g)
+		row.ConfigCorrelatedToInstall = corr.Correlated
+		row.ConfigPrimaryIniPath = corr.PrimaryPath
+		if corr.Classes != "" {
+			row.ConfigIniClasses = corr.Classes
+		}
 		out = append(out, row)
 	}
+	return out
+}
+
+type hostConfigSummary struct {
+	Status     string
+	Candidates int
+	Settings   int
+	Classes    string
+}
+
+func summarizeHostConfigDiscovery(r *Report) hostConfigSummary {
+	classSet := map[string]struct{}{}
+	primaries, templates, other := 0, 0, 0
+	settings := 0
+	truncated := false
+	for _, c := range r.Coverage {
+		if c.Name == "configuration" && strings.EqualFold(c.Status, "TRUNCATED") {
+			truncated = true
+		}
+	}
+	for _, e := range r.Evidence {
+		switch e.Type {
+		case "php_ini_candidate":
+			class := iisDetailField(e.Detail, "ini_class")
+			if class == "" {
+				class = classifyPHPIniBasename(e.Name)
+			}
+			classSet[class] = struct{}{}
+			switch class {
+			case "sample_or_template":
+				templates++
+			case "primary_candidate":
+				primaries++
+			default:
+				other++
+			}
+		case "configuration_observation":
+			settings++
+		}
+	}
+	candidates := primaries + templates + other
+	classes := sortedKeys(classSet)
+	status := "NONE"
+	switch {
+	case truncated:
+		status = "TRUNCATED"
+	case candidates == 0:
+		status = "NONE"
+	case primaries > 0 && templates > 0:
+		status = "MIXED_PRIMARY_AND_TEMPLATE"
+	case primaries > 0 && other > 0:
+		status = "CANDIDATES_OBSERVED"
+	case primaries > 0:
+		status = "PRIMARY_CANDIDATES_OBSERVED"
+	case templates > 0 && other == 0:
+		status = "TEMPLATES_ONLY"
+	default:
+		status = "CANDIDATES_OBSERVED"
+	}
+	return hostConfigSummary{Status: status, Candidates: candidates, Settings: settings, Classes: strings.Join(classes, ";")}
+}
+
+type installConfigCorr struct {
+	Correlated  string // YES / NO
+	PrimaryPath string
+	Classes     string
+}
+
+func correlateConfigToInstall(r *Report, g InstallGroup) installConfigCorr {
+	classSet := map[string]struct{}{}
+	primary := ""
+	matched := false
+	for _, e := range r.Evidence {
+		if e.Type != "php_ini_candidate" && e.Type != "configuration_observation" {
+			continue
+		}
+		related := iisDetailField(e.Detail, "related_binary")
+		if related == "" {
+			continue
+		}
+		relKey := normalizeInstallPath(related)
+		for _, a := range g.Assessments {
+			aLoc := normalizeInstallPath(a.Location)
+			if aLoc == relKey || normalizeInstallPath(parentDirAnyOS(a.Location)) == normalizeInstallPath(parentDirAnyOS(related)) {
+				matched = true
+				if e.Type == "php_ini_candidate" {
+					class := iisDetailField(e.Detail, "ini_class")
+					if class == "" {
+						class = classifyPHPIniBasename(e.Name)
+					}
+					classSet[class] = struct{}{}
+					if primary == "" && class == "primary_candidate" {
+						primary = e.Location
+					}
+					if primary == "" {
+						primary = e.Location
+					}
+				}
+			}
+		}
+	}
+	if !matched {
+		return installConfigCorr{Correlated: "NO"}
+	}
+	return installConfigCorr{Correlated: "YES", PrimaryPath: primary, Classes: strings.Join(sortedKeys(classSet), ";")}
+}
+
+func sortedKeys(m map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
 	return out
 }
 
@@ -267,6 +417,21 @@ func fleetLimitationsSummary(r *Report) string {
 	if r.CompromiseStatus == "NOT_ASSESSED" {
 		parts = append(parts, "Compromise not assessed (no trusted IOC pack)")
 	}
+	iniCandidates, settingObs := 0, 0
+	for _, e := range r.Evidence {
+		switch e.Type {
+		case "php_ini_candidate":
+			iniCandidates++
+		case "configuration_observation":
+			settingObs++
+		}
+	}
+	if iniCandidates > 0 || settingObs > 0 {
+		parts = append(parts, fmt.Sprintf(
+			"PHP config candidates observed (%d files, %d whitelisted settings); not proof of effective SAPI settings or PHP version",
+			iniCandidates, settingObs,
+		))
+	}
 	return strings.Join(parts, "; ")
 }
 
@@ -315,6 +480,12 @@ func (row FleetRow) csvFields() []string {
 		row.HostVulnerabilityStatus,
 		row.DiscoveryCompleteness,
 		row.LimitationsSummary,
+		row.ConfigDiscoveryStatus,
+		row.ConfigCandidateCount,
+		row.ConfigSettingObservationCount,
+		row.ConfigCorrelatedToInstall,
+		row.ConfigPrimaryIniPath,
+		row.ConfigIniClasses,
 	}
 	for i := range vals {
 		vals[i] = SpreadsheetSafe(vals[i])
@@ -350,7 +521,8 @@ func EncodeCSVLegacyEvidence(r *Report) ([]byte, error) {
 	return EncodeCSV(r)
 }
 
-// ParseFleetCSV reads a v2.4.0 fleet CSV produced by EncodeFleetCSV.
+// ParseFleetCSV reads fleet CSV produced by EncodeFleetCSV (v1 or v2).
+// v2 configuration columns are optional when reading legacy v1 files.
 func ParseFleetCSV(data []byte) ([]FleetRow, error) {
 	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 	cr := csv.NewReader(bytes.NewReader(data))
@@ -369,7 +541,7 @@ func ParseFleetCSV(data []byte) ([]FleetRow, error) {
 	}
 	for _, col := range requiredFleetColumns() {
 		if _, ok := idx[col]; !ok {
-			return nil, fmt.Errorf("CSV missing required column %q (schema %s)", col, FleetCSVSchema)
+			return nil, fmt.Errorf("CSV missing required column %q", col)
 		}
 	}
 	var rows []FleetRow
@@ -382,37 +554,43 @@ func ParseFleetCSV(data []byte) ([]FleetRow, error) {
 			return rec[i]
 		}
 		schema := get("schema_version")
-		if schema != "" && schema != FleetCSVSchema {
-			return nil, fmt.Errorf("row %d: unsupported schema_version %q (want %s)", line+2, schema, FleetCSVSchema)
-		}
 		if schema == "" {
 			return nil, fmt.Errorf("row %d: empty schema_version", line+2)
 		}
+		if schema != FleetCSVSchemaV1 && schema != FleetCSVSchemaV2 {
+			return nil, fmt.Errorf("row %d: unsupported schema_version %q (supported: %s, %s)", line+2, schema, FleetCSVSchemaV1, FleetCSVSchemaV2)
+		}
 		rows = append(rows, FleetRow{
-			SchemaVersion:           schema,
-			ScanID:                  get("scan_id"),
-			Hostname:                get("hostname"),
-			OS:                      get("os"),
-			Architecture:            get("architecture"),
-			ScanTimestampUTC:        get("scan_timestamp_utc"),
-			ScannerVersion:          get("scanner_version"),
-			CustomerLabel:           get("customer_label"),
-			InstallID:               get("install_id"),
-			PHPVersion:              get("php_version"),
-			VersionConfidence:       get("version_confidence"),
-			VersionEvidence:         get("version_evidence"),
-			InstallPath:             get("install_path"),
-			ComponentName:           get("component_name"),
-			UpstreamMinimumFixed:    get("upstream_minimum_fixed"),
-			PatchStatus:             get("patch_status"),
-			RemediationPriority:     get("remediation_priority"),
-			RecommendedAction:       get("recommended_action"),
-			Qualification:           get("qualification"),
-			ActiveHTTPRuntimeStatus: get("active_http_runtime_status"),
-			CompromiseStatus:        get("compromise_status"),
-			HostVulnerabilityStatus: get("host_vulnerability_status"),
-			DiscoveryCompleteness:   get("discovery_completeness"),
-			LimitationsSummary:      get("limitations_summary"),
+			SchemaVersion:                 schema,
+			ScanID:                        get("scan_id"),
+			Hostname:                      get("hostname"),
+			OS:                            get("os"),
+			Architecture:                  get("architecture"),
+			ScanTimestampUTC:              get("scan_timestamp_utc"),
+			ScannerVersion:                get("scanner_version"),
+			CustomerLabel:                 get("customer_label"),
+			InstallID:                     get("install_id"),
+			PHPVersion:                    get("php_version"),
+			VersionConfidence:             get("version_confidence"),
+			VersionEvidence:               get("version_evidence"),
+			InstallPath:                   get("install_path"),
+			ComponentName:                 get("component_name"),
+			UpstreamMinimumFixed:          get("upstream_minimum_fixed"),
+			PatchStatus:                   get("patch_status"),
+			RemediationPriority:           get("remediation_priority"),
+			RecommendedAction:             get("recommended_action"),
+			Qualification:                 get("qualification"),
+			ActiveHTTPRuntimeStatus:       get("active_http_runtime_status"),
+			CompromiseStatus:              get("compromise_status"),
+			HostVulnerabilityStatus:       get("host_vulnerability_status"),
+			DiscoveryCompleteness:         get("discovery_completeness"),
+			LimitationsSummary:            get("limitations_summary"),
+			ConfigDiscoveryStatus:         get("config_discovery_status"),
+			ConfigCandidateCount:          get("config_candidate_count"),
+			ConfigSettingObservationCount: get("config_setting_observation_count"),
+			ConfigCorrelatedToInstall:     get("config_correlated_to_install"),
+			ConfigPrimaryIniPath:          get("config_primary_ini_path"),
+			ConfigIniClasses:              get("config_ini_classes"),
 		})
 	}
 	return rows, nil

@@ -81,11 +81,15 @@ func TestE2EIISSomewebsiteEDrivePHP8424Pipeline(t *testing.T) {
 		t.Fatal(err)
 	}
 	detail := h[0].Detail
-	if strings.Contains(detail, "password") || strings.Contains(detail, "php.ini") || strings.Contains(strings.ToLower(detail), "s3cret") {
+	if strings.Contains(detail, "password") || strings.Contains(strings.ToLower(detail), "s3cret") || strings.Contains(detail, "display_errors") {
 		t.Fatalf("secrets leaked in handler detail: %s", detail)
 	}
 	if !strings.Contains(detail, "handler_args=redacted") {
 		t.Fatalf("expected redacted args flag: %s", detail)
+	}
+	// Path-only php_ini= is allowed; full -c argument strings are not.
+	if !strings.Contains(detail, "php_ini=") {
+		t.Fatalf("expected php_ini path extraction from -c: %s", detail)
 	}
 	if got := HandlerExecutableFromDetail(detail); !strings.EqualFold(got, `E:\PHP\8.4.24\php-cgi.exe`) {
 		t.Fatalf("handler exe %q", got)
