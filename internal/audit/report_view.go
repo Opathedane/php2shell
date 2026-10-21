@@ -550,9 +550,9 @@ func BuildFocusedNextSteps(r *Report) []string {
 		add("Identify which PHP binary or SAPI actually serves HTTP (FPM pool, Apache module, IIS handler, container entrypoint). Package and CLI versions alone are not sufficient.")
 	}
 	if iniPath := FirstUncorrelatedPrimaryIni(r); iniPath != "" {
-		add("Review uncorrelated php.ini candidate(s) such as " + iniPath + ". Configuration alone does not confirm a PHP install, version, or active web runtime; supply --php-ini or --config-root for known custom locations if discovery missed them.")
+		add("Review uncorrelated php.ini candidate(s) such as " + iniPath + ". Configuration alone does not confirm a PHP install, version, or active web runtime; supply --php-ini, --config-root, or --deep-root for known custom locations if discovery missed them.")
 	} else if CountPHPIniSkips(r) > 0 {
-		add("Re-run with read access to skipped PHP configuration candidates (see php_ini_skip evidence), or pass --php-ini / --config-root for known custom paths. Skipped files were not inspected and secrets were not reported.")
+		add("Re-run with read access to skipped PHP configuration candidates (see php_ini_skip evidence), or pass --php-ini / --config-root / --deep-root for known custom paths. Skipped files were not inspected and secrets were not reported.")
 	}
 	switch r.CompromiseStatus {
 	case "INDICATORS_MATCHED_REVIEW_REQUIRED":

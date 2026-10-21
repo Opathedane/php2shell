@@ -94,6 +94,76 @@ func TestRunScanInvalidTimeout(t *testing.T) {
 	}
 }
 
+func TestRunScanDeepRootCLIWritesPairAndRejectsUNC(t *testing.T) {
+	dir := t.TempDir()
+	root := filepath.Join(dir, "php-trees")
+	v82 := filepath.Join(root, "8.2")
+	v84 := filepath.Join(root, "8.4.24", "nts", "x64")
+	v83 := filepath.Join(root, "8.3.36")
+	_ = os.MkdirAll(v82, 0755)
+	_ = os.MkdirAll(v84, 0755)
+	_ = os.MkdirAll(v83, 0755)
+	bin := "php"
+	if filepath.Separator == '\\' {
+		bin = "php.exe"
+	}
+	_ = os.WriteFile(filepath.Join(v82, bin), []byte("ELF PHP Version 8.2.28\x00"), 0755)
+	_ = os.WriteFile(filepath.Join(v84, bin), []byte("ELF PHP Version 8.4.24\x00"), 0755)
+	cgi := bin
+	if bin == "php.exe" {
+		cgi = "php-cgi.exe"
+	} else {
+		cgi = "php-cgi"
+	}
+	_ = os.WriteFile(filepath.Join(v83, cgi), []byte("ELF PHP Version 8.3.36\x00"), 0755)
+
+	out := filepath.Join(dir, "deep-demo.html")
+	code := run([]string{"scan", "--quiet", "--deep-root", root, "--out", out})
+	if code != audit.ExitOK && code != audit.ExitIncomplete {
+		t.Fatalf("deep-root scan exit %d", code)
+	}
+	htmlBytes, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	csvBytes, err := os.ReadFile(audit.MatchingCSVPath(out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := string(htmlBytes)
+	csv := string(csvBytes)
+	for _, ver := range []string{"8.2.28", "8.4.24", "8.3.36"} {
+		if !strings.Contains(html, ver) {
+			t.Fatalf("HTML missing %s", ver)
+		}
+		if !strings.Contains(csv, ver) {
+			t.Fatalf("CSV missing %s", ver)
+		}
+	}
+	if strings.Contains(html, "password=") || strings.Contains(csv, "secret") {
+		t.Fatal("unexpected secret-like content in reports")
+	}
+
+	// Without --deep-root, the same hidden tree must not appear.
+	outPlain := filepath.Join(dir, "plain.html")
+	code = run([]string{"scan", "--quiet", "--out", outPlain})
+	if code != audit.ExitOK && code != audit.ExitIncomplete {
+		t.Fatalf("plain scan exit %d", code)
+	}
+	plainHTML, _ := os.ReadFile(outPlain)
+	// Temp-dir installs should not be found by default discovery on this host.
+	if strings.Contains(string(plainHTML), filepath.Base(root)) && strings.Contains(string(plainHTML), "8.4.24") {
+		// Only fail if the deep-root path itself is cited — default scan must not walk it.
+		if strings.Contains(string(plainHTML), root) {
+			t.Fatal("default scan must not deep-walk unauthorized --deep-root tree")
+		}
+	}
+
+	if code := run([]string{"scan", "--quiet", "--deep-root", `\\fileserver\share\php`, "--out", filepath.Join(dir, "unc.html")}); code != audit.ExitFatal {
+		t.Fatalf("UNC --deep-root must be fatal, got %d", code)
+	}
+}
+
 func TestScanExitCodeHelper(t *testing.T) {
 	r := audit.NewReport("h", "linux", "amd64")
 	if audit.ScanExitCode(r, nil) != audit.ExitOK {

@@ -4,13 +4,14 @@ Standalone Windows and Linux scanner for **PHP discovery, upstream patch review,
 
 PHP2Shell writes a matching **HTML + CSV** report pair from one read-only scan. It does **not** prove that a host is fully patched or uncompromised.
 
-**Version in this tree:** 2.5.1. Latest public release: [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1). Prior: [v2.5.0](https://github.com/Opathedane/php2shell/releases/tag/v2.5.0), [v2.4.0](https://github.com/Opathedane/php2shell/releases/tag/v2.4.0).
+**Version in this tree:** 2.6.0 (unreleased). Latest public release: [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1). Prior: [v2.5.0](https://github.com/Opathedane/php2shell/releases/tag/v2.5.0), [v2.4.0](https://github.com/Opathedane/php2shell/releases/tag/v2.4.0).
 
 ## 1. What PHP2Shell does
 
 - Discovers PHP packages, binaries, processes, and configuration on **authorized** hosts
 - Compares observed versions to official upstream fix thresholds (21 Oct 2026 advisories)
 - Labels verified binary metadata vs path-inferred versions with explicit confidence
+- Optional `--deep-root` Deep Discovery for consultant-authorized custom directories (off by default; see [ADVANCED-USAGE](docs/ADVANCED-USAGE.md))
 - Optional Ed25519-signed indicator packs for limited IOC triage (not bundled by default)
 - Never executes discovered PHP binaries, never uploads customer data, never opens a browser
 
@@ -35,6 +36,16 @@ Choose `php2shell-windows-amd64.zip`, `php2shell-linux-amd64.tar.gz`, or `php2sh
 chmod +x php2shell-linux-amd64
 ./php2shell-linux-amd64 doctor
 ./php2shell-linux-amd64 scan --quiet --output-dir "$HOME/.php2shell/reports"
+```
+
+**Optional Deep Discovery** (custom trees only; never drive-wide; unreleased 2.6.0):
+
+```powershell
+.\php2shell-windows-amd64.exe scan --deep-root 'C:\Temp\PHP' --deep-root 'E:\websites'
+```
+
+```bash
+./php2shell-linux-amd64 scan --deep-root /opt --deep-root /srv/www
 ```
 
 Exit codes: `0` report pair written, `1` fatal error, `2` pair written but incomplete. Exit `0` is not a security clearance.

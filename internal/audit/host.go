@@ -23,13 +23,13 @@ var versionNumber = regexp.MustCompile(`\d+\.\d+(?:\.\d+)?`)
 var iniSetting = regexp.MustCompile(`(?i)^\s*(session\.upload_progress\.enabled|expose_php|memory_limit|post_max_size|upload_max_filesize|fatal_error_backtraces)\s*=\s*([^\r\n;#]+)`)
 
 func ScanHost(r *Report, opts HostScanOptions) {
-	scanBinaries(r, opts)
+	deepOutcomes := scanBinaries(r, opts)
 	scanPackages(r)
 	scanProcesses(r)
 	// Web-server config first so PHPIniDir / IIS -c paths can feed php.ini inventory.
 	scanApacheConfiguration(r)
 	scanWindowsSpecific(r)
-	scanConfigs(r, opts)
+	scanConfigs(r, opts, deepOutcomes)
 	if opts.Webroot != "" {
 		scanWebRoot(r, opts.Webroot)
 	} else {
@@ -44,9 +44,10 @@ func ScanHost(r *Report, opts HostScanOptions) {
 	r.AddCheck("php2shell_specific_compromise_detection", "NOT_VERIFIED", "No validated CVE-specific indicator pack is provided. Generic signed IOC matching cannot prove exploitation or exclude compromise")
 }
 
-func scanBinaries(r *Report, opts HostScanOptions) {
+func scanBinaries(r *Report, opts HostScanOptions) []deepDiscoverOutcome {
 	found := 0
 	seen := map[string]bool{}
+	var deepOutcomes []deepDiscoverOutcome
 	addPath := func(path, source string) bool {
 		if found >= maxWindowsPHPDiscover {
 			r.AddWarning("PHP binary discovery limited to 400 results")
@@ -80,7 +81,7 @@ func scanBinaries(r *Report, opts HostScanOptions) {
 				source = "Windows PATH directory static binary inspection"
 			}
 			if !addPath(path, source) {
-				return
+				return deepOutcomes
 			}
 		}
 	} else {
@@ -89,7 +90,7 @@ func scanBinaries(r *Report, opts HostScanOptions) {
 			matches, _ := filepath.Glob(pattern)
 			for _, path := range matches {
 				if !addPath(path, "well-known path static binary inspection") {
-					return
+					return deepOutcomes
 				}
 			}
 		}
@@ -97,7 +98,7 @@ func scanBinaries(r *Report, opts HostScanOptions) {
 		if remain > 0 {
 			for _, path := range discoverPHPBinsFromPATHEnv(os.Getenv("PATH"), remain) {
 				if !addPath(path, "PATH directory static binary inspection") {
-					return
+					return deepOutcomes
 				}
 			}
 		}
@@ -125,9 +126,77 @@ func scanBinaries(r *Report, opts HostScanOptions) {
 		}
 		for _, path := range foundUnder {
 			if !addPath(path, "operator --config-root static binary inspection") {
-				return
+				return deepOutcomes
 			}
 		}
+	}
+
+	// Optional Deep Discovery (--deep-root): recursive under explicitly authorized roots only.
+	deepTruncated := false
+	deepRootsUsed := 0
+	if len(opts.DeepRoots) > 0 {
+		deadline := time.Now().Add(deepDurationCap)
+		nDeep := 0
+		for _, raw := range opts.DeepRoots {
+			if nDeep >= maxDeepRoots {
+				r.AddWarning(fmt.Sprintf("Operator --deep-root limited to %d directories", maxDeepRoots))
+				deepTruncated = true
+				break
+			}
+			root, verr := validateDeepRoot(raw)
+			if verr != nil {
+				r.AddWarning(verr.Error())
+				r.AddCheck("deep_discovery", "INCOMPLETE", verr.Error())
+				deepTruncated = true
+				continue
+			}
+			nDeep++
+			deepRootsUsed++
+			remain := maxWindowsPHPDiscover - found
+			if remain <= 0 {
+				r.AddWarning("Operator --deep-root binary discovery skipped: global binary limit already reached")
+				deepTruncated = true
+				break
+			}
+			outcome := deepDiscoverUnderRoot(root, deadline, remain, maxDeepIniCandidates)
+			deepOutcomes = append(deepOutcomes, outcome)
+			r.AddEvidence(Evidence{
+				Type:           "deep_discovery_coverage",
+				Name:           "deep-root",
+				Source:         "operator --deep-root",
+				Location:       outcome.Root,
+				Detail:         deepTruncationDetail(outcome),
+				Interpretation: "BOUNDED_OPERATOR_AUTHORIZED_DEEP_DISCOVERY_NOT_COMPLETE_HOST_COVERAGE",
+			})
+			if outcome.Truncated {
+				deepTruncated = true
+				r.AddWarning("Operator --deep-root truncated: " + deepTruncationDetail(outcome))
+			} else if outcome.PermissionErrors > 0 {
+				r.AddWarning(fmt.Sprintf("Operator --deep-root %s: %d permission error(s) during walk; inventory may be incomplete", outcome.Root, outcome.PermissionErrors))
+				deepTruncated = true
+			}
+			for _, path := range outcome.Binaries {
+				if !addPath(path, "operator --deep-root static binary inspection") {
+					deepTruncated = true
+					break
+				}
+			}
+			if found >= maxWindowsPHPDiscover {
+				break
+			}
+			if time.Now().After(deadline) {
+				deepTruncated = true
+				r.AddWarning(fmt.Sprintf("Operator --deep-root wall-clock budget (%s) exhausted", deepDurationCap))
+				break
+			}
+		}
+		status := "PARTIAL"
+		detail := fmt.Sprintf("Deep Discovery inspected %d authorized root(s); binaries discovered via --deep-root use weaker evidence provenance than well-known/PATH/IIS sources; never executes PHP; not complete host coverage", deepRootsUsed)
+		if deepTruncated {
+			status = "TRUNCATED"
+			detail += "; one or more roots stopped early (entry/depth/binary/duration/permission limits) — inventory remains incomplete"
+		}
+		r.AddCheck("deep_discovery", status, detail)
 	}
 
 	versioned, inferred, partialInspect := 0, 0, 0
@@ -148,11 +217,14 @@ func scanBinaries(r *Report, opts HostScanOptions) {
 		}
 	}
 	status := "PARTIAL"
+	if deepTruncated {
+		status = "TRUNCATED"
+	}
 	detail := fmt.Sprintf("Found %d PHP-like binary paths across %d install director(ies) (%d with verified static version markers, %d path-inferred); no binaries executed", found, len(distinctDirs), versioned, inferred)
 	if runtime.GOOS == "windows" {
-		detail += `; searched well-known dirs, %LOCALAPPDATA%\Programs\PHP (bounded junction resolve), all eligible PATH entries (not only the first match), IIS/Apache handler follow-up when present, and operator --config-root`
+		detail += `; searched well-known dirs, %LOCALAPPDATA%\Programs\PHP (bounded junction resolve), all eligible PATH entries (not only the first match), IIS/Apache handler follow-up when present, operator --config-root, and optional --deep-root`
 	} else {
-		detail += "; common Unix paths, all eligible PATH entries, web-server handler follow-up when present, and operator --config-root"
+		detail += "; common Unix paths, all eligible PATH entries, web-server handler follow-up when present, operator --config-root, and optional --deep-root"
 	}
 	detail += "; discovery scope is bounded — not complete host coverage; unsearched locations may contain additional PHP installations; absence of findings is not proof PHP is absent"
 	if partialInspect > 0 {
@@ -165,7 +237,11 @@ func scanBinaries(r *Report, opts HostScanOptions) {
 	if len(distinctDirs) > 1 {
 		detail += "; multiple install directories retained as separate records unless a current/alias path is content-corroborated"
 	}
+	if deepRootsUsed > 0 {
+		detail += fmt.Sprintf("; Deep Discovery roots authorized=%d", deepRootsUsed)
+	}
 	r.AddCheck("binary_paths", status, detail)
+	return deepOutcomes
 }
 
 func onPATHDirectory(binPath string) bool {

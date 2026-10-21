@@ -88,7 +88,7 @@ func TestMultiVersionWindowsPATHIISAndConfigRoot(t *testing.T) {
 	for _, p := range foundCustom {
 		AddBinaryVersionEvidence(r, p, filepath.Base(p), "operator --config-root static binary inspection")
 	}
-	scanConfigs(r, HostScanOptions{ConfigRoots: []string{customRoot}})
+	scanConfigs(r, HostScanOptions{ConfigRoots: []string{customRoot}}, nil)
 
 	EvaluatePatchPosture(r)
 	FinalizeSummary(r)

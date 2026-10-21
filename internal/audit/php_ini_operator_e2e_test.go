@@ -29,7 +29,7 @@ func TestOperatorPHPIniDiscoversNonStandardConfigOnly(t *testing.T) {
 
 	r := NewReport("op-ini", runtime.GOOS, "amd64")
 	r.GeneratedUTC = time.Date(2026, 10, 21, 21, 0, 0, 0, time.UTC)
-	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{ini}})
+	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{ini}}, nil)
 	EvaluatePatchPosture(r)
 	FinalizeSummary(r)
 
@@ -108,7 +108,7 @@ func TestOperatorConfigRootBoundedDiscovery(t *testing.T) {
 	_ = os.WriteFile(deep, []byte("memory_limit = 1M\n"), 0644)
 
 	r := NewReport("cfg-root", runtime.GOOS, "amd64")
-	scanConfigs(r, HostScanOptions{ConfigRoots: []string{root}})
+	scanConfigs(r, HostScanOptions{ConfigRoots: []string{root}}, nil)
 
 	sawPrimary, sawFrag, sawDeep := false, false, false
 	for _, e := range r.Evidence {
@@ -145,7 +145,7 @@ func TestNearbyBinaryDiscoveredFromIniDirectory(t *testing.T) {
 	_ = os.WriteFile(bin, []byte("PHP Version 8.4.24\x00padding"), 0644)
 
 	r := NewReport("nearby", runtime.GOOS, "amd64")
-	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{ini}})
+	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{ini}}, nil)
 
 	sawBin, related := false, false
 	for _, e := range r.Evidence {
@@ -182,7 +182,7 @@ func TestPHPIniSkipCoverageVisibleInHTMLAndCSV(t *testing.T) {
 	denyPHPIniRead(t, denied)
 
 	r := NewReport("skip-vis", runtime.GOOS, "amd64")
-	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{denied}})
+	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{denied}}, nil)
 	FinalizeSummary(r)
 
 	deniedKey := normalizeInstallPath(denied)
@@ -238,7 +238,7 @@ func TestLinuxStyleNonStandardConfigRootLayout(t *testing.T) {
 	_ = os.WriteFile(ini, []byte("upload_max_filesize = 20M\n"), 0644)
 
 	r := NewReport("linux-layout", "linux", "amd64")
-	scanConfigs(r, HostScanOptions{ConfigRoots: []string{etc}})
+	scanConfigs(r, HostScanOptions{ConfigRoots: []string{etc}}, nil)
 	FinalizeSummary(r)
 
 	found := false
@@ -266,7 +266,7 @@ func TestWindowsStyleNonStandardOperatorIni(t *testing.T) {
 	_ = os.WriteFile(ini, []byte("post_max_size = 32M\n"), 0644)
 
 	r := NewReport("win-layout", "windows", "amd64")
-	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{ini}})
+	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{ini}}, nil)
 	html := string(EncodeHTML(r))
 	if !strings.Contains(html, "configuration candidates") && !strings.Contains(html, "php.ini") {
 		t.Fatalf("HTML missing configuration visibility (%d bytes)", len(html))
@@ -292,7 +292,7 @@ func TestUncorrelatedPrimaryStatusSurvivesIncidentalSkips(t *testing.T) {
 	denyPHPIniRead(t, badIni)
 
 	r := NewReport("status-skips", runtime.GOOS, "amd64")
-	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{okIni, badIni}})
+	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{okIni, badIni}}, nil)
 	rows := BuildFleetRows(r)
 	st := rows[0].ConfigDiscoveryStatus
 	if st != "UNCORRELATED_PRIMARY_CANDIDATES_WITH_SKIPS" {

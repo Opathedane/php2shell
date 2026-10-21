@@ -469,6 +469,27 @@ func fleetLimitationsSummary(r *Report) string {
 			skips,
 		))
 	}
+	deepRoots, deepTrunc := 0, false
+	for _, e := range r.Evidence {
+		if e.Type == "deep_discovery_coverage" {
+			deepRoots++
+			if strings.Contains(e.Detail, "stopped=") {
+				deepTrunc = true
+			}
+		}
+	}
+	for _, c := range r.Coverage {
+		if c.Name == "deep_discovery" && (strings.EqualFold(c.Status, "TRUNCATED") || strings.EqualFold(c.Status, "INCOMPLETE")) {
+			deepTrunc = true
+		}
+	}
+	if deepRoots > 0 {
+		msg := fmt.Sprintf("Deep Discovery authorized (%d root(s)); weaker evidence than well-known/PATH sources; not complete host coverage", deepRoots)
+		if deepTrunc {
+			msg += "; truncated or incomplete — do not treat empty results as proof PHP is absent"
+		}
+		parts = append(parts, msg)
+	}
 	return strings.Join(parts, "; ")
 }
 

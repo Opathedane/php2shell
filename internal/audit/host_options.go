@@ -10,6 +10,9 @@ type HostScanOptions struct {
 	// ConfigRoots are directories from --config-root (repeatable): bounded PHP binary
 	// discovery plus common php.ini names and a single conf.d/*.ini layer (no drive walk).
 	ConfigRoots []string
+	// DeepRoots are directories from --deep-root (repeatable, off by default): recursive
+	// bounded discovery of PHP binaries and php.ini-like files under authorized roots only.
+	DeepRoots []string
 }
 
 const (

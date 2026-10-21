@@ -58,8 +58,8 @@ func newPHPIniScanState() *phpIniScanState {
 
 // scanConfigs inventories php.ini-style files on Windows and Linux using well-known
 // paths, env hints, sidecars next to discovered binaries, web-server references,
-// and optional operator-authorized --php-ini / --config-root paths.
-func scanConfigs(r *Report, opts HostScanOptions) {
+// and optional operator-authorized --php-ini / --config-root / --deep-root paths.
+func scanConfigs(r *Report, opts HostScanOptions, deepOutcomes []deepDiscoverOutcome) {
 	st := newPHPIniScanState()
 	for _, p := range phpIniEnvCandidates() {
 		st.observePHPIniFile(r, p.path, p.source, p.class, false)
@@ -74,6 +74,7 @@ func scanConfigs(r *Report, opts HostScanOptions) {
 	st.observePATHDirConfigs(r)
 	st.observeWebServerIniRefs(r)
 	st.observeOperatorPaths(r, opts)
+	st.observeDeepRoots(r, deepOutcomes)
 
 	status := "PARTIAL"
 	if st.truncated {
@@ -88,7 +89,7 @@ func scanConfigs(r *Report, opts HostScanOptions) {
 		))
 	}
 	detail := fmt.Sprintf(
-		"Read %d PHP configuration candidate file(s) (%d primary php.ini, %d scan-dir fragments, %d sample/template names); extracted %d whitelisted setting observations; %d correlated to nearby binary installs; %d uncorrelated configuration-only candidates; %d skipped (unreadable/oversized/symlink/other); %d from operator --php-ini/--config-root; %d nearby binaries discovered from ini directories; settings are NOT verified as effective for any SAPI; php.ini is not proof of PHP version or active HTTP runtime; secrets and full file contents are not reported",
+		"Read %d PHP configuration candidate file(s) (%d primary php.ini, %d scan-dir fragments, %d sample/template names); extracted %d whitelisted setting observations; %d correlated to nearby binary installs; %d uncorrelated configuration-only candidates; %d skipped (unreadable/oversized/symlink/other); %d from operator --php-ini/--config-root/--deep-root; %d nearby binaries discovered from ini directories; settings are NOT verified as effective for any SAPI; php.ini is not proof of PHP version or active HTTP runtime; secrets and full file contents are not reported",
 		st.inspected, st.primaries, st.fragments, st.templates, st.settings, st.correlated, st.uncorrelated, skipTotal, st.operatorInspected, st.nearbyFromIni,
 	)
 	r.AddCheck("configuration", status, detail)
@@ -376,6 +377,24 @@ func (st *phpIniScanState) observeConfigRoot(r *Report, root string) {
 		if st.inspected > before {
 			st.operatorInspected++
 			added++
+		}
+	}
+}
+
+// observeDeepRoots inspects ini-like files found during --deep-root walks (weaker provenance).
+func (st *phpIniScanState) observeDeepRoots(r *Report, outcomes []deepDiscoverOutcome) {
+	for _, o := range outcomes {
+		for _, path := range o.Inis {
+			if st.inspected >= maxPHPIniFiles {
+				st.truncated = true
+				r.AddWarning("Operator --deep-root php.ini inspection capped at global configuration limit")
+				return
+			}
+			before := st.inspected
+			st.observePHPIniFile(r, path, "operator --deep-root", classifyPHPIniBasename(filepath.Base(path)), false)
+			if st.inspected > before {
+				st.operatorInspected++
+			}
 		}
 	}
 }

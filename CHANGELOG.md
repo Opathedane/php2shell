@@ -1,6 +1,10 @@
-## Unreleased
+## Unreleased (toward v2.6.0)
 
-- Roadmap only (not implemented): optional `--deep-root`, RPM DB inventory, advanced runtime correlation — [docs/ROADMAP.md](docs/ROADMAP.md).
+- Feature: optional `--deep-root DIR` Deep Discovery (repeatable, off by default) — recursive bounded search for PHP binaries and php.ini-like files under consultant-authorized roots only; rejects UNC/network paths and volume roots; never executes PHP.
+- Feature: multi-install retention under deep roots with weaker evidence provenance than well-known/PATH/IIS sources; alias merge still requires content corroboration.
+- Safety: depth ≤ 6, ≤ 25 000 entries, ≤ 400 binaries, ≤ 200 ini candidates, 90s wall-clock budget; truncation/permission gaps reported as TRUNCATED/INCOMPLETE (exit 2) — absence of findings is not proof PHP is absent.
+- Docs: consultant guidance for normal scan vs Deep Discovery; draft [docs/releases/v2.6.0.md](docs/releases/v2.6.0.md).
+- Roadmap only (not in this release): RPM DB inventory, advanced runtime correlation — [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## v2.5.1 — 2026-10-21
 

@@ -31,7 +31,7 @@ func TestWindowsPHPIniSidecarDiscoveryAndHTMLCSV(t *testing.T) {
 	r := NewReport("win-ini", "windows", "amd64")
 	r.GeneratedUTC = time.Date(2026, 10, 21, 21, 0, 0, 0, time.UTC)
 	AddBinaryVersionEvidence(r, bin, "php-cgi.exe", "test fixture")
-	scanConfigs(r, HostScanOptions{})
+	scanConfigs(r, HostScanOptions{}, nil)
 	EvaluatePatchPosture(r)
 	FinalizeSummary(r)
 
@@ -216,7 +216,7 @@ func TestIISDashCFeedsPHPIniCandidate(t *testing.T) {
 
 	r := NewReport("iis-ini", "windows", "amd64")
 	ApplyIISApplicationHostInventory(r, filepath.Join(root, "applicationHost.config"), []byte(xml))
-	scanConfigs(r, HostScanOptions{})
+	scanConfigs(r, HostScanOptions{}, nil)
 
 	sawIni := false
 	for _, e := range r.Evidence {
