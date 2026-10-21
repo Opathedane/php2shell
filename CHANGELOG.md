@@ -1,5 +1,15 @@
 ## Unreleased
 
+## v2.4.0 — 2026-10-21
+
+- Every `scan` writes a matching **HTML + CSV** pair from the same assessment (`php2shell-fleet-csv/v1`); `--out report.html` implies `report.csv`.
+- Refuse overwrite of either file; if CSV write fails after HTML, remove the incomplete HTML pair member.
+- Add offline `rollup --input-dir` / explicit CSV inputs for customer-wide consolidation; reject conflicting non-empty customer labels; keep legacy `rollup --format json`.
+- Preserve v2.3.1 Windows detection (AppData/PATH, PE `.rsrc`, path inference, `current` aliases) with HTML/CSV consistency tests and synthetic demos under `testdata/demos/`.
+- IIS: inventory site/app/vdir `physicalPath` values (including non-`C:` paths such as `E:\websites\prod\...`), read accessible per-mapping `web.config` PHP handlers, follow FastCGI executables on other drives when referenced by trusted config, redact handler arguments, correlate site↔handler↔version↔patch where supported, and mark coverage **INCOMPLETE** when a configured handler binary cannot be versioned — without drive-wide recursion or PHP execution; `.php` filenames still require explicit `--webroot`. IIS lock/clear/remove inheritance is not fully simulated (documented).
+- Apache HTTP Server (bounded, passive): well-known config roots on Linux/Windows; VirtualHost DocumentRoot/ServerName; mod_php LoadModule; SetHandler/AddHandler/Action/ProxyPassMatch; local handler binary version inspection; remote FPM backends flagged as non-local (**INCOMPLETE**); Tomcat explicitly out of scope. Not a full Apache merge simulator — see ADVANCED-USAGE.
+- Documentation and GitHub presentation refresh; Apache-2.0 licensing remains pending owner approval.
+
 ## v2.3.1 — 2026-10-21
 
 - Fix Windows AppData PHP installs that were discovered but reported "no version marker found": directed PE `.rsrc` reads, labelled path-based version inference (e.g. `Programs\PHP\8.4.24\...`), distinguish inferred vs verified metadata, corroborate `current` aliases without assuming identity, and emit patch assessments with confidence in HTML and CSV.

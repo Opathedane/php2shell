@@ -41,7 +41,8 @@ Usage:
   php2shell rules status
   php2shell rules keygen --out-dir PRIVATE-KEY-DIRECTORY
   php2shell rules sign --input rules/source.json --private PRIVATE.hex --out rules/signed.json
-  php2shell rollup [--tenant-map JSON] --out FILE.csv REPORT.json [REPORT.json ...]
+  php2shell rollup --out FILE.csv [--input-dir DIR] [REPORT.csv ...]
+  php2shell rollup --format json [--tenant-map JSON] --out FILE.csv REPORT.json [...]
   php2shell version
 
 Scan options:
@@ -49,11 +50,11 @@ Scan options:
   --repo DIR             authorized local repo (repeatable)
   --access-log FILE      local HTTP access log (repeatable; limit 32MiB)
   --docker               local privileged Docker API metadata (opt-in)
-  --output-dir DIR       directory for the HTML report (local or UNC if accessible)
-  --out PATH             explicit HTML path or prefix (overrides --output-dir)
+  --output-dir DIR       directory for HTML+CSV reports (local or UNC if accessible)
+  --out PATH             explicit HTML path or prefix (overrides --output-dir); matching .csv is written beside it
   --quiet                unattended mode: no progress, no ANSI, stdout silent on success
   --timeout DURATION     wall-clock budget (e.g. 30m); incomplete scan exits 2
-  --customer LABEL       optional self-declared label (not authenticated)
+  --customer LABEL       optional self-declared label (not authenticated tenancy)
   --runtime-version VER  operator-supplied WEB runtime (with --runtime-sapi and --runtime-source)
   --rules PATH           local Ed25519-signed indicator bundle
   --update-rules         opt-in download signed rules (requires --rules-url)
@@ -62,19 +63,22 @@ Default report directory:
   Windows: C:\ProgramData\PHP2Shell\Reports
   Unix:    $HOME/.php2shell/reports (or /var/tmp/php2shell/reports if HOME unset)
 
-Each scan writes one HTML file with a unique hostname+timestamp name (unless --out).
-Existing reports are never overwritten. JSON/CSV are not written by scan.
+Each scan writes a matching pair:
+  php2shell-<hostname>-<timestamp>.html
+  php2shell-<hostname>-<timestamp>.csv
+Existing reports are never overwritten. If either file cannot be written, the pair is not left half-complete.
 
 Exit codes:
-  0  scan finished and HTML written (findings may exist; not a clearance)
+  0  scan finished and HTML+CSV written (findings may exist; not a clearance)
   1  fatal tool, configuration, or report write failure
-  2  HTML written but scan incomplete (permissions, truncation, timeout)
+  2  report pair written but scan incomplete (permissions, truncation, timeout)
 
 Examples:
   php2shell scan
   php2shell scan --output-dir \\fileserver\php2shell$\fleet --quiet
   php2shell scan --webroot /var/www --access-log /var/log/nginx/access.log
   php2shell scan --out reports/customer-check.html
+  php2shell rollup --input-dir ./server-reports --out ./customer-summary.csv
 
 Read the limitations in README.md. Run only on authorized systems.
 `
@@ -106,26 +110,14 @@ func run(args []string) int {
 		fmt.Println("Host metadata: best-effort; Linux dpkg/apk and /proc; macOS/Windows partial.")
 		fmt.Println("Official upstream PHP2Shell fix thresholds: AVAILABLE. Web-runtime patch attestation: NOT IMPLEMENTED.")
 		fmt.Println("Signed indicator packs: manually trusted Ed25519 key; no automatic internet access.")
-		fmt.Println("Default: offline, no code execution, single HTML report, no automatic browser or upload.")
-		fmt.Println("Exit codes: 0=report written, 1=fatal error, 2=report written but incomplete.")
+		fmt.Println("Default: offline, no code execution, HTML+CSV report pair, no automatic browser or upload.")
+		fmt.Println("Exit codes: 0=report pair written, 1=fatal error, 2=report pair written but incomplete.")
 		fmt.Println("Not a clearance: missing findings do not prove a host is patched or uncompromised.")
 		return audit.ExitOK
 	case "scan":
 		return runScan(args[1:])
 	case "rollup":
-		fs := flag.NewFlagSet("rollup", flag.ContinueOnError)
-		out := fs.String("out", "reports/rollup.csv", "exclusive output CSV path")
-		m := fs.String("tenant-map", "", "optional JSON object: SHA-256 of exact report file to trusted tenant")
-		if err := fs.Parse(args[1:]); err != nil {
-			return audit.ExitFatal
-		}
-		if err := audit.Rollup(fs.Args(), *m, *out); err != nil {
-			fmt.Fprintln(os.Stderr, "ERROR:", err)
-			return audit.ExitFatal
-		}
-		fmt.Printf("MSSP rollup saved: %s (reports are NOT authenticated; unmapped tenant identifiers remain UNMAPPED)\n", *out)
-		fmt.Println("Note: scan no longer writes JSON; rollup expects operator-supplied JSON report files.")
-		return audit.ExitOK
+		return runRollup(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "ERROR: unknown command %q\n%s", args[0], help)
 		return audit.ExitFatal
@@ -136,8 +128,8 @@ func runScan(args []string) int {
 	fs := flag.NewFlagSet("scan", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	webroot := fs.String("webroot", "", "authorized website document root (file names only)")
-	out := fs.String("out", "", "explicit HTML path or prefix; overrides --output-dir")
-	outputDir := fs.String("output-dir", "", "directory for unique HTML report (local or accessible UNC)")
+	out := fs.String("out", "", "explicit HTML path or prefix; matching .csv written beside it; overrides --output-dir")
+	outputDir := fs.String("output-dir", "", "directory for unique HTML+CSV report pair (local or accessible UNC)")
 	quiet := fs.Bool("quiet", false, "unattended: no progress, no ANSI; stdout silent on success")
 	timeoutStr := fs.String("timeout", "", "wall-clock scan budget (e.g. 30m)")
 	customer := fs.String("customer", "", "optional self-declared label; not authenticated tenant")
@@ -328,24 +320,68 @@ func runScan(args []string) int {
 		audit.EvaluatePatchPosture(r)
 	}
 
-	con.Phase("Writing HTML report")
+	con.Phase("Writing HTML and CSV reports")
 	audit.FinalizeSummary(r)
 
-	htmlPath, err := audit.ResolveScanReportPath(*out, *outputDir, name, time.Now().UTC())
+	htmlPath, csvPath, err := audit.ResolveScanReportPair(*out, *outputDir, name, time.Now().UTC())
 	if err != nil {
 		con.Error(err.Error())
 		return audit.ExitFatal
 	}
-	saveErr := audit.Save(r, htmlPath)
+	saveErr := audit.SaveReportPair(r, htmlPath, csvPath)
 	if saveErr != nil {
-		con.Error("cannot write HTML report: " + saveErr.Error())
+		con.Error("cannot write report pair: " + saveErr.Error())
 		return audit.ExitFatal
 	}
 
 	incomplete := audit.ScanIncomplete(r)
 	elapsed := time.Since(started)
-	con.Summary(r, htmlPath, elapsed, incomplete)
+	con.Summary(r, htmlPath, csvPath, elapsed, incomplete)
 	return audit.ScanExitCode(r, nil)
+}
+
+func runRollup(args []string) int {
+	fs := flag.NewFlagSet("rollup", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	out := fs.String("out", "", "exclusive output CSV path (required)")
+	inputDir := fs.String("input-dir", "", "directory of php2shell fleet *.csv files (non-recursive)")
+	format := fs.String("format", "csv", "input format: csv (default) or json (legacy)")
+	m := fs.String("tenant-map", "", "legacy JSON rollup only: SHA-256 of exact report file to trusted tenant")
+	if err := fs.Parse(args); err != nil {
+		return audit.ExitFatal
+	}
+	if strings.TrimSpace(*out) == "" {
+		fmt.Fprintln(os.Stderr, "ERROR: rollup requires --out PATH.csv")
+		return audit.ExitFatal
+	}
+	switch strings.ToLower(strings.TrimSpace(*format)) {
+	case "csv", "":
+		if err := audit.RollupFleetCSV(audit.FleetRollupOptions{
+			InputDir:   *inputDir,
+			InputFiles: fs.Args(),
+			Output:     *out,
+		}); err != nil {
+			fmt.Fprintln(os.Stderr, "ERROR:", err)
+			return audit.ExitFatal
+		}
+		fmt.Printf("Fleet CSV rollup saved: %s\n", *out)
+		fmt.Println("Operator-selected input set only. customer_label is not authenticated tenancy; do not mix customers.")
+		return audit.ExitOK
+	case "json":
+		if *inputDir != "" {
+			fmt.Fprintln(os.Stderr, "ERROR: --input-dir is for fleet CSV rollup; use explicit JSON paths with --format json")
+			return audit.ExitFatal
+		}
+		if err := audit.Rollup(fs.Args(), *m, *out); err != nil {
+			fmt.Fprintln(os.Stderr, "ERROR:", err)
+			return audit.ExitFatal
+		}
+		fmt.Printf("Legacy JSON rollup saved: %s (reports are NOT authenticated; unmapped tenants remain UNMAPPED)\n", *out)
+		return audit.ExitOK
+	default:
+		fmt.Fprintln(os.Stderr, "ERROR: --format must be csv or json")
+		return audit.ExitFatal
+	}
 }
 
 func runRules(args []string) error {

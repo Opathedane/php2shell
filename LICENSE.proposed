@@ -1,3 +1,9 @@
 LICENSE NOT YET APPROVED
 
-This is intentionally not an open-source license. Distribution and the rights holder's choice of license require formal approval before publishing or sharing the program publicly.
+Intended license (pending explicit owner approval): Apache License 2.0.
+
+This file is intentionally not an open-source license grant. Do not treat the
+repository as Apache-2.0 (or any other OSS license) until the maintainer
+confirms authority to license all relevant code and commits an approved LICENSE.
+
+See docs/LICENSING.md.

@@ -68,8 +68,10 @@ func TestValidationRejectsInvalidOrExpired(t *testing.T) {
 func TestCachedRuleRollbackRefused(t *testing.T) {
 	// Override user config for this isolated test process.
 	home := t.TempDir()
+	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", home)
 	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", home)
 		t.Setenv("APPDATA", home)
 	}
 	pub, priv, _ := Keygen()

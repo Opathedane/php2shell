@@ -118,7 +118,7 @@ func (p *Printer) Error(msg string) {
 }
 
 // Summary prints end-of-scan operational status. Never claims a successful security clearance.
-func (p *Printer) Summary(r *audit.Report, htmlPath string, elapsed time.Duration, incomplete bool) {
+func (p *Printer) Summary(r *audit.Report, htmlPath, csvPath string, elapsed time.Duration, incomplete bool) {
 	if p.opts.Quiet {
 		return
 	}
@@ -163,7 +163,7 @@ func (p *Printer) Summary(r *audit.Report, htmlPath string, elapsed time.Duratio
 			fmt.Fprintln(p.out, p.paint(yellow, "  Immediate patch review:"))
 		}
 		if critical >= 6 {
-			fmt.Fprintln(p.out, "    ... additional assessments in the HTML report")
+			fmt.Fprintln(p.out, "    ... additional assessments in the HTML/CSV reports")
 			break
 		}
 		fmt.Fprintf(p.out, "    - %s %s: %s\n", a.Component, a.ObservedVersion, a.RequiredAction)
@@ -189,7 +189,7 @@ func (p *Printer) Summary(r *audit.Report, htmlPath string, elapsed time.Duratio
 				fmt.Fprintf(p.out, "    - [%s] %s: %s\n", c.Status, c.Name, c.Detail)
 				shown++
 				if shown >= 8 {
-					fmt.Fprintln(p.out, "    ... see HTML coverage table")
+					fmt.Fprintln(p.out, "    ... see HTML/CSV coverage details")
 					goto afterWarn
 				}
 			}
@@ -199,9 +199,12 @@ func (p *Printer) Summary(r *audit.Report, htmlPath string, elapsed time.Duratio
 
 	fmt.Fprintf(p.out, "  Duration:          %s\n", elapsed.Round(time.Millisecond))
 	fmt.Fprintf(p.out, "  HTML report:       %s\n", htmlPath)
+	if csvPath != "" {
+		fmt.Fprintf(p.out, "  CSV report:        %s\n", csvPath)
+	}
 	fmt.Fprintln(p.out)
 	fmt.Fprintln(p.out, p.paint(dim, "Process completion is not a vulnerability or compromise clearance."))
-	fmt.Fprintln(p.out, p.paint(dim, "Open the HTML report for findings, evidence, coverage limits, and next steps."))
+	fmt.Fprintln(p.out, p.paint(dim, "Open the HTML report for findings; use CSV for fleet consolidation."))
 	if incomplete {
 		fmt.Fprintln(p.out, p.paint(yellow, "Scan finished with incomplete coverage (exit code 2)."))
 	}

@@ -109,7 +109,7 @@ func TestWindowsVMReport8424PathInferencePipeline(t *testing.T) {
 		"path-inferred",
 		"confidence=MEDIUM",
 		"PATH-INFERRED",
-		"2.3.1",
+		"2.4.0",
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("HTML missing %q", want)
@@ -119,6 +119,25 @@ func TestWindowsVMReport8424PathInferencePipeline(t *testing.T) {
 		t.Fatal("HTML must not claim active runtime verified")
 	}
 
+	fleetBytes, err := EncodeFleetCSV(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fleetRows, err := ParseFleetCSV(fleetBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fleetRows) != 1 || fleetRows[0].PHPVersion != "8.4.24" || fleetRows[0].UpstreamMinimumFixed != "8.4.27" {
+		t.Fatalf("fleet CSV %+v", fleetRows)
+	}
+	if fleetRows[0].VersionEvidence != "path_inferred" || fleetRows[0].VersionConfidence != "MEDIUM" {
+		t.Fatalf("%+v", fleetRows[0])
+	}
+	if fleetRows[0].PatchStatus != "BELOW_UPSTREAM_FIX" {
+		t.Fatal(fleetRows[0].PatchStatus)
+	}
+
+	// Legacy evidence CSV still encodes assessments for older tooling.
 	csvBytes, err := EncodeCSV(r)
 	if err != nil {
 		t.Fatal(err)

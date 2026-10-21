@@ -50,21 +50,5 @@ func scanIISConfig(r *Report) {
 		r.AddCheck("windows_iis_configuration", "UNAVAILABLE", "IIS config not accessible or IIS absent (requires permission): "+err.Error())
 		return
 	}
-	entries, e := parseIISHandlers(path, b)
-	if e != nil {
-		r.AddCheck("windows_iis_configuration", "INCOMPLETE", "Invalid IIS config XML: "+e.Error())
-		return
-	}
-	for _, v := range entries {
-		r.AddEvidence(v)
-		exe := ResolveHandlerExecutablePath(HandlerExecutableFromDetail(v.Detail))
-		if HandlerExecutableLooksLikePHP(exe) {
-			AddBinaryVersionEvidence(r, exe, filepath.Base(exe), "IIS handler scriptProcessor static binary inspection")
-		}
-	}
-	status := "PARTIAL"
-	if len(entries) >= 128 {
-		status = "TRUNCATED"
-	}
-	r.AddCheck("windows_iis_configuration", status, fmt.Sprintf("Read IIS applicationHost.config; found %d possibly PHP-related handler/FastCGI entries (up to 128); active PHP runtime, inherited overrides and patch state unverified", len(entries)))
+	ApplyIISApplicationHostInventory(r, path, b)
 }

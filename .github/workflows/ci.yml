@@ -32,5 +32,6 @@ jobs:
           echo '2026-10-21 12:00:00 POST /upload.php - 200' >> iis-fixture.log
           go run ./cmd/php2shell scan --access-log iis-fixture.log --out reports/ci-smoke.html
           test -s reports/ci-smoke.html
+          test -s reports/ci-smoke.csv
           test ! -e reports/ci-smoke.json
-          test ! -e reports/ci-smoke.csv
+          head -1 reports/ci-smoke.csv | grep -q schema_version

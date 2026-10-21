@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -22,7 +23,7 @@ func evidenceRuntimeKey(e Evidence) string {
 }
 
 func canonicalBinaryInstallDir(location string, aliasDirs map[string]string) string {
-	dir := normalizeInstallPath(filepath.Dir(location))
+	dir := normalizeInstallPath(parentDirAnyOS(location))
 	if aliasDirs != nil {
 		if canon, ok := aliasDirs[dir]; ok && canon != "" {
 			return canon
@@ -32,11 +33,29 @@ func canonicalBinaryInstallDir(location string, aliasDirs map[string]string) str
 }
 
 func normalizeInstallPath(p string) string {
-	p = filepath.Clean(p)
-	if filepath.Separator == '\\' {
-		return strings.ToLower(p)
+	// Slash-normalize so Windows paths remain stable install keys on any GOOS
+	// (fleet CSV / demos / cross-platform tests). Filesystem opens still use filepath.
+	p = strings.ReplaceAll(p, `\`, `/`)
+	p = path.Clean(p)
+	return strings.ToLower(p)
+}
+
+// parentDirAnyOS returns the parent directory using slash semantics for both
+// Windows and Unix path spellings.
+func parentDirAnyOS(p string) string {
+	p = strings.ReplaceAll(strings.TrimSpace(p), `\`, `/`)
+	p = strings.TrimRight(p, `/`)
+	if p == "" {
+		return "."
 	}
-	return p
+	i := strings.LastIndex(p, `/`)
+	if i < 0 {
+		return "."
+	}
+	if i == 0 {
+		return "/"
+	}
+	return p[:i]
 }
 
 func debianPackageBinaryPaths(packageName string) []string {

@@ -1,104 +1,106 @@
 > [Back to the quick start](../README.md)
 
-# Advanced usage — PHP2Shell Assessment (v2.3.0)
+# Advanced usage — PHP2Shell Assessment (v2.4.0)
 
 PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory and evidence-qualified patch review for CVE-2026-109618 / CVE-2026-109619.
 
-One standalone executable for Windows and Linux: no Python, Go compiler or PHP installed on the customer server. It does **not** execute discovered PHP programs, launch shell commands, use PoCs or send exploit requests. Default scanning is local-only, with no network connectivity or telemetry. Optional GitHub indicator updates are **Ed25519-signed** and opt-in.
+## Download
 
-## Download compiled builds from GitHub Releases
+Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.4.0** (or newer), and download the archive for the destination OS/CPU. Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags such as `v2.3.0` / `v2.3.1`.
 
-Open [Releases](https://github.com/Opathedane/php2shell/releases), choose the latest **official release** (v2.3.0 or newer), and download the archive for the destination OS and CPU. See [consultant quick start](INSTALL-FOR-CONSULTANTS.md). Binaries are **not code-signed**; comply with organizational approval. Maintainers publish via **GitHub Actions → Publish standalone release** (`.github/workflows/release.yml`) after tagging `vX.Y.Z`. Historical alpha tags remain available via `release-alpha.yml` and must stay marked as prereleases.
-
-## Customer: two commands
-
-Linux:
+## Scan output pair
 
 ```bash
-chmod +x php2shell-linux-amd64
 ./php2shell-linux-amd64 scan
 ```
-
-Windows Server (PowerShell):
 
 ```powershell
 .\php2shell-windows-amd64.exe scan
 ```
 
-Writes a single HTML report under the platform default directory (`C:\ProgramData\PHP2Shell\Reports` or `$HOME/.php2shell/reports`) with a unique `php2shell-<hostname>-<timestamp>.html` name. Existing reports are not overwritten. Use `--output-dir` / `--out` / `--quiet` / `--timeout` for automation. **Always read the coverage table**. No PHP installation found is not a clean bill of health. Process exit `0` is not a security clearance.
+Writes matching HTML and CSV under the platform default directory with unique `php2shell-<hostname>-<timestamp>` basenames. Use `--output-dir` / `--out` / `--quiet` / `--timeout`. **Always read coverage and limitations.** Process exit `0` is not a security clearance.
 
-## Consultant: examine the authorized evidence
+If `--out reports/customer-check.html` is supplied, the CSV is `reports/customer-check.csv`.
+
+## Fleet consolidation
+
+```bash
+php2shell rollup --input-dir ./server-reports --out ./customer-summary.csv
+php2shell rollup --out ./customer-summary.csv ./server-reports/*.csv
+```
+
+Analyst selects one customer’s CSV collection. Conflicting non-empty `customer_label` values are rejected. See [CSV-SCHEMA.md](CSV-SCHEMA.md).
+
+Legacy JSON rollup (operator-supplied alpha/JSON exports):
+
+```bash
+php2shell rollup --format json --tenant-map /secure/trusted-map.json --out reports/fleet.csv reports/*.json
+```
+
+Tenant mapping uses exact SHA-256 of report bytes; labels are never trusted for tenancy.
+
+## Evidence options
 
 ```bash
 ./php2shell-linux-amd64 scan --webroot /var/www --access-log /var/log/nginx/access.log --repo /srv/source --out reports/customer-check.html
 ```
 
 ```powershell
-.\php2shell-windows-amd64.exe scan --webroot C:\inetpub\wwwroot --access-log C:\inetpub\logs\LogFiles\W3SVC1\u_ex261021.log --output-dir C:\ProgramData\PHP2Shell\Reports
-```
-
-Enterprise / scheduled example (no console progress; HTML only):
-
-```powershell
 .\php2shell-windows-amd64.exe scan --quiet --output-dir \\fileserver\php2shell$\fleet --timeout 30m
 ```
 
-UNC writes use the process identity (user or `DOMAIN\MACHINE$` under SYSTEM). Configure share ACLs explicitly; the scanner does not transfer reports by itself.
+### IIS sites outside `C:\inetpub` / PHP outside default folders
 
-IIS uses static `applicationHost.config` PHP FastCGI/handler references and a limited live Windows process list. Linux has partial dpkg/apk, PHP binary/config paths and /proc data. Neither platform establishes the actual HTTP-serving PHP SAPI or validates vendor security backports. Windows W3C and Apache/nginx combined logs can be summarized and checked against signed indicators. No logs are read unless explicitly requested.
+From `applicationHost.config` the scanner records site, nested application, and virtualDirectory `physicalPath` values (any drive letter), PHP FastCGI/handler `scriptProcessor` executables (arguments redacted), and accessible per-mapping `web.config` PHP handlers. When a handler binary is readable, version evidence and patch assessment are correlated to that install and, where a site name is present on the handler, to matching site/app/vdir rows. It does **not** recursively scan entire volumes, execute PHP binaries, or emit `web.config` secrets from handler arguments.
 
-## Live indicators from your approved GitHub repository
+To inventory `.php` filenames under a specific site (for example `E:\websites\prod\somewebsite`), pass that path as `--webroot`. Without `--webroot`, site path evidence alone means “IIS is configured to use this directory,” not “PHP files were enumerated” and not “the active runtime is verified.”
 
-**Step 1: trust the signing public key from an independently authenticated maintainer** (ONCE):
-
-```bash
-php2shell rules trust --key ./rule-signing-public.hex
+```powershell
+.\php2shell-windows-amd64.exe scan --webroot 'E:\websites\prod\somewebsite' --quiet --output-dir C:\ProgramData\PHP2Shell\Reports
 ```
 
-**Step 2: download an approved signed bundle** (operator opt-in):
+### Apache HTTP Server (bounded, passive)
 
-```bash
-php2shell rules update --url https://raw.githubusercontent.com/Opathedane/php2shell/main/rules/signed.json
-```
+On Linux and Windows, when a well-known Apache config root is accessible (`/etc/apache2`, `/etc/httpd`, `/usr/local/apache2/conf`, common Windows `Apache24\conf` paths), the scanner reads a **bounded** set of config files and records:
 
-**Step 3: run with cached verified indicators**:
+1. **VirtualHost `DocumentRoot` / `ServerName`** (any drive or directory spelling in config) — configured site path only  
+2. **PHP-related handlers** — `SetHandler`, `AddHandler`, `Action`, `ProxyPassMatch` / `ProxyPass` to `fcgi` / `unix:`, `FcgidWrapper`, `PHPIniDir`  
+3. **mod_php** — `LoadModule php*_module` / `libphp*`  
+4. **Local handler binaries** referenced by Action/FcgidWrapper when the path is readable (version inspection only; never executed)  
+5. **Remote PHP-FPM/proxy backends** (non-loopback `fcgi://host:port`) — recorded as **not** local installs; coverage marked **INCOMPLETE** for those backends  
 
-```bash
-php2shell scan --webroot /var/www --access-log /var/log/nginx/access.log
-```
+**Evidence ladder (do not collapse these):**
 
-You can combine update+scan using `scan --update-rules --rules-url HTTPS_URL ...`, or use a previously downloaded signed envelope via `scan --rules ./signed.json ...`. Internet access is not needed after updating. Rule bundles are data only: no scripts, regex execution, arbitrary programs, or PHP execution. A failed signature or expired rule pack is **not accepted**. A repo owner cannot silently change the trust key; explicit key setup is required. Use `php2shell rules status` for version/expiry. The repository currently contains only an empty **unsigned** template: there are no official PHP2Shell IOCs bundled yet.
+| Layer | Meaning in reports |
+| --- | --- |
+| Host PHP install | Packages/binaries/`LoadModule`/handler exe version evidence |
+| Configured for an app | `apache_vhost_config` / `apache_php_handler_config` / remote backend rows |
+| Actively serving HTTP | **Never** inferred from Apache config alone |
 
-For maintainer key generation and signing, see [rules/README.md](../rules/README.md). **Never upload private signing keys.** This design does not automatically trust the GitHub domain or a key fetched from the same unverified location.
+#### Apache coverage limits (v2.4.0)
 
-## Results explained
+- Does **not** fully simulate Apache merge order, `IfModule`/`IfDefine`, `<Directory>` precedence, or `.htaccess`  
+- `Include` / `IncludeOptional` followed at most **one** level deep and only under the same allowlisted config root (no `..`, no off-root traversal)  
+- Does **not** inventory nginx, LiteSpeed, or **Apache Tomcat** / Catalina (Tomcat is a Java Servlet container and is **not** PHP evidence)  
+- Does **not** open remote FPM ports or follow DocumentRoot trees for `.php` files (use `--webroot`)  
+- Comprehensive multi-SAPI architecture (full effective-vhost resolution, pool↔socket binding attestation) is a **follow-up release** candidate — see release notes  
 
-- `Vulnerability` reports an **evidence-qualified upstream patch comparison**. `BELOW_UPSTREAM_FIX_OBSERVED_PATCH_REVIEW_REQUIRED` does not override a verified vendor backport. `UPSTREAM_FIX_LEVEL_OBSERVED_ACTIVE_RUNTIME_UNVERIFIED` does not certify the web server as patched. See [official patch guidance](OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md).
-- `Compromise: NOT_ASSESSED`: no usable IOC analysis was possible. `INDICATORS_MATCHED_REVIEW_REQUIRED`: one or more signed rule matches need investigation. `NO_MATCHES_SCOPE_LIMITED`: only a limited scan was conducted; **not a clean verdict**.
-- `Signed rules: VERIFIED`: integrity and publisher-key authentication of the downloaded data passed, **not** proof each detector is accurate or specific to PHP2Shell.
-- Reports preserve file names and server metadata and require confidential handling. Raw HTTP request target and client IP are not written to reports.
+#### IIS coverage limits (v2.4.0)
 
-## MSSP report aggregation
+- **Inheritance is not fully simulated.** Handlers under `<location>` sections are recorded with their `location` path when present, and site `web.config` handlers are read separately. The scanner does **not** apply IIS `lockItem` / `<clear/>` / `<remove/>` merge rules or compute the effective handler for every URL. Overrides may therefore appear as multiple configured handlers rather than a single resolved mapping.
+- **Nested apps and vdirs** are inventoried from `applicationHost.config` physical paths. Only the top-level `web.config` in each distinct physical path is examined (bounded; no recursive tree walk). Child folders’ `web.config` files are not followed unless that folder is itself a mapped physical path.
+- **Inaccessible handler binaries** (missing path, wrong host, permission denied) produce `windows_iis_configuration` **INCOMPLETE** coverage and version-unknown evidence. That must not be read as “the site is patched/safe.”
+- **Active HTTP serving runtime** remains unverified even when site, handler, and binary version evidence align.
 
-`php2shell scan` writes **HTML only**. The legacy `rollup` command expects operator-supplied **JSON** report files (for example from an older alpha scan or an external export). It is not part of the default consultant workflow:
+## Signed indicators
 
-```bash
-php2shell rollup --tenant-map /secure/trusted-map.json --out reports/fleet.csv reports/*.json
-```
+Same Ed25519 trust/update workflow as prior releases. Empty template only in-repo. See [rules/README.md](../rules/README.md).
 
-Tenant identities require an analyst-maintained exact SHA-256 report hash mapping. Input customer labels are never trusted for tenancy. An unsigned report can be forged and is not an attested chain of custody. Prefer collecting HTML reports via a pre-configured `--output-dir` (local or UNC) rather than automatic upload.
+## Results vocabulary
 
-## Known product gaps (not fixed by documentation)
+Patch and compromise statuses retain prior meanings. Path-inferred versions are labelled in HTML and CSV (`version_evidence=path_inferred`, confidence MEDIUM). Active HTTP runtime remains unverified unless independently established.
 
-- Official minimum patch levels from the PHP **21 October 2026** release are integrated. Unverified PoCs and guessed IOC signatures are deliberately **not** imported. Static observations still cannot certify the live web handler or vendor security backports.
-- Broader Windows Server/IIS field validation, PHP-FPM/Apache/LSAPI integration depth, RPM inventory completeness, code signing, and validated incident indicators remain open gates for future releases (see [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md)).
-- Filesystem reads may have TOCTOU race limits. Very large or rotated logs, nested symlinks and cloud hosting are not comprehensively checked.
-
-Read [security policy](../SECURITY.md), [governance](GOVERNANCE.md), [release checklist](RELEASE-CHECKLIST.md), and [IOC limitations](IOC-RULE-LIMITATIONS.md). **Do not use PHP2Shell alone to certify systems as patched or uncompromised.**
-
-No outbound customer data transfer is implemented. `--docker` accesses a privileged local Docker socket when requested; never grant Docker daemon permissions just for scanning.
-
-## Building and running tests
+## Building and tests
 
 ```bash
 go test ./...
@@ -106,16 +108,8 @@ go vet ./...
 go build -trimpath -o php2shell ./cmd/php2shell
 ```
 
-CI runs on GitHub-hosted Linux, Windows and macOS Intel runners for pull requests and pushes to `main`. Release artifacts are unsigned.
+Synthetic demos: `testdata/demos/` (regenerate with `PHP2SHELL_WRITE_DEMOS=1 go test ./internal/audit -run TestGenerateDemoFleetArtifacts`).
 
-## Ownership and licensing
+## Licensing
 
-`LICENSE.proposed` is a draft only. Do not add or assert an open-source license without explicit owner approval. Go module: `github.com/Opathedane/php2shell`.
-
-## Additional official-patch assessment option (operator-reported runtime)
-
-```bash
-php2shell scan --runtime-version 8.4.26 --runtime-sapi fpm --runtime-source "approved production FPM evidence"
-```
-
-The three runtime options are all required together. They add a separately observed version to the report; the scanner labels it as **OPERATOR_REPORTED_NOT_ATTESTED**, never silently attests a serving PHP version. The report provides per-component patch instructions.
+`LICENSE.proposed` is not an approved license. See [LICENSING.md](LICENSING.md).

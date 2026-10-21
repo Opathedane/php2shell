@@ -1,6 +1,8 @@
-# PHP2Shell 2.3.1
+# PHP2Shell 2.4.0
 
-Maintenance release focused on Windows PHP version detection and reporting accuracy. Builds on the public **v2.3.0** HTML-only assessment scanner. Does **not** overwrite v2.3.0 release assets — publish only as a new tag `v2.3.1`.
+Consultant-oriented release: every scan writes a matching **HTML + CSV** pair, and fleet CSV reports can be consolidated offline for a single customer.
+
+Does **not** overwrite `v2.3.0` or `v2.3.1` release assets. Publish only as tag `v2.4.0`.
 
 ## Downloads
 
@@ -11,79 +13,74 @@ Standalone binaries (no Python, PHP, or Go required on the target host):
 - `php2shell-linux-arm64.tar.gz`
 - `php2shell-darwin-amd64.tar.gz` / `php2shell-darwin-arm64.tar.gz` (developer convenience builds)
 
-Verify checksums in `SHA256SUMS`. Release binaries are **not code-signed**.
+Verify checksums in `SHA256SUMS`. Release binaries are **not code-signed**. Confirm `php2shell version` prints `2.4.0`.
 
-### Verify download integrity
+## What is new in 2.4.0
+
+### Automatic HTML + CSV pair
+
+Each `scan` writes:
+
+- `php2shell-<hostname>-<timestamp>.html` — executive summary, grouped installations, next steps, expandable evidence
+- `php2shell-<hostname>-<timestamp>.csv` — fleet schema `php2shell-fleet-csv/v1` (one row per installation)
+
+Both files are generated from the same assessment. `--output-dir`, `--out`, `--quiet`, UNC paths, and no-overwrite behaviour are preserved. If `--out report.html` is set, the CSV is `report.csv`. A failed CSV write removes a just-written HTML file so operators are not left with a half pair.
+
+### Offline CSV rollup
 
 ```bash
-# Linux / macOS — from the directory containing the binary and SHA256SUMS
-sha256sum -c SHA256SUMS --ignore-missing
+php2shell rollup --input-dir ./server-reports --out ./customer-summary.csv
 ```
 
-```powershell
-Get-FileHash .\php2shell-windows-amd64.exe -Algorithm SHA256
-```
+Merges v2.4.0 fleet CSV files without Go/Python/cloud services. Conflicting non-empty `--customer` labels are rejected. Legacy JSON rollup remains as `rollup --format json`.
 
-Confirm the release is published by the `Opathedane/php2shell` repository and that the tag matches the embedded `php2shell version` string (`2.3.1`).
+### Preserved from 2.3.1
 
-## What changed in 2.3.1
+Windows AppData / PATH discovery, PE `.rsrc` reads, confidence-aware path inference, corroborated `current` aliases, and the TestVM PHP 8.4.24 regression remain in force. Binaries are never executed.
 
-Real-world Windows 11 / AppData installs (official `Programs\PHP` layout) were discovered as binaries but reported **“no version marker found”**, producing zero comparable versions and zero patch assessments even when `php -v` showed 8.4.24.
+### IIS non-standard locations
 
-### PE resource improvements
+- Inventories IIS site, nested application, and virtualDirectory `physicalPath` values from `applicationHost.config` (including `E:\websites\...`)
+- Follows PHP FastCGI/handler executables on non-system drives when referenced by trusted IIS configuration; `scriptProcessor` arguments are redacted in reports
+- Reads accessible per-mapping `web.config` PHP handlers (bounded; no drive-wide or deep tree recursion)
+- Correlates site/handler rows to versioned PHP installs and patch assessment when the handler executable is readable
+- Reports **INCOMPLETE** IIS coverage when a configured handler binary cannot be versioned — not a “safe” verdict
+- Does **not** scan whole drives; `.php` filename inventory still requires `--webroot`
+- Does **not** fully simulate IIS handler inheritance (`lockItem` / clear / remove); see [ADVANCED-USAGE.md](ADVANCED-USAGE.md)
 
-- Directed reads of the PE `.rsrc` section recover `FixedFileInfo` version metadata for large `php.exe` / `php-cgi.exe` builds where head/tail string windows miss the resource directory.
-- PE parsing is portable (same logic on all CI platforms) and remains **read-only** — binaries are never executed.
+### Apache HTTP Server (bounded)
 
-### Confidence-aware path inference
+- Passive inventory of well-known Apache config roots on Linux and Windows: VirtualHost `DocumentRoot`/`ServerName`, mod_php `LoadModule`, `SetHandler`/`AddHandler`/`Action`/`ProxyPassMatch`, local handler binaries, and remote FPM backends  
+- Distinguishes host installs vs configured handlers vs (never inferred) active serving runtime  
+- Remote `fcgi://` backends and inaccessible handler binaries mark Apache coverage **INCOMPLETE**  
+- **Tomcat is out of scope** and is never treated as PHP evidence  
+- Full Apache merge / `.htaccess` / nginx / LiteSpeed effective-SAPI attestation remains a follow-up; see [ADVANCED-USAGE.md](ADVANCED-USAGE.md)
 
-- When authoritative binary metadata is absent, the scanner may infer an exact `x.y.z` version from installer path segments (for example `...\Programs\PHP\8.4.24\nts\x64\php.exe`).
-- Inferred observations use evidence type `binary_path_inferred_version` and are labelled **PATH-INFERRED** with explicit **MEDIUM** confidence in HTML and CSV patch assessments.
-- Verified embedded-string / PE observations remain `binary_static_version` with **HIGH** (or **MEDIUM** if inspection was partial) confidence.
-- Path inference never invents a version from an unqualified `current` segment alone.
+## Important limitations (unchanged)
 
-### Alias handling (`current` vs versioned trees)
-
-- Paths under `Programs\PHP\current` are compared to versioned trees using `SameFile` or matching passive content fingerprints.
-- Only when corroborated are they grouped as one install and allowed to inherit a labelled path-inferred version from the versioned tree.
-- Non-matching content keeps separate records and emits a warning — identity is never assumed.
-
-### Reporting and regression
-
-- Patch assessments include confidence and limitations consistently in the HTML report and in `EncodeCSV` (legacy/test / rollup helpers).
-- Install grouping prefers a single corroborated directory for `php.exe` + `php-cgi.exe`.
-- Regression coverage reproduces the TestVM v2.3.0 report scenario (four marker-free binaries under `current` and `8.4.24\nts\x64` → version **8.4.24**, below upstream **8.4.27**, update review required) without executing PHP or claiming CLI as the active web runtime.
-
-## Unchanged product posture
-
-- HTML-only `scan` output; no customer data upload; no automatic remediation.
-- Does **not** attest which PHP runtime serves HTTP.
-- Does **not** verify vendor/LTS security backports by advisory ID.
+- Does **not** attest which PHP runtime is actively serving HTTP (IIS/Apache configuration is not serving proof).
+- IIS/Apache discovery may be **INCOMPLETE** when handler binaries are inaccessible or PHP backends are remote; that is not a “safe/patched” verdict.
+- IIS handler inheritance and Apache merge/`.htaccess` are **not** fully simulated.
+- Does **not** verify distribution/vendor security backports.
 - Does **not** prove absence of compromise when no indicators match.
+- Does **not** upload customer data or apply remediation.
 - Does **not** execute discovered PHP binaries.
+- `customer_label` is not authenticated tenancy.
 
 ## Quick start
 
-```bash
-# Linux
-./php2shell-linux-amd64 scan --quiet --output-dir /var/tmp/php2shell
-
-# Windows (PowerShell)
+```powershell
 .\php2shell-windows-amd64.exe scan --quiet --output-dir C:\ProgramData\PHP2Shell\Reports
+php2shell rollup --input-dir C:\ProgramData\PHP2Shell\Reports --out C:\ProgramData\PHP2Shell\customer-summary.csv
 ```
 
-Open the generated HTML report locally. See [INSTALL-FOR-CONSULTANTS.md](INSTALL-FOR-CONSULTANTS.md) and [ADVANCED-USAGE.md](ADVANCED-USAGE.md).
+```bash
+./php2shell-linux-amd64 scan --quiet --output-dir "$HOME/.php2shell/reports"
+php2shell rollup --input-dir "$HOME/.php2shell/reports" --out ./customer-summary.csv
+```
 
-## Supported platforms (tested in CI)
+See [CSV-SCHEMA.md](CSV-SCHEMA.md), [INSTALL-FOR-CONSULTANTS.md](INSTALL-FOR-CONSULTANTS.md), and [ADVANCED-USAGE.md](ADVANCED-USAGE.md).
 
-- Linux (ubuntu-24.04 runners)
-- Windows (windows-latest runners)
-- macOS Intel (macos-15-intel runners)
+## Supported platforms (CI)
 
-macOS ARM64 binaries are built for convenience; CI currently validates darwin/amd64 rather than native arm64 runners.
-
----
-
-## Prior release: 2.3.0
-
-First official public release (HTML-only assessment report, upstream fix thresholds for the 21 October 2026 advisories, unattended `--quiet` / `--output-dir` / exit codes). See git tag `v2.3.0` and [CHANGELOG.md](../CHANGELOG.md).
+- Linux (`ubuntu-24.04`), Windows (`windows-latest`), macOS Intel (`macos-15-intel`)

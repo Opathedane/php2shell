@@ -1,23 +1,32 @@
 # PHP2Shell Security Assessment
 
-Standalone Windows and Linux scanner for **PHP discovery, patch review, and limited compromise-indicator triage**.
+Standalone Windows and Linux scanner for **PHP discovery, upstream patch review, and limited compromise-indicator triage**.
 
-PHP2Shell writes a single self-contained **HTML** report that answers: was PHP found, which versions were observed, whether an update review is required, whether an active web runtime was verified, and what to do next. It does **not** prove that a host is fully patched or uncompromised.
+PHP2Shell writes a matching **HTML + CSV** report pair from one read-only scan. It does **not** prove that a host is fully patched or uncompromised.
 
-**Current release (when published):** [v2.3.1](https://github.com/Opathedane/php2shell/releases/tag/v2.3.1) — Windows PHP version-detection fixes on top of the public [v2.3.0](https://github.com/Opathedane/php2shell/releases/tag/v2.3.0) HTML-only scanner. Until the tag exists, use **Releases → latest**. Real-world validation is ongoing; treat findings as evidence-qualified inventory, not certification.
+**Version in this tree:** 2.4.0 (not tagged/published until the maintainer approves a release). Prior public tags: [v2.3.1](https://github.com/Opathedane/php2shell/releases/tag/v2.3.1), [v2.3.0](https://github.com/Opathedane/php2shell/releases/tag/v2.3.0).
 
-## Getting started
+## 1. What PHP2Shell does
 
-1. Obtain authorization to scan the target host.
-2. Download the matching archive from [Releases](https://github.com/Opathedane/php2shell/releases/latest).
-3. Verify integrity against `SHA256SUMS` (see [Release verification](#release-verification)).
-4. Run `doctor`, then `scan`. Open the generated HTML report locally.
+- Discovers PHP packages, binaries, processes, and configuration on **authorized** hosts
+- Compares observed versions to official upstream fix thresholds (21 Oct 2026 advisories)
+- Labels verified binary metadata vs path-inferred versions with explicit confidence
+- Optional Ed25519-signed indicator packs for limited IOC triage (not bundled by default)
+- Never executes discovered PHP binaries, never uploads customer data, never opens a browser
+
+## 2. Download the latest release
+
+[**GitHub Releases**](https://github.com/Opathedane/php2shell/releases/latest)
+
+Choose `php2shell-windows-amd64.zip`, `php2shell-linux-amd64.tar.gz`, or `php2shell-linux-arm64.tar.gz`. Verify `SHA256SUMS`. Builds are **not code-signed**.
+
+## 3. Quick start
 
 **Windows (PowerShell):**
 
 ```powershell
 .\php2shell-windows-amd64.exe doctor
-.\php2shell-windows-amd64.exe scan
+.\php2shell-windows-amd64.exe scan --quiet --output-dir C:\ProgramData\PHP2Shell\Reports
 ```
 
 **Linux:**
@@ -25,92 +34,80 @@ PHP2Shell writes a single self-contained **HTML** report that answers: was PHP f
 ```bash
 chmod +x php2shell-linux-amd64
 ./php2shell-linux-amd64 doctor
-./php2shell-linux-amd64 scan
+./php2shell-linux-amd64 scan --quiet --output-dir "$HOME/.php2shell/reports"
 ```
 
-Reports are **HTML only**. Defaults: `C:\ProgramData\PHP2Shell\Reports` on Windows, `$HOME/.php2shell/reports` on Unix. Use `--output-dir` or `--out`. The scanner never opens a browser and never uploads data.
+Exit codes: `0` report pair written, `1` fatal error, `2` pair written but incomplete. Exit `0` is not a security clearance.
 
-Exit codes: `0` report written, `1` fatal error, `2` report written but incomplete. Exit `0` is not a security clearance.
+## 4. What each scan produces (HTML + CSV)
 
-## Supported platforms
+Every scan writes two files with the same basename:
 
-| Platform | Artifact | CI / validation notes |
-| --- | --- | --- |
-| Windows x64 | `php2shell-windows-amd64.zip` | Tested on GitHub `windows-latest`; Windows Server/IIS field validation ongoing |
-| Linux x86-64 | `php2shell-linux-amd64.tar.gz` | Tested on `ubuntu-24.04` |
-| Linux ARM64 | `php2shell-linux-arm64.tar.gz` | Cross-built; native ARM CI not required for every push |
-| macOS Intel | `php2shell-darwin-amd64.tar.gz` | CI on `macos-15-intel` (developer convenience) |
-| macOS Apple Silicon | `php2shell-darwin-arm64.tar.gz` | Cross-built convenience binary; not a primary target platform |
-
-No Python, PHP, or Go installation is required on the scanned host. Release builds are **not code-signed**.
-
-## What the report covers
-
-| Question | How PHP2Shell answers |
+| File | Purpose |
 | --- | --- |
-| Was PHP detected? | Package, binary, process, and config evidence (coverage may be incomplete) |
-| Which versions? | Grouped installation summary with expandable technical detail |
-| Updates required? | Comparison to official upstream thresholds; vendor backports need separate verification |
-| Active web runtime? | Candidates may be identified; serving HTTP runtime is not attested by default |
-| Compromise? | Only when a trusted signed indicator pack is loaded; no match is not a clearance |
+| `php2shell-<host>-<UTC>.html` | Offline executive summary, grouped installs, next steps, expandable evidence |
+| `php2shell-<host>-<UTC>.csv` | Fleet schema for Excel / Power BI / scripts ([CSV-SCHEMA.md](docs/CSV-SCHEMA.md)) |
 
-### Official minimum fixed versions (21 October 2026)
+Defaults: `C:\ProgramData\PHP2Shell\Reports` (Windows), `$HOME/.php2shell/reports` (Unix). Use `--output-dir` or `--out path.html` (CSV becomes `path.csv`). Existing files are never overwritten; a failed CSV write does not leave a lone HTML file.
 
-| PHP branch | First upstream fixed release |
-| --- | --- |
-| 8.5 | 8.5.12 |
-| 8.4 | 8.4.27 |
-| 8.3 | 8.3.36 |
-| 8.2 | 8.2.35 |
-| 8.1 and older | Upgrade to a supported branch, or verify documented vendor/LTS backport |
+## 5. How to combine customer CSV reports
 
-See the [official PHP advisory archive](https://www.php.net/archive/2026.php).
-
-## Known limitations
-
-- Does **not** attest which PHP runtime is actively serving HTTP.
-- Does **not** verify distribution/vendor security backports by advisory ID.
-- Does **not** prove absence of compromise when no indicators match (and no validated PHP2Shell-specific IOC pack is bundled by default).
-- Does **not** upload customer data, modify PHP/web server configuration, or apply remediation.
-- Does **not** execute discovered PHP binaries or run exploit tests.
-- Binaries are unsigned; SmartScreen / application-control policy may block execution until approved.
-
-## Release verification
-
-From a trusted [GitHub release](https://github.com/Opathedane/php2shell/releases/latest), download the platform archive **and** `SHA256SUMS`.
-
-```bash
-# Linux / macOS
-sha256sum -c SHA256SUMS --ignore-missing
-# or: sha256sum php2shell-linux-amd64
-```
+Scan many servers into one folder (or copy CSVs together), then:
 
 ```powershell
-# Windows
-Get-FileHash .\php2shell-windows-amd64.exe -Algorithm SHA256
-# Compare to the matching line in SHA256SUMS
+php2shell rollup --input-dir C:\ProgramData\PHP2Shell\Reports --out C:\ProgramData\PHP2Shell\customer-summary.csv
 ```
 
-Checksums prove bit-for-bit match with published assets; they do **not** replace Authenticode / notarization. Confirm the release tag and publisher account before use.
+```bash
+php2shell rollup --input-dir ./server-reports --out ./customer-summary.csv
+```
+
+Works offline in the same standalone binary. Select **one customer’s** files explicitly. Conflicting non-empty `--customer` labels are rejected. Hostname / customer labels are **not** proof of tenant ownership.
+
+HTML remains the human-readable single-server report; the consolidated CSV is the customer-wide overview.
+
+## 6. Supported platforms
+
+| Platform | Artifact | Notes |
+| --- | --- | --- |
+| Windows x64 | `php2shell-windows-amd64.zip` | CI + field-tested (incl. AppData PHP layouts) |
+| Linux x86-64 / ARM64 | `.tar.gz` | CI on ubuntu-24.04; ARM64 cross-built |
+| macOS | darwin amd64/arm64 | Convenience / CI Intel |
+
+## 7. Detection and assessment capabilities
+
+- Windows: well-known paths, `%LOCALAPPDATA%\Programs\PHP`, PATH, PE resources, path inference, `current` alias corroboration
+- Windows/IIS: site/app/vdir paths from `applicationHost.config` (any drive), global + per-mapping `web.config` PHP handlers, FastCGI binaries on non-`C:` drives when configured, incomplete coverage when handler binaries are inaccessible — **no volume-wide scan**; inheritance merge not fully simulated; `.php` filenames need `--webroot`
+- Apache HTTP Server (Linux/Windows): bounded passive config inventory (VirtualHosts, mod_php, FPM/CGI/FastCGI handler directives, remote backends marked incomplete) — not full merge simulation; **Tomcat is not PHP evidence**
+- Linux: common package/binary paths, partial process/config inventory
+- Patch comparison to upstream 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35
+- Operator-reported runtime flags (never silently attested)
+
+## 8. Known limitations
+
+- No attestation of the live HTTP-serving SAPI (Apache/IIS static config ≠ proof of the active runtime)
+- IIS inventory does not fully simulate handler inheritance (`lockItem` / clear / remove); inaccessible handler binaries mark coverage **INCOMPLETE**, not “safe”
+- Apache inventory is bounded (no full merge/`.htaccess`; remote FPM backends and inaccessible binaries mark coverage **INCOMPLETE**; nginx/LiteSpeed/Tomcat are not PHP scanners)
+- No automatic vendor-backport verification
+- No compromise clearance from empty IOC results
+- Unsigned binaries (SmartScreen / application control may apply)
+- Reports contain hostnames and paths — treat as confidential engagement data
+
+## 9. Security, privacy and licensing
+
+- Authorization required before scanning production systems
+- Do not attach customer reports, credentials, or raw logs to public issues ([SECURITY.md](SECURITY.md))
+- **No approved open-source license yet** (`LICENSE.proposed` / [docs/LICENSING.md](docs/LICENSING.md)). Apache-2.0 is proposed pending owner approval.
+
+## 10. Contributing and reporting issues
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [Issue templates](https://github.com/Opathedane/php2shell/issues/new/choose)
+- Maintainer contact: [jesma@itm8.com](mailto:jesma@itm8.com)
 
 ## Documentation
 
-- [Release notes (v2.3.1)](docs/RELEASE-NOTES.md)
-- [Consultant quick start](docs/INSTALL-FOR-CONSULTANTS.md)
-- [Advanced usage and enterprise deployment](docs/ADVANCED-USAGE.md)
-- [Official patch guidance](docs/OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md)
-- [Release checklist](docs/RELEASE-CHECKLIST.md)
-- [Supply-chain and governance notes](docs/GOVERNANCE.md)
-- [IOC rule signing](rules/README.md)
-- [Security policy](SECURITY.md)
-- [Changelog](CHANGELOG.md)
-
-## Feedback
-
-Use [GitHub Issues](https://github.com/Opathedane/php2shell/issues/new/choose) with the appropriate template (bug, PHP not detected, incorrect assessment, or feature request). Do **not** attach customer reports, credentials, or raw logs to public issues.
-
-## Contact
-
-Questions or responsible disclosure: **[jesma@itm8.com](mailto:jesma@itm8.com)**. Do not email customer reports, secrets, or raw logs without an agreed secure channel.
-
-> Source code is public, but the project currently has **no approved open-source license** (`LICENSE.proposed` is not a license). Confirm ownership and choose a license before promoting reuse or redistribution.
+- [Release notes](docs/RELEASE-NOTES.md) · [Changelog](CHANGELOG.md)
+- [Consultant quick start](docs/INSTALL-FOR-CONSULTANTS.md) · [Advanced usage](docs/ADVANCED-USAGE.md)
+- [CSV schema](docs/CSV-SCHEMA.md) · [GitHub presentation](docs/GITHUB-PRESENTATION.md)
+- [Official patch guidance](docs/OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md) · [Release checklist](docs/RELEASE-CHECKLIST.md)

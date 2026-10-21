@@ -68,19 +68,37 @@ func UniqueReportPath(dir, hostname string, t time.Time) string {
 	return filepath.Join(dir, name)
 }
 
+// MatchingCSVPath returns the CSV sibling for an HTML report path.
+// report.html → report.csv; paths without .html get .csv appended after normalizing to .html first.
+func MatchingCSVPath(htmlPath string) string {
+	htmlPath = strings.TrimSpace(htmlPath)
+	lower := strings.ToLower(htmlPath)
+	if strings.HasSuffix(lower, ".html") {
+		return htmlPath[:len(htmlPath)-len(".html")] + ".csv"
+	}
+	if strings.HasSuffix(lower, ".htm") {
+		return htmlPath[:len(htmlPath)-len(".htm")] + ".csv"
+	}
+	return htmlPath + ".csv"
+}
+
 // ResolveScanReportPath chooses the HTML report path.
 // --out (exact path or prefix) wins over --output-dir when set.
 // A path ending in .html (case-insensitive) is used as-is; otherwise .html is appended.
+// The matching CSV path is always MatchingCSVPath(html).
 func ResolveScanReportPath(outFlag, outputDir, hostname string, t time.Time) (string, error) {
 	outFlag = strings.TrimSpace(outFlag)
 	outputDir = strings.TrimSpace(outputDir)
 	if outFlag != "" {
 		p := outFlag
-		if !strings.HasSuffix(strings.ToLower(p), ".html") {
+		lower := strings.ToLower(p)
+		switch {
+		case strings.HasSuffix(lower, ".html"), strings.HasSuffix(lower, ".htm"):
+			// keep
+		case strings.HasSuffix(lower, ".csv"):
+			p = p[:len(p)-len(".csv")] + ".html"
+		default:
 			p = p + ".html"
-		}
-		if filepath.IsAbs(p) || filepath.VolumeName(p) != "" || strings.HasPrefix(p, `\\`) {
-			return filepath.Clean(p), nil
 		}
 		return filepath.Clean(p), nil
 	}
@@ -92,4 +110,13 @@ func ResolveScanReportPath(outFlag, outputDir, hostname string, t time.Time) (st
 		return "", fmt.Errorf("empty output directory")
 	}
 	return UniqueReportPath(dir, hostname, t), nil
+}
+
+// ResolveScanReportPair returns HTML and matching CSV paths for one scan.
+func ResolveScanReportPair(outFlag, outputDir, hostname string, t time.Time) (htmlPath, csvPath string, err error) {
+	htmlPath, err = ResolveScanReportPath(outFlag, outputDir, hostname, t)
+	if err != nil {
+		return "", "", err
+	}
+	return htmlPath, MatchingCSVPath(htmlPath), nil
 }

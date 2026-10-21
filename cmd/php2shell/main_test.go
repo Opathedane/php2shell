@@ -9,7 +9,7 @@ import (
 	"github.com/Opathedane/php2shell/internal/audit"
 )
 
-func TestRunScanHTMLOnlyQuiet(t *testing.T) {
+func TestRunScanWritesHTMLAndCSVQuiet(t *testing.T) {
 	dir := t.TempDir()
 	code := run([]string{"scan", "--quiet", "--output-dir", dir, "--timeout", "5m"})
 	if code != audit.ExitOK && code != audit.ExitIncomplete {
@@ -19,21 +19,26 @@ func TestRunScanHTMLOnlyQuiet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 1 {
-		t.Fatalf("expected one HTML report, got %+v", entries)
-	}
-	name := entries[0].Name()
-	if !strings.HasPrefix(name, "php2shell-") || !strings.HasSuffix(name, ".html") {
-		t.Fatal(name)
-	}
+	var html, csv int
 	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".json") || strings.HasSuffix(e.Name(), ".csv") {
-			t.Fatal("JSON/CSV must not be written")
+		switch {
+		case strings.HasSuffix(e.Name(), ".html"):
+			html++
+			if !strings.HasPrefix(e.Name(), "php2shell-") {
+				t.Fatal(e.Name())
+			}
+		case strings.HasSuffix(e.Name(), ".csv"):
+			csv++
+		case strings.HasSuffix(e.Name(), ".json"):
+			t.Fatal("JSON must not be written by scan")
 		}
+	}
+	if html != 1 || csv != 1 {
+		t.Fatalf("expected 1 html + 1 csv, got html=%d csv=%d entries=%v", html, csv, entries)
 	}
 }
 
-func TestRunScanOutExplicit(t *testing.T) {
+func TestRunScanOutExplicitPair(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "custom-report.html")
 	code := run([]string{"scan", "--quiet", "--out", path})
@@ -43,9 +48,43 @@ func TestRunScanOutExplicit(t *testing.T) {
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := os.Stat(audit.MatchingCSVPath(path)); err != nil {
+		t.Fatal(err)
+	}
 	code = run([]string{"scan", "--quiet", "--out", path})
 	if code != audit.ExitFatal {
 		t.Fatalf("overwrite should be fatal, got %d", code)
+	}
+}
+
+func TestRunRollupCSVInputDir(t *testing.T) {
+	dir := t.TempDir()
+	// Produce two scans into dir
+	code := run([]string{"scan", "--quiet", "--output-dir", dir, "--customer", "DemoCo"})
+	if code != audit.ExitOK && code != audit.ExitIncomplete {
+		t.Fatalf("scan1 %d", code)
+	}
+	// Second scan needs distinct filename — use --out
+	out2 := filepath.Join(dir, "server-b.html")
+	code = run([]string{"scan", "--quiet", "--out", out2, "--customer", "DemoCo"})
+	if code != audit.ExitOK && code != audit.ExitIncomplete {
+		t.Fatalf("scan2 %d", code)
+	}
+	summary := filepath.Join(dir, "customer-summary.csv")
+	code = run([]string{"rollup", "--input-dir", dir, "--out", summary})
+	if code != audit.ExitOK {
+		t.Fatalf("rollup %d", code)
+	}
+	b, err := os.ReadFile(summary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := audit.ParseFleetCSV(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) < 2 {
+		t.Fatalf("expected >=2 rows, got %d", len(rows))
 	}
 }
 

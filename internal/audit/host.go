@@ -27,6 +27,7 @@ func ScanHost(r *Report, webroot string, docker bool) {
 	scanPackages(r)
 	scanProcesses(r)
 	scanConfigs(r)
+	scanApacheConfiguration(r)
 	scanWindowsSpecific(r)
 	if webroot != "" {
 		scanWebRoot(r, webroot)
@@ -256,7 +257,7 @@ func scanProcesses(r *Report) {
 
 func scanConfigs(r *Report) {
 	if runtime.GOOS == "windows" {
-		r.AddCheck("configuration", "NOT_SUPPORTED", "Windows/IIS PHP configuration not yet inventoried; no effective-runtime settings inferred")
+		r.AddCheck("configuration", "NOT_SUPPORTED", "Windows php.ini-style inventory not implemented here; see windows_iis_configuration and apache_configuration for web-server config")
 		return
 	}
 	patterns := []string{"/etc/php/*/fpm/php.ini", "/etc/php/*/apache2/php.ini", "/etc/php/*/cgi/php.ini", "/etc/php/*/cli/php.ini", "/etc/php.ini", "/etc/php-fpm.d/*.conf", "/etc/php/*/fpm/pool.d/*.conf", "/usr/local/etc/php/php.ini", "/usr/local/etc/php/conf.d/*.ini", "/opt/plesk/php/*/etc/php.ini"}

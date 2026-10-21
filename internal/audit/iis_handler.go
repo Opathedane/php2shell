@@ -37,17 +37,17 @@ func splitPipeOutsideQuotes(s string) (left, right string) {
 }
 
 // FormatIISHandlerDetail stores handler metadata for reporting and later path resolution.
+// scriptProcessor arguments are not copied into reports (may contain secrets); only the
+// executable path is retained, with a flag when arguments were present.
 func FormatIISHandlerDetail(path, modules, scriptProcessor string) string {
 	exe, args := ParseIISScriptProcessor(scriptProcessor)
 	if exe == "" {
 		exe = strings.TrimSpace(scriptProcessor)
+		exe, _ = ParseIISScriptProcessor(exe)
 	}
 	detail := fmt.Sprintf("path=%s; modules=%s; handler_exe=%s", path, modules, normalizeWindowsConfigPath(exe))
-	if args != "" {
-		detail += "; handler_args=" + args
-	}
-	if strings.TrimSpace(scriptProcessor) != "" && scriptProcessor != exe {
-		detail += "; scriptprocessor_raw=" + scriptProcessor
+	if strings.TrimSpace(args) != "" {
+		detail += "; handler_args=redacted"
 	}
 	return detail
 }
@@ -88,6 +88,12 @@ func HandlerExecutableLooksLikePHP(path string) bool {
 // ResolveHandlerExecutablePath maps a configured IIS handler path to a local filesystem path for
 // read-only inspection. It never executes the configured program.
 func ResolveHandlerExecutablePath(configured string) string {
+	return ResolveConfiguredWindowsPath(configured)
+}
+
+// ResolveConfiguredWindowsPath expands env vars in an IIS-configured path and maps it to a local
+// filesystem path when possible. Drive-letter paths resolve only on Windows. Never executes.
+func ResolveConfiguredWindowsPath(configured string) string {
 	configured = ConfiguredWindowsHandlerPath(configured)
 	if configured == "" || handlerPathBlocked(configured) {
 		return ""
