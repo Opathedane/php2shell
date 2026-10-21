@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	binaryFullReadLimit = 8 << 20  // read entire file when at or below this size
-	binaryHeadWindow    = 4 << 20  // first window for oversized binaries
-	binaryTailWindow    = 2 << 20  // trailing window for oversized binaries
-	binaryMaxTotalRead  = 10 << 20 // hard cap on bytes read per inspection
+	binaryFullReadLimit int64 = 8 << 20  // read entire file when at or below this size
+	binaryHeadWindow    int64 = 4 << 20  // first window for oversized binaries
+	binaryTailWindow    int64 = 2 << 20  // trailing window for oversized binaries
+	binaryMaxTotalRead  int64 = 10 << 20 // hard cap on bytes read per inspection
 )
 
 var embeddedPHPVersion = regexp.MustCompile(`(?i)PHP Version (\d+\.\d+\.\d+)`)
@@ -73,26 +73,27 @@ func readBinarySample(f *os.File, size int64) ([]byte, BinaryInspectCoverage, er
 	}
 	cov.Partial = true
 	var buf bytes.Buffer
-	head := make([]byte, binaryHeadWindow)
+	head := make([]byte, int(binaryHeadWindow))
 	n, err := io.ReadFull(io.LimitReader(f, binaryHeadWindow), head)
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return nil, cov, err
 	}
-	if n > 0 {
+	headRead := int64(n)
+	if headRead > 0 {
 		buf.Write(head[:n])
-		cov.BytesRead += int64(n)
+		cov.BytesRead += headRead
 	}
 	tailRead := int64(0)
-	if size > int64(n) {
+	if size > headRead {
 		tailSize := binaryTailWindow
-		if tailSize > size-int64(n) {
-			tailSize = size - int64(n)
+		if tailSize > size-headRead {
+			tailSize = size - headRead
 		}
 		if tailSize > 0 {
 			if _, err := f.Seek(size-tailSize, io.SeekStart); err != nil {
 				return nil, cov, err
 			}
-			tail := make([]byte, tailSize)
+			tail := make([]byte, int(tailSize))
 			tn, err := io.ReadFull(io.LimitReader(f, tailSize), tail)
 			if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 				return nil, cov, err
@@ -107,7 +108,7 @@ func readBinarySample(f *os.File, size int64) ([]byte, BinaryInspectCoverage, er
 	if cov.BytesRead > binaryMaxTotalRead {
 		return nil, cov, fmt.Errorf("binary inspection read cap exceeded")
 	}
-	cov.Detail = fmt.Sprintf("partial_window_read file_size=%d head=%d tail=%d bytes_read=%d pe_and_strings_may_be_incomplete", size, int64(n), tailRead, cov.BytesRead)
+	cov.Detail = fmt.Sprintf("partial_window_read file_size=%d head=%d tail=%d bytes_read=%d pe_and_strings_may_be_incomplete", size, headRead, tailRead, cov.BytesRead)
 	return buf.Bytes(), cov, nil
 }
 

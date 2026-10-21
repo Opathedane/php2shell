@@ -3,7 +3,6 @@ package audit
 import (
 	"bytes"
 	"encoding/xml"
-	"fmt"
 	"io"
 	"strings"
 )
