@@ -1,6 +1,6 @@
-# PHP2Shell roadmap (after v2.5.1 / toward v2.6.0)
+# PHP2Shell roadmap
 
-**Latest public release: [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1).** In-tree development version may be **2.6.0 (unreleased)**. This document tracks work **not** yet shipped as a public tag.
+**Latest public release: [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1).** In-tree development may include **2.6.0 (unreleased)** Deep Discovery. Planned follow-on: **v2.7.0** inventory accuracy — see [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md).
 
 ## In progress / draft
 
@@ -11,6 +11,13 @@ See draft notes: [releases/v2.6.0.md](releases/v2.6.0.md).
 - CLI: `php2shell scan --deep-root DIR` (repeatable, **off by default**)
 - Limits: max 8 roots, depth ≤ 6, ≤ 25 000 entries, ≤ 400 PHP-like binaries, ≤ 200 ini candidates, 90s budget
 - Skip uncontrolled symlink escapes; never execute binaries; weaker evidence types; explicit TRUNCATED/INCOMPLETE coverage
+
+### v2.7.0 — Inventory accuracy (proposal)
+
+Full gap analysis and priorities: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md).
+
+- Expand bounded well-known binary globs (WAMP/Laragon/tools; Remi/cPanel FPM; `/usr/local/php*`)
+- Later: package ownership correlation, read-only RPM DB, PHP support lifecycle (CSV v3)
 
 ## Shipped recently
 
@@ -30,7 +37,7 @@ See draft notes: [releases/v2.6.0.md](releases/v2.6.0.md).
 
 ### RPM-based distributions
 
-Read-only RPM DB inventory (no `rpm`/`dnf` subprocess) with careful NEVRA handling. Never treat vendor release/epoch tags as upstream CVE clearance.
+Read-only RPM DB inventory (no `rpm`/`dnf` subprocess) with careful NEVRA handling. Never treat vendor release/epoch tags as upstream CVE clearance. Tracked under v2.7.0+ in [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md).
 
 ### Advanced webserver ↔ runtime correlation
 
