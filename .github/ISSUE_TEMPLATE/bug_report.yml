@@ -1,0 +1,74 @@
+name: Bug report
+description: Unexpected scanner crash, CLI error, report write failure, or other non-detection defect.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve PHP2Shell.
+
+        **Privacy — do not upload:**
+        - Customer HTML reports, hostnames, or internal paths that identify clients
+        - Credentials, tokens, API keys, or private keys
+        - Access logs, EDR exports, or forensic images
+        - Production endpoint URLs or network diagrams
+
+        Redact sensitive strings. Prefer synthetic reproductions and public fixture paths.
+  - type: dropdown
+    id: scanner_version
+    attributes:
+      label: Scanner version
+      description: Output of `php2shell version` (or the release tag you downloaded).
+      options:
+        - "2.3.0"
+        - "Other (specify in description)"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and version
+      description: e.g. Windows Server 2022, Ubuntu 24.04, RHEL 9.4
+      placeholder: Windows Server 2022 / Ubuntu 24.04
+    validations:
+      required: true
+  - type: dropdown
+    id: install_source
+    attributes:
+      label: How did you obtain the binary?
+      options:
+        - GitHub Releases (official)
+        - Built from source
+        - Other / unknown
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands (redact sensitive paths). Do not paste report contents.
+      placeholder: |
+        1. Download php2shell-linux-amd64 from Releases
+        2. ./php2shell-linux-amd64 scan --quiet --output-dir /tmp/php2shell
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include exit code if known (`0` / `1` / `2`). Paste only non-sensitive stderr.
+    validations:
+      required: true
+  - type: textarea
+    id: extras
+    attributes:
+      label: Additional context
+      description: Optional. Coverage table summaries (redacted), doctor output, or SHA-256 of the binary you ran.

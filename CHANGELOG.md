@@ -1,3 +1,7 @@
+## Unreleased (documentation / process)
+
+- Post-release documentation audit for v2.3.0: remove obsolete alpha/JSON-CSV user guidance, refresh release checklist, add issue templates and governance notes. No scanner detection or assessment logic changes; v2.3.0 release assets unchanged.
+
 ## v2.3.0 — 2026-10-21
 
 - First official public release (non-prerelease).
