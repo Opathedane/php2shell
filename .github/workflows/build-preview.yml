@@ -5,10 +5,10 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.27.3'
           cache: false
@@ -30,7 +30,7 @@ jobs:
           done
           (cd dist && sha256sum php2shell-* > SHA256SUMS)
       - name: Upload preview artifact – unsigned and not production approved
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: php2shell-native-unsigned-preview
           path: dist/
