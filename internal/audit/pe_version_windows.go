@@ -3,6 +3,7 @@
 package audit
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 )
@@ -67,11 +68,23 @@ func peFileVersion(data []byte) (string, bool) {
 		if base < 0 || base+int(rawSize) > len(data) {
 			return "", false
 		}
-		if ver := findFixedFileInfo(data[base : base+int(rawSize)]); ver != "" {
+		section := data[base : base+int(rawSize)]
+		if ver := findFixedFileInfo(section); ver != "" && peResourceSectionLooksLikePHP(section) {
 			return ver, true
 		}
 	}
 	return "", false
+}
+
+func peResourceSectionLooksLikePHP(section []byte) bool {
+	if bytes.Contains(section, []byte("PHP")) {
+		return true
+	}
+	if bytes.Contains(section, []byte{ 'P', 0, 'H', 0, 'P', 0 }) {
+		return true
+	}
+	lower := bytes.ToLower(section)
+	return bytes.Contains(lower, []byte("php.exe")) || bytes.Contains(lower, []byte("productname"))
 }
 
 func findFixedFileInfo(section []byte) string {

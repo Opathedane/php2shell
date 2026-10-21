@@ -190,12 +190,3 @@ func isHostRuntimeEvidence(t string) bool {
 	}
 }
 
-func handlerExeFromIISDetail(detail string) string {
-	for _, part := range strings.Split(detail, ";") {
-		part = strings.TrimSpace(part)
-		if strings.HasPrefix(part, "handler=") {
-			return strings.Trim(strings.TrimPrefix(part, "handler="), `"`)
-		}
-	}
-	return ""
-}

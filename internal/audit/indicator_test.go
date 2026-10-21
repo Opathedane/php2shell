@@ -61,5 +61,8 @@ func TestIISConfigExtractionDoesNotClaimActiveRuntime(t *testing.T) {
 		if e.Interpretation != "CONFIGURED_HANDLER_NOT_VERIFIED_SERVING_RUNTIME" {
 			t.Fatal("unsafe IIS verdict")
 		}
+		if HandlerExecutableFromDetail(e.Detail) == "" && strings.Contains(e.Detail, "php") {
+			t.Fatalf("missing handler_exe in %q", e.Detail)
+		}
 	}
 }

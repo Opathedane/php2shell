@@ -60,7 +60,8 @@ func scanIISConfig(r *Report) {
 	}
 	for _, v := range entries {
 		r.AddEvidence(v)
-		if exe := handlerExeFromIISDetail(v.Detail); exe != "" && phpBin.MatchString(filepath.Base(exe)) {
+		exe := ResolveHandlerExecutablePath(HandlerExecutableFromDetail(v.Detail))
+		if HandlerExecutableLooksLikePHP(exe) {
 			AddBinaryVersionEvidence(r, exe, filepath.Base(exe), "IIS handler scriptProcessor static binary inspection")
 		}
 	}

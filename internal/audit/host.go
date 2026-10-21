@@ -71,13 +71,21 @@ func scanBinaries(r *Report) {
 			AddBinaryVersionEvidence(r, path, filepath.Base(path), "well-known path static binary inspection")
 		}
 	}
-	versioned := 0
+	versioned, partialInspect := 0, 0
 	for _, e := range r.Evidence {
 		if e.Type == "binary_static_version" {
 			versioned++
+			if strings.Contains(e.Detail, "inspect_coverage=partial") {
+				partialInspect++
+			}
 		}
 	}
-	r.AddCheck("binary_paths", "PARTIAL", fmt.Sprintf("Found %d PHP-like binary paths (%d with static version markers); common paths only, no binaries executed", found, versioned))
+	status := "PARTIAL"
+	detail := fmt.Sprintf("Found %d PHP-like binary paths (%d with static version markers); common paths only, no binaries executed", found, versioned)
+	if partialInspect > 0 {
+		detail += fmt.Sprintf("; %d oversized/partial binary inspections (see warnings)", partialInspect)
+	}
+	r.AddCheck("binary_paths", status, detail)
 }
 
 func scanPackages(r *Report) {

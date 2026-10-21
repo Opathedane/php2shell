@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="PHP_Quoted" path="*.php" verb="GET,HEAD,POST" modules="FastCgiModule" scriptProcessor="&quot;C:\Program Files\PHP\php-cgi.exe&quot;|&quot;-d&quot; &quot;display_errors=0&quot;" />
+    </handlers>
+  </system.webServer>
+</configuration>
