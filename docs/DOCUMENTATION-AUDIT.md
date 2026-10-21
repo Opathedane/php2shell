@@ -27,7 +27,7 @@ These reflect intentional or unfinished product behavior — do **not** “fix�
 
 ## CLI arguments verified against v2.3.0 help
 
-Documented commands match current `php2shell` / `scan` help: `doctor`, `scan` with `--webroot`, `--repo`, `--access-log`, `--docker`, `--output-dir`, `--out`, `--quiet`, `--timeout`, `--customer`, `--runtime-version` / `--runtime-sapi` / `--runtime-source`, `--rules`, `--update-rules`, `--rules-url`, plus `rules` subcommands and legacy `rollup`.
+Documented commands match current `php2shell` / `scan` help: `doctor`, `scan` with `--webroot`, `--php-ini`, `--config-root`, `--repo`, `--access-log`, `--docker`, `--output-dir`, `--out`, `--quiet`, `--timeout`, `--customer`, `--runtime-version` / `--runtime-sapi` / `--runtime-source`, `--rules`, `--update-rules`, `--rules-url`, plus `rules` subcommands and legacy `rollup`.
 
 ## Preserved historical material
 

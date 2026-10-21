@@ -46,9 +46,12 @@ Every `php2shell scan` writes a UTF-8 CSV (with BOM for Excel) beside the HTML r
 | --- | --- |
 | `NONE` | No php.ini-style candidates observed |
 | `PRIMARY_CANDIDATES_OBSERVED` | One or more primary `php.ini` candidates |
+| `UNCORRELATED_PRIMARY_CANDIDATES` | Primary `php.ini` found with no related binary install |
 | `TEMPLATES_ONLY` | Only sample/template names (e.g. `php.ini-development`) |
 | `MIXED_PRIMARY_AND_TEMPLATE` | Both primary and template candidates |
 | `CANDIDATES_OBSERVED` | Other / fragment candidates |
+| `COVERAGE_GAPS_ONLY` | Known candidates could not be inspected (path+reason only) |
+| `*_WITH_SKIPS` | Suffix when skip diagnostics accompany another status (e.g. `UNCORRELATED_PRIMARY_CANDIDATES_WITH_SKIPS`) |
 | `TRUNCATED` | Configuration file cap reached |
 
 **Important:** Configuration columns are **supplementary discovery**. They must not be treated as:

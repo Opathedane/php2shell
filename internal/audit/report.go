@@ -119,6 +119,10 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		} else {
 			b.WriteString("Declared versions (not confirmed installed): " + h(strings.Join(versions, ", ")))
 		}
+	case strings.HasPrefix(phpLabel, "PHP configuration candidates"):
+		b.WriteString("php.ini-style files were found, but no confirmed PHP executable/package install. Not proof of version or active HTTP runtime.")
+	case strings.HasPrefix(phpLabel, "PHP configuration coverage"):
+		b.WriteString("Known configuration candidates could not be inspected (permissions, size, or symlink). Coverage is incomplete.")
 	case strings.HasPrefix(phpLabel, "Possible"):
 		b.WriteString("Only filenames or configuration hints were seen; treat as unconfirmed.")
 	case len(versions) == 0:
@@ -137,6 +141,38 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		b.WriteString(`<li>` + h(step) + `</li>`)
 	}
 	b.WriteString(`</ol>`)
+
+	// Surface configuration-only / uncorrelated php.ini before the empty install table
+	// so operators do not miss discovery that never correlated to a binary.
+	if len(groups) == 0 {
+		cfgCount, skipCount := 0, 0
+		for _, e := range r.Evidence {
+			switch e.Type {
+			case "php_ini_candidate", "configuration_observation":
+				cfgCount++
+			case "php_ini_skip":
+				skipCount++
+			}
+		}
+		if cfgCount > 0 || skipCount > 0 {
+			b.WriteString(`<h2 class="section">PHP configuration candidates (no confirmed install)</h2>`)
+			b.WriteString(`<div class="notice"><strong>Configuration-only evidence.</strong> Discovered php.ini paths are not proof of a PHP installation, PHP version, or active web runtime. Settings are observed text only (OBSERVED≠EFFECTIVE).</div>`)
+			b.WriteString(`<table><thead><tr><th>File / setting</th><th>Detail</th><th>Meaning</th></tr></thead><tbody>`)
+			shown := 0
+			for _, e := range r.Evidence {
+				if e.Type != "php_ini_candidate" && e.Type != "configuration_observation" && e.Type != "php_ini_skip" {
+					continue
+				}
+				shown++
+				if shown > 40 {
+					b.WriteString(`<tr><td colspan="3">Additional configuration evidence omitted from this summary; see PHP configuration findings below.</td></tr>`)
+					break
+				}
+				b.WriteString(`<tr><td>` + h(e.Name) + `<br>` + h(e.Location) + `</td><td>` + h(e.Detail) + `</td><td>` + h(e.Interpretation) + `</td></tr>`)
+			}
+			b.WriteString(`</tbody></table>`)
+		}
+	}
 
 	b.WriteString(`<h2 class="section">PHP installations (grouped)</h2>`)
 	if len(groups) == 0 {
@@ -199,9 +235,10 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 
 	writeDetails("PHP configuration findings", func() {
 		count := 0
+		b.WriteString(`<p>php.ini candidates are supplementary discovery only. They do not confirm installation, version, or active HTTP runtime. Skipped candidates list path and reason without secrets.</p>`)
 		b.WriteString(`<table><thead><tr><th>Setting / file</th><th>Detail</th><th>Meaning</th></tr></thead><tbody>`)
 		for _, e := range r.Evidence {
-			if e.Type != "configuration_observation" && e.Type != "php_ini_candidate" {
+			if e.Type != "configuration_observation" && e.Type != "php_ini_candidate" && e.Type != "php_ini_skip" {
 				continue
 			}
 			count++

@@ -75,6 +75,7 @@ func humanPHPDetected(r *Report) (label string, versions []string) {
 	confirmedVers := map[string]struct{}{}
 	declaredVers := map[string]struct{}{}
 	confirmed, declared, artifacts := false, false, false
+	iniCandidates, iniSkips := 0, 0
 	for _, e := range r.Evidence {
 		switch e.Type {
 		case "installed_package":
@@ -100,8 +101,14 @@ func humanPHPDetected(r *Report) (label string, versions []string) {
 			if e.Version != "" {
 				declaredVers[e.Version] = struct{}{}
 			}
-		case "configuration_observation", "php_ini_candidate", "php_webroot_filename":
+		case "php_ini_candidate":
 			artifacts = true
+			iniCandidates++
+		case "configuration_observation", "php_webroot_filename":
+			artifacts = true
+		case "php_ini_skip":
+			artifacts = true
+			iniSkips++
 		}
 	}
 	collect := func(m map[string]struct{}) []string {
@@ -124,6 +131,13 @@ func humanPHPDetected(r *Report) (label string, versions []string) {
 		return "Declared only (not confirmed installed)", versions
 	}
 	if artifacts {
+		// Prefer a precise label when configuration is the only strong signal.
+		if iniCandidates > 0 {
+			return "PHP configuration candidates only (installation unconfirmed)", nil
+		}
+		if iniSkips > 0 {
+			return "PHP configuration coverage incomplete (candidates not inspected)", nil
+		}
 		return "Possible PHP-related artifacts only", nil
 	}
 	return "Unable to determine", nil
@@ -534,6 +548,11 @@ func BuildFocusedNextSteps(r *Report) []string {
 	rtLabel, _ := humanRuntime(r)
 	if rtLabel != "Verified" {
 		add("Identify which PHP binary or SAPI actually serves HTTP (FPM pool, Apache module, IIS handler, container entrypoint). Package and CLI versions alone are not sufficient.")
+	}
+	if iniPath := FirstUncorrelatedPrimaryIni(r); iniPath != "" {
+		add("Review uncorrelated php.ini candidate(s) such as " + iniPath + ". Configuration alone does not confirm a PHP install, version, or active web runtime; supply --php-ini or --config-root for known custom locations if discovery missed them.")
+	} else if CountPHPIniSkips(r) > 0 {
+		add("Re-run with read access to skipped PHP configuration candidates (see php_ini_skip evidence), or pass --php-ini / --config-root for known custom paths. Skipped files were not inspected and secrets were not reported.")
 	}
 	switch r.CompromiseStatus {
 	case "INDICATORS_MATCHED_REVIEW_REQUIRED":

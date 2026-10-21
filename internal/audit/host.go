@@ -22,20 +22,20 @@ var pkgPHP = regexp.MustCompile(`(?i)^(?:php[0-9.]*(?:-(?:cli|fpm|cgi|common|apa
 var versionNumber = regexp.MustCompile(`\d+\.\d+(?:\.\d+)?`)
 var iniSetting = regexp.MustCompile(`(?i)^\s*(session\.upload_progress\.enabled|expose_php|memory_limit|post_max_size|upload_max_filesize|fatal_error_backtraces)\s*=\s*([^\r\n;#]+)`)
 
-func ScanHost(r *Report, webroot string, docker bool) {
-	scanBinaries(r)
+func ScanHost(r *Report, opts HostScanOptions) {
+	scanBinaries(r, opts)
 	scanPackages(r)
 	scanProcesses(r)
 	// Web-server config first so PHPIniDir / IIS -c paths can feed php.ini inventory.
 	scanApacheConfiguration(r)
 	scanWindowsSpecific(r)
-	scanConfigs(r)
-	if webroot != "" {
-		scanWebRoot(r, webroot)
+	scanConfigs(r, opts)
+	if opts.Webroot != "" {
+		scanWebRoot(r, opts.Webroot)
 	} else {
 		r.AddCheck("webroot", "NOT_REQUESTED", "Supply --webroot PATH to inspect file names beneath an authorized document root; no PHP files are executed")
 	}
-	if docker {
+	if opts.Docker {
 		scanDocker(r)
 	} else {
 		r.AddCheck("docker", "NOT_REQUESTED", "Supply --docker for local privileged Docker socket metadata only; no docker exec")
@@ -44,7 +44,7 @@ func ScanHost(r *Report, webroot string, docker bool) {
 	r.AddCheck("php2shell_specific_compromise_detection", "NOT_VERIFIED", "No validated CVE-specific indicator pack is provided. Generic signed IOC matching cannot prove exploitation or exclude compromise")
 }
 
-func scanBinaries(r *Report) {
+func scanBinaries(r *Report, opts HostScanOptions) {
 	found := 0
 	seen := map[string]bool{}
 	addPath := func(path, source string) bool {
@@ -93,28 +93,68 @@ func scanBinaries(r *Report) {
 				}
 			}
 		}
+		remain := maxWindowsPHPDiscover - found
+		if remain > 0 {
+			for _, path := range discoverPHPBinsFromPATHEnv(os.Getenv("PATH"), remain) {
+				if !addPath(path, "PATH directory static binary inspection") {
+					return
+				}
+			}
+		}
+	}
+
+	// Operator-authorized custom roots: bounded binary walk (same caps as Programs\PHP).
+	nRoot := 0
+	for _, raw := range opts.ConfigRoots {
+		if nRoot >= maxOperatorConfigRoots {
+			r.AddWarning(fmt.Sprintf("Operator --config-root binary discovery limited to %d directories", maxOperatorConfigRoots))
+			break
+		}
+		root := filepath.Clean(strings.TrimSpace(raw))
+		if root == "" || root == "." {
+			continue
+		}
+		nRoot++
+		remain := maxWindowsPHPDiscover - found
+		if remain <= 0 {
+			break
+		}
+		foundUnder, warn := discoverPHPBinsUnderProgramsPHP(root, remain)
+		if warn != "" {
+			r.AddWarning("Operator --config-root " + root + ": " + warn)
+		}
+		for _, path := range foundUnder {
+			if !addPath(path, "operator --config-root static binary inspection") {
+				return
+			}
+		}
 	}
 
 	versioned, inferred, partialInspect := 0, 0, 0
+	distinctDirs := map[string]struct{}{}
 	for _, e := range r.Evidence {
 		switch e.Type {
 		case "binary_static_version":
 			versioned++
+			distinctDirs[normalizeInstallPath(filepath.Dir(e.Location))] = struct{}{}
 			if strings.Contains(e.Detail, "inspect_coverage=partial") {
 				partialInspect++
 			}
 		case "binary_path_inferred_version":
 			inferred++
+			distinctDirs[normalizeInstallPath(filepath.Dir(e.Location))] = struct{}{}
+		case "binary_path":
+			distinctDirs[normalizeInstallPath(filepath.Dir(e.Location))] = struct{}{}
 		}
 	}
 	status := "PARTIAL"
-	detail := fmt.Sprintf("Found %d PHP-like binary paths (%d with verified static version markers, %d path-inferred); no binaries executed", found, versioned, inferred)
+	detail := fmt.Sprintf("Found %d PHP-like binary paths across %d install director(ies) (%d with verified static version markers, %d path-inferred); no binaries executed", found, len(distinctDirs), versioned, inferred)
 	if runtime.GOOS == "windows" {
-		detail += `; searched well-known dirs, %LOCALAPPDATA%\Programs\PHP, and PATH entries`
+		detail += `; searched well-known dirs, %LOCALAPPDATA%\Programs\PHP (bounded junction resolve), all eligible PATH entries (not only the first match), IIS/Apache handler follow-up when present, and operator --config-root`
 	} else {
-		detail += "; common Unix paths only"
+		detail += "; common Unix paths, all eligible PATH entries, web-server handler follow-up when present, and operator --config-root"
 	}
-	detail += "; absence of findings is not proof PHP is absent"
+	detail += "; discovery scope is bounded — not complete host coverage; unsearched locations may contain additional PHP installations; absence of findings is not proof PHP is absent"
 	if partialInspect > 0 {
 		detail += fmt.Sprintf("; %d oversized/partial binary inspections (see warnings)", partialInspect)
 	}
@@ -122,18 +162,29 @@ func scanBinaries(r *Report) {
 		detail += "; inventory may miss per-user or nonstandard installs"
 		r.AddWarning("No PHP binaries discovered in scanned locations; this does not prove PHP is absent on the host")
 	}
+	if len(distinctDirs) > 1 {
+		detail += "; multiple install directories retained as separate records unless a current/alias path is content-corroborated"
+	}
 	r.AddCheck("binary_paths", status, detail)
 }
 
 func onPATHDirectory(binPath string) bool {
-	dir := filepath.Clean(filepath.Dir(binPath))
+	dir := normalizeInstallPath(filepath.Clean(filepath.Dir(binPath)))
 	sep := string(os.PathListSeparator)
+	n := 0
 	for _, p := range strings.Split(os.Getenv("PATH"), sep) {
 		p = strings.TrimSpace(p)
 		if p == "" {
 			continue
 		}
-		if normalizeInstallPath(filepath.Clean(p)) == normalizeInstallPath(dir) {
+		n++
+		if n > maxPATHDirInspect {
+			break
+		}
+		if normalizeInstallPath(filepath.Clean(p)) == dir {
+			return true
+		}
+		if plan, ok := planPATHDirInspect(p); ok && normalizeInstallPath(plan.Inspect) == dir {
 			return true
 		}
 	}

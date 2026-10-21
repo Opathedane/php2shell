@@ -17,7 +17,7 @@ func TestPHPIniAloneNeverConfirmsInstallVersionOrVuln(t *testing.T) {
 	r := NewReport("ini-only", "linux", "amd64")
 	r.GeneratedUTC = time.Date(2026, 10, 21, 22, 0, 0, 0, time.UTC)
 	st := newPHPIniScanState()
-	st.observePHPIniFile(r, ini, "test", "primary_candidate")
+	st.observePHPIniFile(r, ini, "test", "primary_candidate", false)
 	EvaluatePatchPosture(r)
 	FinalizeSummary(r)
 
@@ -66,8 +66,8 @@ func TestPHPIniConflictingCandidatesDoNotPickVersion(t *testing.T) {
 
 	r := NewReport("conflict", "linux", "amd64")
 	st := newPHPIniScanState()
-	st.observePHPIniFile(r, iniA, "test-a", "primary_candidate")
-	st.observePHPIniFile(r, iniB, "test-b", "primary_candidate")
+	st.observePHPIniFile(r, iniA, "test-a", "primary_candidate", false)
+	st.observePHPIniFile(r, iniB, "test-b", "primary_candidate", false)
 	EvaluatePatchPosture(r)
 	FinalizeSummary(r)
 
@@ -120,30 +120,32 @@ func TestPHPIniSymlinkAndUnreadableSkipped(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	orig := readPHPIniContents
-	t.Cleanup(func() { readPHPIniContents = orig })
-	readPHPIniContents = func(path string, max int64) ([]byte, error) {
-		if filepath.Clean(path) == filepath.Clean(denied) {
-			return nil, os.ErrPermission
-		}
-		return ReadRegular(path, max)
-	}
+	denyPHPIniRead(t, denied)
 
 	r := NewReport("skip", "windows", "amd64")
 	st := newPHPIniScanState()
-	st.observePHPIniFile(r, link, "symlink", "primary_candidate")
-	st.observePHPIniFile(r, notFile, "not-regular", "primary_candidate")
-	st.observePHPIniFile(r, denied, "denied", "primary_candidate")
-	st.observePHPIniFile(r, missing, "missing", "primary_candidate")
+	st.observePHPIniFile(r, link, "symlink", "primary_candidate", false)
+	st.observePHPIniFile(r, notFile, "not-regular", "primary_candidate", false)
+	st.observePHPIniFile(r, denied, "denied", "primary_candidate", false)
+	st.observePHPIniFile(r, missing, "missing", "primary_candidate", false)
 
+	skips := 0
 	for _, e := range r.Evidence {
 		switch e.Type {
 		case "php_ini_candidate", "configuration_observation":
-			t.Fatalf("symlink/non-regular/unreadable/missing must not yield evidence: %+v", e)
+			t.Fatalf("symlink/non-regular/unreadable/missing must not yield inspected evidence: %+v", e)
+		case "php_ini_skip":
+			skips++
+			if !strings.Contains(e.Detail, "skip_reason=") || !strings.Contains(e.Detail, "secrets_not_reported") {
+				t.Fatalf("skip evidence missing safe detail: %+v", e)
+			}
 		}
 		if strings.Contains(strings.ToLower(e.Detail), "s3cret") || strings.Contains(e.Detail, "must-not-appear") {
 			t.Fatalf("secret leaked: %+v", e)
 		}
+	}
+	if skips < 3 {
+		t.Fatalf("expected skip diagnostics for symlink/non-regular/denied (missing optional), got %d: %+v", skips, r.Evidence)
 	}
 
 	// Control: the same denied path is readable via real ReadRegular when not stubbed —
@@ -167,7 +169,7 @@ func TestPHPIniDiscoveryLimitTruncated(t *testing.T) {
 	st.inspected = maxPHPIniFiles
 	path := filepath.Join(root, "php.ini")
 	_ = os.WriteFile(path, []byte("memory_limit = 8M\n"), 0644)
-	st.observePHPIniFile(r, path, "over-limit", "primary_candidate")
+	st.observePHPIniFile(r, path, "over-limit", "primary_candidate", false)
 	if !st.truncated {
 		t.Fatal("expected truncated")
 	}
@@ -189,7 +191,7 @@ func TestFleetCSVV2ConfigFieldsAndV1RollupCompat(t *testing.T) {
 	r.GeneratedUTC = time.Date(2026, 10, 21, 22, 0, 0, 0, time.UTC)
 	r.CustomerLabel = "DemoCustomer"
 	AddBinaryVersionEvidence(r, bin, "php-cgi.exe", "test")
-	scanConfigs(r)
+	scanConfigs(r, HostScanOptions{})
 	EvaluatePatchPosture(r)
 	FinalizeSummary(r)
 
@@ -251,13 +253,17 @@ func TestHumanPHPDetectedIniIsArtifactOnly(t *testing.T) {
 	r := NewReport("art", "linux", "amd64")
 	r.AddEvidence(Evidence{
 		Type: "php_ini_candidate", Name: "php.ini", Source: "t", Location: "/tmp/php.ini",
-		Detail: "ini_class=primary_candidate", Interpretation: "CONFIGURED_INI_CANDIDATE_NOT_PROOF_OF_VERSION_OR_ACTIVE_RUNTIME",
+		Detail: "ini_class=primary_candidate; correlated_install=none", Interpretation: "CONFIGURED_INI_CANDIDATE_NOT_PROOF_OF_VERSION_OR_ACTIVE_RUNTIME",
 	})
 	label, vers := humanPHPDetected(r)
-	if label != "Possible PHP-related artifacts only" {
+	if label != "PHP configuration candidates only (installation unconfirmed)" {
 		t.Fatalf("got %q vers=%v", label, vers)
 	}
 	if len(vers) != 0 {
 		t.Fatal(vers)
+	}
+	FinalizeSummary(r)
+	if r.Summary.PHPDiscovery != "PHP_CONFIG_CANDIDATES_ONLY_INSTALLATION_UNCONFIRMED" {
+		t.Fatal(r.Summary.PHPDiscovery)
 	}
 }
