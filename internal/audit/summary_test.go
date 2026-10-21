@@ -15,8 +15,12 @@ func TestNoPHPFoundIsNotClearance(t *testing.T) {
 	if r.Summary.CompromiseReview != "NOT_ASSESSED_NO_VALIDATED_CVE_DETECTION" {
 		t.Fatal(r.Summary)
 	}
-	if !strings.Contains(string(EncodeHTML(r)), "What to do next") {
+	html := string(EncodeHTML(r))
+	if !strings.Contains(html, "Recommended next steps") {
 		t.Fatal("summary not in HTML")
+	}
+	if !strings.Contains(html, "<details>") {
+		t.Fatal("expected collapsible technical sections")
 	}
 }
 func TestUrgentPatchAndIOCMatchRetainUncertainty(t *testing.T) {

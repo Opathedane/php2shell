@@ -1,14 +1,14 @@
 > [Back to the quick start](../README.md)
 
-# Advanced usage — PHP2Shell Assessment (v2.2.0-alpha.1)
+# Advanced usage — PHP2Shell Assessment (v2.3.0)
 
-**Version 2.1.0-alpha.2: development preview only. Not a production-cleared CVE-2026-109618 / CVE-2026-109619 vulnerability or compromise scanner.**
+PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory and evidence-qualified patch review for CVE-2026-109618 / CVE-2026-109619.
 
 One standalone executable for Windows and Linux: no Python, Go compiler or PHP installed on the customer server. It does **not** execute discovered PHP programs, launch shell commands, use PoCs or send exploit requests. Default scanning is local-only, with no network connectivity or telemetry. Optional GitHub indicator updates are **Ed25519-signed** and opt-in.
 
 ## Download compiled builds from GitHub Releases
 
-For consultants, open [Releases](https://github.com/Opathedane/php2shell/releases), choose the most recent **alpha prerelease** and download the executable (or `.zip` / `.tar.gz`) for the destination OS and CPU. See [consultant quick start](INSTALL-FOR-CONSULTANTS.md). No build tools on customer servers. Binaries are **unsigned previews**; comply with organizational approval and do not bypass endpoint controls. Maintainers can publish preview downloads from **GitHub Actions → Publish standalone ALPHA downloads → Run workflow** using `v2.2.0-alpha.1` after pushing and reviewing the source. Alternatively, push an approved alpha tag. `.github/workflows/release-alpha.yml` tests on three platforms and uploads five binaries, platform archives and SHA256SUMS as GitHub Release assets. A GitHub Actions artifact is not the same as a permanent public Release download.
+Open [Releases](https://github.com/Opathedane/php2shell/releases), choose the latest **official release**, and download the archive for the destination OS and CPU. See [consultant quick start](INSTALL-FOR-CONSULTANTS.md). Binaries are **not code-signed**; comply with organizational approval. Maintainers publish via **GitHub Actions → Publish standalone release** (`.github/workflows/release.yml`) after tagging `vX.Y.Z`. Historical alpha tags remain available via `release-alpha.yml`.
 
 ## Customer: two commands
 
@@ -95,7 +95,7 @@ Tenant identities require an analyst-maintained exact SHA-256 report hash mappin
 - Windows/IIS static parsing and W3C log fixtures, signature and rollback checks have unit tests. Cross-compilation is not a substitute for Windows Server or enterprise production validation.
 - Filesystem reads may have TOCTOU race limits. Very large or rotated logs, nested symlinks and cloud hosting are not comprehensively checked.
 
-Read [security policy](../SECURITY.md), [review](SECURITY-REVIEW-2026-10-21.md), [release checklist](RELEASE-CHECKLIST.md), and [IOC limitations](IOC-RULE-LIMITATIONS.md). **Do not use this alpha to certify systems as patched or uncompromised.**
+Read [security policy](../SECURITY.md), [review](SECURITY-REVIEW-2026-10-21.md), [release checklist](RELEASE-CHECKLIST.md), and [IOC limitations](IOC-RULE-LIMITATIONS.md). **Do not use PHP2Shell alone to certify systems as patched or uncompromised.**
 
 No outbound customer data transfer is implemented. `--docker` accesses a privileged local Docker socket when requested; never grant Docker daemon permissions just for scanning.
 
@@ -107,7 +107,7 @@ go vet ./...
 go build -trimpath -o php2shell ./cmd/php2shell
 ```
 
-CI runs on GitHub-hosted Linux, Windows and macOS runners after you push the code. Prebuilt cross-platform artifacts are unsigned alpha builds.
+CI runs on GitHub-hosted Linux, Windows and macOS Intel runners for pull requests and pushes to `main`. Release artifacts are unsigned.
 
 ## Ownership and licensing
 

@@ -1,8 +1,8 @@
-# PHP2Shell – standalone preview: consultant quick start
+# PHP2Shell – consultant quick start
 
-**TEST / TRIAGE ONLY. This does not certify a server as PHP2Shell-safe or uncompromised.**
+**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory and evidence-qualified patch review.
 
-Download the file matching the destination server from the repository's GitHub **Releases**. No Python, Go, PHP, installer, or network access is required for the basic local inventory. The optional IOC update requires an independently authenticated rule signing key and a reviewed signed ruleset; the repository does **not** include a validated PHP2Shell-specific rulepack yet.
+Download the build matching the destination server from GitHub **Releases**. No Python, Go, PHP, installer, or network access is required for the basic local inventory. The optional IOC update requires an independently authenticated rule signing key and a reviewed signed ruleset; the repository does **not** include a validated PHP2Shell-specific rulepack yet.
 
 ## Windows Server x64 (PowerShell)
 
@@ -19,7 +19,7 @@ For an explicitly authorized IIS assessment (adjust paths):
 .\php2shell-windows-amd64.exe scan --webroot 'C:\inetpub\wwwroot' --access-log 'C:\inetpub\logs\LogFiles\W3SVC1\u_ex261021.log'
 ```
 
-Windows executables in this alpha are **not Authenticode signed** and may generate SmartScreen warnings. Do not bypass endpoint protection or organizational application-control policy. Contact your security administrator for approval; do not run with admin privileges unless reading specific authorized artifacts requires them.
+Windows executables are **not Authenticode signed** and may generate SmartScreen warnings. Do not bypass endpoint protection or organizational application-control policy. Contact your security administrator for approval; do not run with admin privileges unless reading specific authorized artifacts requires them.
 
 ## Linux x86-64
 
@@ -38,7 +38,7 @@ Optional authorized evidence (adjust paths):
 ./php2shell-linux-amd64 scan --webroot /var/www --access-log /var/log/nginx/access.log
 ```
 
-Linux ARM64 has `php2shell-linux-arm64.tar.gz`; macOS is also included as a developer preview.
+Linux ARM64 has `php2shell-linux-arm64.tar.gz`; macOS builds are included for consultant convenience.
 
 ## Reports and integrity
 
@@ -56,7 +56,7 @@ Verify download against `SHA256SUMS` **from a trusted GitHub release** (checksum
 - Linux/macOS: `sha256sum php2shell-linux-amd64` and compare to the published checksum.
 - Windows: `Get-FileHash .\php2shell-windows-amd64.exe -Algorithm SHA256`.
 
-If no approved signed IOC pack is configured, the scanner performs inventory and coverage assessment **only**. Even with signed IOCs, no match does **not** prove there was no compromise. The actual runtime behind the web service and backported vendor fixes are not attested by this alpha.
+If no approved signed IOC pack is configured, the scanner performs inventory and coverage assessment **only**. Even with signed IOCs, no match does **not** prove there was no compromise. The actual runtime behind the web service and backported vendor fixes are not attested by this scanner.
 
 ## Official PHP2Shell patch assessment (21 October 2026)
 

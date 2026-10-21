@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-const Schema = "php2shell-assessment/standalone-preview-v1"
-const Version = "2.2.0-alpha.2"
+const Schema = "php2shell-assessment/v1"
+const Version = "2.3.0"
 
 type Evidence struct {
 	Type           string `json:"type"`
@@ -117,8 +117,17 @@ func ParseReport(b []byte) (*Report, error) {
 	if err := json.Unmarshal(b, &r); err != nil {
 		return nil, err
 	}
-	if r.Schema != Schema || r.ToolVersion == "" || r.VulnerabilityStatus == "" || r.CompromiseStatus == "" || r.GeneratedUTC.IsZero() {
+	if !validReportSchema(r.Schema) || r.ToolVersion == "" || r.VulnerabilityStatus == "" || r.CompromiseStatus == "" || r.GeneratedUTC.IsZero() {
 		return nil, ErrInvalidReport
 	}
 	return &r, nil
+}
+
+func validReportSchema(schema string) bool {
+	switch schema {
+	case Schema, "php2shell-assessment/standalone-preview-v1":
+		return true
+	default:
+		return false
+	}
 }

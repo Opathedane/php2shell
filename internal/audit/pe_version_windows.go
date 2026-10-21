@@ -80,7 +80,7 @@ func peResourceSectionLooksLikePHP(section []byte) bool {
 	if bytes.Contains(section, []byte("PHP")) {
 		return true
 	}
-	if bytes.Contains(section, []byte{ 'P', 0, 'H', 0, 'P', 0 }) {
+	if bytes.Contains(section, []byte{'P', 0, 'H', 0, 'P', 0}) {
 		return true
 	}
 	lower := bytes.ToLower(section)

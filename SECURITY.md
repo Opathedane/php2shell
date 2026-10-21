@@ -1,6 +1,6 @@
-# Security policy (preview)
+# Security policy
 
-**Do not deploy this preview in sensitive customer environments without independent approval.** It has undergone limited unit tests and Linux smoke tests only. This is not a penetration-test tool and does not contain exploit code.
+**Obtain authorization before scanning production systems.** PHP2Shell is a read-only assessment aid, not a penetration-test tool, and does not contain exploit code. It cannot alone certify that a host is patched or uncompromised.
 
 Do not attach customer reports, access logs, network architecture, credentials or production endpoint names to public GitHub issues. Disclose vulnerabilities privately to the maintainer. Contact the maintainer privately at **jesma@itm8.com** for responsible disclosure. Do not send customer evidence or credentials via ordinary email. No automatic data transfer takes place.
 

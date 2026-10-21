@@ -12,3 +12,4 @@ rule-signing-private.hex
 *-signing-private.*
 # Local scratch test fixtures
 iis-fixture.log
+.tools/

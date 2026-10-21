@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds unsigned preview assets. No third-party dependencies beyond Go, tar, zip, sha256sum.
+# Builds unsigned release assets. No third-party dependencies beyond Go, tar, zip, sha256sum.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p dist
