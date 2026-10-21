@@ -171,6 +171,7 @@ func TestPATHDiscoversTempPHPCurrentViaSymlinkJunction(t *testing.T) {
 }
 
 func TestOperatorPHPIniTempPHPCurrentConfigOnly(t *testing.T) {
+	isolatePHPIniHostDiscovery(t)
 	root := t.TempDir()
 	current := filepath.Join(root, "Temp", "PHP", "current")
 	_ = os.MkdirAll(current, 0755)

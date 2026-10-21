@@ -120,14 +120,7 @@ func TestPHPIniSymlinkAndUnreadableSkipped(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	orig := readPHPIniContents
-	t.Cleanup(func() { readPHPIniContents = orig })
-	readPHPIniContents = func(path string, max int64) ([]byte, error) {
-		if filepath.Clean(path) == filepath.Clean(denied) {
-			return nil, os.ErrPermission
-		}
-		return ReadRegular(path, max)
-	}
+	denyPHPIniRead(t, denied)
 
 	r := NewReport("skip", "windows", "amd64")
 	st := newPHPIniScanState()

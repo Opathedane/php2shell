@@ -21,6 +21,11 @@ const (
 // code must leave it pointing at ReadRegular.
 var readPHPIniContents = ReadRegular
 
+// phpIniWellKnownPatternsFn returns well-known php.ini globs. Tests may replace
+// this with an empty list for hermetic operator-path regressions (CI images often
+// ship /etc/php or Windows PHP trees that would otherwise pollute fixtures).
+var phpIniWellKnownPatternsFn = phpIniWellKnownPatterns
+
 // phpIniScanState collects bounded php.ini / conf.d candidates without claiming
 // effective SAPI settings or exact PHP versions.
 type phpIniScanState struct {
@@ -59,7 +64,7 @@ func scanConfigs(r *Report, opts HostScanOptions) {
 	for _, p := range phpIniEnvCandidates() {
 		st.observePHPIniFile(r, p.path, p.source, p.class, false)
 	}
-	for _, pattern := range phpIniWellKnownPatterns() {
+	for _, pattern := range phpIniWellKnownPatternsFn() {
 		matches, _ := filepath.Glob(pattern)
 		for _, path := range matches {
 			st.observePHPIniFile(r, path, "well-known PHP configuration path", classifyPHPIniBasename(filepath.Base(path)), false)

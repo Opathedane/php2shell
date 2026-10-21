@@ -14,6 +14,7 @@ import (
 // Customer-specific paths are still unknown; these fixtures model realistic layouts.
 
 func TestOperatorPHPIniDiscoversNonStandardConfigOnly(t *testing.T) {
+	isolatePHPIniHostDiscovery(t)
 	root := t.TempDir()
 	// Non-standard tree outside well-known patterns (custom Windows-like or Linux layout).
 	custom := filepath.Join(root, "Apps", "CustomPHP", "runtime")
@@ -41,6 +42,11 @@ func TestOperatorPHPIniDiscoversNonStandardConfigOnly(t *testing.T) {
 			}
 			if !strings.Contains(e.Detail, "correlated_install=none") {
 				t.Fatalf("expected uncorrelated marker: %+v", e)
+			}
+		}
+		if e.Type == "configuration_observation" && normalizeInstallPath(e.Location) == normalizeInstallPath(ini) {
+			if strings.Contains(strings.ToLower(e.Detail), "must-not-leak") || strings.Contains(e.Detail, "password") {
+				t.Fatalf("secret leaked in observation: %+v", e)
 			}
 		}
 		if strings.Contains(strings.ToLower(e.Detail+e.Location), "must-not-leak") {
@@ -74,9 +80,12 @@ func TestOperatorPHPIniDiscoversNonStandardConfigOnly(t *testing.T) {
 	if rows[0].ConfigPrimaryIniPath == "" {
 		t.Fatal("fleet host row should carry primary ini path for visibility")
 	}
-	if !strings.Contains(rows[0].ConfigDiscoveryStatus, "UNCORRELATED") &&
-		!strings.Contains(rows[0].ConfigDiscoveryStatus, "PRIMARY") {
-		t.Fatal(rows[0].ConfigDiscoveryStatus)
+	// Successfully inspected uncorrelated primary must keep that classification
+	// (optional _WITH_SKIPS if other coverage gaps exist — not a generic collapse).
+	st := rows[0].ConfigDiscoveryStatus
+	if !strings.Contains(st, "UNCORRELATED_PRIMARY_CANDIDATES") &&
+		!strings.HasPrefix(st, "PRIMARY_CANDIDATES_OBSERVED") {
+		t.Fatalf("expected uncorrelated/primary config status, got %q", st)
 	}
 	if !strings.Contains(rows[0].LimitationsSummary, "uncorrelated") {
 		t.Fatal(rows[0].LimitationsSummary)
@@ -84,6 +93,7 @@ func TestOperatorPHPIniDiscoversNonStandardConfigOnly(t *testing.T) {
 }
 
 func TestOperatorConfigRootBoundedDiscovery(t *testing.T) {
+	isolatePHPIniHostDiscovery(t)
 	root := t.TempDir()
 	confD := filepath.Join(root, "conf.d")
 	if err := os.MkdirAll(confD, 0755); err != nil {
@@ -123,6 +133,7 @@ func TestOperatorConfigRootBoundedDiscovery(t *testing.T) {
 }
 
 func TestNearbyBinaryDiscoveredFromIniDirectory(t *testing.T) {
+	isolatePHPIniHostDiscovery(t)
 	root := t.TempDir()
 	ini := filepath.Join(root, "php.ini")
 	binName := "php"
@@ -164,44 +175,43 @@ func TestNearbyBinaryDiscoveredFromIniDirectory(t *testing.T) {
 }
 
 func TestPHPIniSkipCoverageVisibleInHTMLAndCSV(t *testing.T) {
+	isolatePHPIniHostDiscovery(t)
 	root := t.TempDir()
 	denied := filepath.Join(root, "php.ini")
 	_ = os.WriteFile(denied, []byte("memory_limit = 1M\nsecret=do-not-show\n"), 0644)
-
-	orig := readPHPIniContents
-	t.Cleanup(func() { readPHPIniContents = orig })
-	readPHPIniContents = func(path string, max int64) ([]byte, error) {
-		if filepath.Clean(path) == filepath.Clean(denied) {
-			return nil, os.ErrPermission
-		}
-		return ReadRegular(path, max)
-	}
+	denyPHPIniRead(t, denied)
 
 	r := NewReport("skip-vis", runtime.GOOS, "amd64")
 	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{denied}})
 	FinalizeSummary(r)
 
+	deniedKey := normalizeInstallPath(denied)
 	skips := 0
 	for _, e := range r.Evidence {
-		if e.Type == "php_ini_skip" {
-			skips++
+		loc := normalizeInstallPath(e.Location)
+		switch e.Type {
+		case "php_ini_skip":
+			if loc == deniedKey {
+				skips++
+			}
 			if strings.Contains(e.Detail, "do-not-show") {
 				t.Fatal(e.Detail)
 			}
-		}
-		if e.Type == "php_ini_candidate" {
-			t.Fatal("denied path must not be a candidate")
+		case "php_ini_candidate", "configuration_observation":
+			if loc == deniedKey {
+				t.Fatalf("denied path must not produce inspected evidence: %+v", e)
+			}
 		}
 	}
 	if skips == 0 {
-		t.Fatal("expected php_ini_skip")
+		t.Fatal("expected php_ini_skip for denied operator path")
 	}
 	html := string(EncodeHTML(r))
 	if !strings.Contains(html, "php_ini_skip") && !strings.Contains(html, "CONFIG_CANDIDATE_NOT_INSPECTED") {
 		t.Fatal("HTML should show skip interpretation")
 	}
 	rows := BuildFleetRows(r)
-	if !strings.Contains(rows[0].ConfigDiscoveryStatus, "COVERAGE") &&
+	if rows[0].ConfigDiscoveryStatus != "COVERAGE_GAPS_ONLY" &&
 		!strings.Contains(rows[0].LimitationsSummary, "skipped") {
 		t.Fatalf("%+v", rows[0])
 	}
@@ -217,6 +227,7 @@ func TestPHPIniSkipCoverageVisibleInHTMLAndCSV(t *testing.T) {
 }
 
 func TestLinuxStyleNonStandardConfigRootLayout(t *testing.T) {
+	isolatePHPIniHostDiscovery(t)
 	// Mimics /opt/app/php/etc/php.ini style without requiring /opt write access.
 	root := t.TempDir()
 	etc := filepath.Join(root, "opt", "app", "php", "etc")
@@ -246,6 +257,7 @@ func TestLinuxStyleNonStandardConfigRootLayout(t *testing.T) {
 }
 
 func TestWindowsStyleNonStandardOperatorIni(t *testing.T) {
+	isolatePHPIniHostDiscovery(t)
 	// Mimics D:\Apps\PHP\php.ini style under a temp root (portable).
 	root := t.TempDir()
 	dir := filepath.Join(root, "Apps", "PHP", "8.3")
@@ -263,5 +275,30 @@ func TestWindowsStyleNonStandardOperatorIni(t *testing.T) {
 	joined := strings.Join(steps, " ")
 	if !strings.Contains(joined, "uncorrelated php.ini") && !strings.Contains(joined, "--php-ini") {
 		t.Fatalf("next steps should mention uncorrelated config: %v", steps)
+	}
+}
+
+func TestUncorrelatedPrimaryStatusSurvivesIncidentalSkips(t *testing.T) {
+	// Successful config-only inspect must not be reclassified as a generic
+	// CANDIDATES_WITH_COVERAGE_GAPS merely because another path was skipped.
+	isolatePHPIniHostDiscovery(t)
+	root := t.TempDir()
+	okIni := filepath.Join(root, "ok", "php.ini")
+	badIni := filepath.Join(root, "bad", "php.ini")
+	_ = os.MkdirAll(filepath.Dir(okIni), 0755)
+	_ = os.MkdirAll(filepath.Dir(badIni), 0755)
+	_ = os.WriteFile(okIni, []byte("memory_limit = 32M\n"), 0644)
+	_ = os.WriteFile(badIni, []byte("memory_limit = 1M\nsecret=x\n"), 0644)
+	denyPHPIniRead(t, badIni)
+
+	r := NewReport("status-skips", runtime.GOOS, "amd64")
+	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{okIni, badIni}})
+	rows := BuildFleetRows(r)
+	st := rows[0].ConfigDiscoveryStatus
+	if st != "UNCORRELATED_PRIMARY_CANDIDATES_WITH_SKIPS" {
+		t.Fatalf("got %q want UNCORRELATED_PRIMARY_CANDIDATES_WITH_SKIPS", st)
+	}
+	if strings.Contains(st, "CANDIDATES_WITH_COVERAGE_GAPS") {
+		t.Fatal("must not collapse specific uncorrelated primary status")
 	}
 }

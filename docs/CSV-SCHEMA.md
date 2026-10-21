@@ -50,9 +50,8 @@ Every `php2shell scan` writes a UTF-8 CSV (with BOM for Excel) beside the HTML r
 | `TEMPLATES_ONLY` | Only sample/template names (e.g. `php.ini-development`) |
 | `MIXED_PRIMARY_AND_TEMPLATE` | Both primary and template candidates |
 | `CANDIDATES_OBSERVED` | Other / fragment candidates |
-| `CANDIDATES_WITH_COVERAGE_GAPS` | Candidates observed and some paths skipped (unreadable/oversized/symlink) |
 | `COVERAGE_GAPS_ONLY` | Known candidates could not be inspected (path+reason only) |
-| `*_WITH_SKIPS` | Suffix when skip diagnostics accompany another status |
+| `*_WITH_SKIPS` | Suffix when skip diagnostics accompany another status (e.g. `UNCORRELATED_PRIMARY_CANDIDATES_WITH_SKIPS`) |
 | `TRUNCATED` | Configuration file cap reached |
 
 **Important:** Configuration columns are **supplementary discovery**. They must not be treated as:

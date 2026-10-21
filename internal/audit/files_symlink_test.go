@@ -46,11 +46,7 @@ func TestReadRegularPermissionErrorProducesNoPHPIniEvidence(t *testing.T) {
 	if err := os.WriteFile(path, []byte("memory_limit = 8M\nsecret=x\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	orig := readPHPIniContents
-	t.Cleanup(func() { readPHPIniContents = orig })
-	readPHPIniContents = func(string, int64) ([]byte, error) {
-		return nil, os.ErrPermission
-	}
+	denyPHPIniRead(t, path)
 	r := NewReport("perm", runtime.GOOS, runtime.GOARCH)
 	st := newPHPIniScanState()
 	st.observePHPIniFile(r, path, "stub-denied", "primary_candidate", false)

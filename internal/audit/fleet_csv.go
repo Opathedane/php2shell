@@ -249,6 +249,9 @@ func summarizeHostConfigDiscovery(r *Report) hostConfigSummary {
 	}
 	candidates := primaries + templates + other
 	classes := sortedKeys(classSet)
+	// Classify successfully inspected candidates first. Skips are coverage gaps
+	// layered on via _WITH_SKIPS — do not collapse a clear UNCORRELATED/PRIMARY
+	// result into a generic gaps status when host scans also hit unreadable paths.
 	status := "NONE"
 	switch {
 	case truncated:
@@ -257,8 +260,6 @@ func summarizeHostConfigDiscovery(r *Report) hostConfigSummary {
 		status = "COVERAGE_GAPS_ONLY"
 	case candidates == 0:
 		status = "NONE"
-	case skips > 0 && uncorrelated > 0:
-		status = "CANDIDATES_WITH_COVERAGE_GAPS"
 	case uncorrelated > 0 && primaries > 0 && (templates > 0 || other > 0):
 		status = "MIXED_PRIMARY_AND_TEMPLATE"
 	case primaries > 0 && templates > 0:
@@ -274,7 +275,7 @@ func summarizeHostConfigDiscovery(r *Report) hostConfigSummary {
 	default:
 		status = "CANDIDATES_OBSERVED"
 	}
-	if skips > 0 && status != "TRUNCATED" && status != "COVERAGE_GAPS_ONLY" && status != "CANDIDATES_WITH_COVERAGE_GAPS" {
+	if skips > 0 && status != "TRUNCATED" && status != "COVERAGE_GAPS_ONLY" {
 		status = status + "_WITH_SKIPS"
 	}
 	return hostConfigSummary{Status: status, Candidates: candidates, Settings: settings, Classes: strings.Join(classes, ";")}
