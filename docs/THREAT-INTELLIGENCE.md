@@ -18,9 +18,9 @@
 - CLI PHP version is not evidence of FPM/mod_php/CGI version; repo PHP version is not a deployment assertion; Docker tag is not image attestation.
 - Threat intelligence from VirusTotal can inform priorities via opt-in analyst workflows but does not require uploading any customer data from scanner.
 
-## In unreleased 2.7.0 RC (not in published v2.6.0)
+## In v2.7.0
 
-- Compromise investigation assist (merged #13–#15): offline access/error-log review, offline process/EDR telemetry (`--process-telemetry`: MDE, Sysmon, auditd, Elastic ECS), passive webroot metadata investigation, independent statuses, research-backed PHP/Apache error patterns and web/PHP process-relationship leads. See [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md) and draft [releases/v2.7.0.md](releases/v2.7.0.md).
+- Compromise investigation assist: offline access/error-log review, offline process/EDR telemetry (`--process-telemetry`: MDE, Sysmon, auditd, Elastic ECS), passive webroot metadata investigation, independent statuses, research-backed PHP/Apache error patterns and web/PHP process-relationship leads. See [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md) and [releases/v2.7.0.md](releases/v2.7.0.md).
 - AWS MadPot source IPs remain **weak** threat-intelligence candidates only; not imported as proof of exploitation or compromise.
 
 ## Planned validated features (not delivered)

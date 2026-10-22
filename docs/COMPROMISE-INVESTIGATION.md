@@ -1,8 +1,8 @@
-# Compromise investigation (v2.7.0 release candidate)
+# Compromise investigation (v2.7.0)
 
 Evidence-based **investigation assist** for CVE-2026-109618 / CVE-2026-109619. This extends PHP2Shell beyond patch inventory. It is **not** a clearance tool and never claims a host is clean or confirmed compromised.
 
-**Latest public release remains [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0).** This capability is merged on `main` and packaged as an **unreleased** 2.7.0 release candidate (`release/prepare-2.7.0`). Do not treat draft notes as a published GitHub Release. Field validation: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md).
+**Shipped in [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0).** Field validation: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md).
 
 ## Independent statuses
 
@@ -110,4 +110,4 @@ PHP2SHELL_WRITE_DEMOS=1 go test ./internal/audit -run 'TestGenerateProcessTeleme
 - [THREAT-INTELLIGENCE.md](THREAT-INTELLIGENCE.md)
 - [CSV-SCHEMA.md](CSV-SCHEMA.md)
 - [ADVANCED-USAGE.md](ADVANCED-USAGE.md)
-- [releases/v2.7.0.md](releases/v2.7.0.md) (UNRELEASED DRAFT)
+- [releases/v2.7.0.md](releases/v2.7.0.md)

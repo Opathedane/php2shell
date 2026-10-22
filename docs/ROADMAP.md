@@ -1,10 +1,10 @@
 # PHP2Shell roadmap
 
-**Latest public release: [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0).** Unreleased **2.7.0** release candidate (compromise investigation) is documented in [releases/v2.7.0.md](releases/v2.7.0.md) (UNRELEASED DRAFT) and [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md). Inventory follow-ups that remain after IR: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md) (rename/clarify after publish).
+**Latest public release: [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0).** Compromise investigation: [releases/v2.7.0.md](releases/v2.7.0.md) and [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md). Inventory follow-ups that remain after IR: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md).
 
 ## Shipped recently
 
-### v2.7.0 (release candidate — not published)
+### v2.7.0
 
 - Offline access/error-log investigation  
 - Offline MDE / Sysmon / auditd / Elastic ECS process telemetry  

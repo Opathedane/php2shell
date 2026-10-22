@@ -1,17 +1,16 @@
 # Release checklist
 
-Do not overwrite assets for an existing tag (`v2.3.0`–`v2.6.0`, …). Ship fixes under a new tag only.
+Do not overwrite assets for an existing tag (`v2.3.0`–`v2.7.0`, …). Ship fixes under a new tag only.
 
-## v2.7.0 release candidate (unreleased)
+## v2.7.0 publish prep
 
-- [x] Embedded `Version` = `2.7.0` on `release/prepare-2.7.0`
-- [x] Draft `docs/releases/v2.7.0.md` marked **UNRELEASED DRAFT**
-- [x] README / CHANGELOG / IR docs updated; latest **public** remains v2.6.0
+- [x] Embedded `Version` = `2.7.0`
+- [x] Finalize `docs/releases/v2.7.0.md` (Published; no draft language)
+- [x] README / CHANGELOG / IR docs flipped to latest public **v2.7.0**
 - [x] Field validation guide: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md)
 - [ ] Real-host field validation completed and recorded (not synthetic-only)
-- [ ] Finalize `docs/releases/v2.7.0.md` (remove draft language)
-- [ ] `scripts/check-release-docs.sh --for-tag v2.7.0` passes
-- [ ] GitHub Release `v2.7.0` via release workflow (only after GO)
+- [x] `scripts/check-release-docs.sh --for-tag v2.7.0` passes (on publish branch)
+- [ ] GitHub Release `v2.7.0` via release workflow (only after final GO)
 
 ## Achieved in v2.6.0 (published)
 

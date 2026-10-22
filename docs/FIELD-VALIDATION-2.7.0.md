@@ -1,17 +1,18 @@
-# Field validation guide — PHP2Shell v2.7.0 RC
+# Field validation guide — PHP2Shell v2.7.0
 
-**Purpose:** Real-host validation of the unreleased 2.7.0 compromise-investigation release candidate.  
-**Latest public release remains [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0).**  
+**Purpose:** Real-host validation of the v2.7.0 compromise-investigation features.  
+**Latest public release:** [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0).  
 **Do not fabricate completed field results.** Synthetic fixtures under `testdata/demos/` are for lab regression only (Scenario F documents expected outcomes for those fixtures; they do **not** replace Scenarios A–E).
 
 Confirm authorization before collecting logs, EDR exports, or scanning production systems. Treat HTML/CSV reports as confidential engagement data.
 
 ---
 
-## Obtain an RC binary
+## Obtain a v2.7.0 binary
+
+Download from [GitHub Releases](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0), or build from this tree:
 
 ```bash
-# From release/prepare-2.7.0 (or equivalent tree)
 go build -o php2shell ./cmd/php2shell
 ./php2shell version   # expect: php2shell 2.7.0 …
 ```
@@ -248,9 +249,9 @@ mkdir -p "$DIR"
 
 ## Scenario F — Controlled synthetic suspicious dataset (documented lab)
 
-**Goal:** Confirm RC binary still matches known fixture expectations. **Not field validation.**
+**Goal:** Confirm the v2.7.0 binary still matches known fixture expectations. **Not field validation.**
 
-From a clone of this repository (RC tree):
+From a clone of this repository:
 
 ### Windows (PowerShell)
 
@@ -335,5 +336,3 @@ Use **one customer** per rollup. Schema should be `php2shell-fleet-csv/v3`. Mixi
 5. Release notes draft language removed; version/tag match.
 
 **NO-GO if:** critical overstatement, systematic FPs on legitimate CMS/admin activity, CI red, or field blockers unresolved.
-
-Until then, keep using **v2.6.0** as the only public release.

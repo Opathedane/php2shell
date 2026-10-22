@@ -15,7 +15,7 @@ Every `php2shell scan` writes a UTF-8 CSV (with BOM for Excel) beside the HTML r
 | `os` | GOOS value (e.g. `windows`, `linux`) |
 | `architecture` | GOARCH value |
 | `scan_timestamp_utc` | RFC3339 UTC |
-| `scanner_version` | Embedded tool version (e.g. `2.6.0` public; `2.7.0` in unreleased RC trees) |
+| `scanner_version` | Embedded tool version (e.g. `2.7.0`) |
 | `customer_label` | Optional `--customer` label (**not** authenticated tenancy) |
 | `install_id` | Correlated install key (or `host:no_comparable_install`) |
 | `php_version` | Observed / inferred version from **install evidence**, or empty |
