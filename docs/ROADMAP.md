@@ -1,6 +1,6 @@
 # PHP2Shell roadmap
 
-**Latest public release: [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0).** This document tracks work **not** yet shipped. Inventory follow-ups: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md). Compromise investigation Phases A/B (development): [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md) on `feat/compromise-investigation` — keep separate from RPM/lifecycle work; next version number not finalized.
+**Latest public release: [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0).** This document tracks work **not** yet shipped. Inventory follow-ups: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md). Compromise investigation Phases A–C (development): [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md) on `feat/offline-edr-investigation` (A/B merged via #13) — keep separate from RPM/lifecycle/AWS-IP/webshell work; next version number not finalized.
 
 ## Shipped recently
 

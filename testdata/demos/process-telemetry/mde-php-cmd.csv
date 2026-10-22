@@ -1,0 +1,2 @@
+Timestamp,DeviceName,ActionType,FileName,FolderPath,ProcessId,ProcessCommandLine,InitiatingProcessFileName,InitiatingProcessFolderPath,InitiatingProcessId,ReportId
+2026-10-18T14:06:00Z,win-web-01,ProcessCreated,cmd.exe,C:\Windows\System32,5000,cmd.exe /c whoami,php-cgi.exe,C:\PHP\8.4,4000,mde-demo-rpt-1

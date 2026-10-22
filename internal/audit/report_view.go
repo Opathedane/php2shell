@@ -174,6 +174,12 @@ func overallPriority(r *Report) string {
 	case "INDICATORS_MATCHED_REVIEW_REQUIRED":
 		return "Critical — indicator matches require investigation"
 	}
+	if r.PossibleCompromiseStatus == "POSSIBLE_COMPROMISE_REVIEW" {
+		return "High — possible compromise leads require review"
+	}
+	if r.ExploitationAttemptStatus == "SUSPECTED_ATTEMPTS_REVIEW" {
+		return "High — suspected exploitation attempts require review"
+	}
 	switch r.VulnerabilityStatus {
 	case "BELOW_UPSTREAM_FIX_OBSERVED_PATCH_REVIEW_REQUIRED", "LEGACY_PHP_VENDOR_PATCH_VERIFICATION_REQUIRED", "MULTIPLE_RUNTIMES_MIXED_PATCH_LEVELS_REVIEW_REQUIRED":
 		return "High — update review required"
@@ -562,10 +568,12 @@ func BuildFocusedNextSteps(r *Report) []string {
 	}
 	switch r.PossibleCompromiseStatus {
 	case "POSSIBLE_COMPROMISE_REVIEW":
-		add("Review possible compromise leads with process/EDR context. Normal applications can launch child processes; validate before concluding.")
+		add("Review possible compromise leads (web/PHP worker child processes) against host baselines. Normal applications can launch shells/interpreters; validate before concluding. Never treat as confirmed compromise.")
+	case "NO_MATCHES_IN_SCOPE":
+		add("No suspicious process relationships matched in assessed telemetry — not a clearance. Expand retention and correlate with access/error evidence.")
 	case "NOT_ASSESSED":
 		if r.InvestigationCoverage != "NOT_REQUESTED" {
-			add("Possible host compromise was not assessed (offline process/EDR telemetry not supplied). Do not equate patched or no attempt matches with an uncompromised host.")
+			add("Possible host compromise was not assessed (offline process/EDR telemetry missing or unusable). Do not equate patched or no attempt matches with an uncompromised host.")
 		}
 	}
 	switch r.CompromiseStatus {
@@ -575,7 +583,7 @@ func BuildFocusedNextSteps(r *Report) []string {
 		add("Treat the host as not cleared for compromise: expand log/EDR review for the pre-patch window. Absence of IOC matches is not proof of safety.")
 	default:
 		if r.InvestigationCoverage == "NOT_REQUESTED" {
-			add("Compromise investigation was not requested. Use --access-log / --error-log (and later process telemetry) for evidence-based review; missing inputs leave statuses NOT_ASSESSED, not negative.")
+			add("Compromise investigation was not requested. Use --access-log / --error-log / --process-telemetry for evidence-based review; missing inputs leave statuses NOT_ASSESSED, not negative.")
 		}
 	}
 	if ScanIncomplete(r) {

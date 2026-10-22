@@ -20,7 +20,7 @@
 
 ## In progress (not in published v2.6.0)
 
-- Phases A/B compromise investigation assist on `feat/compromise-investigation`: offline access/error-log review, independent statuses, research-backed PHP/Apache error patterns. See [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md).
+- Phases A–C compromise investigation assist (`feat/offline-edr-investigation`; A/B on main via #13): offline access/error-log review, offline process/EDR telemetry (`--process-telemetry`), independent statuses, research-backed PHP/Apache error patterns and web/PHP process-relationship leads. See [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md).
 - AWS MadPot source IPs are tracked as **weak** threat-intelligence candidates only; not imported as proof of exploitation or compromise in Phases A/B.
 
 ## Planned validated features (not delivered)

@@ -116,6 +116,7 @@ type Report struct {
 	Repositories              []RepoCoverage        `json:"repositories,omitempty"`
 	Logs                      []LogCoverage         `json:"logs,omitempty"`
 	ErrorLogs                 []ErrorLogCoverage    `json:"error_logs,omitempty"`
+	ProcessTelemetry          []ProcessTelemetryCoverage `json:"process_telemetry,omitempty"`
 	InvestigationFindings     []InvestigationFinding `json:"investigation_findings,omitempty"`
 	RuleSequence              uint64                `json:"rule_sequence,omitempty"`
 	RuleCount                 int                   `json:"rule_count,omitempty"`
