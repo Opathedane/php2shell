@@ -1,0 +1,2 @@
+UtcTime,EventID,Image,ParentImage,ProcessId,ParentProcessId,ProcessGuid,CommandLine
+2026-10-18 14:07:00.000,1,C:\Windows\System32\cmd.exe,C:\Windows\explorer.exe,9001,8000,{guid-admin},cmd.exe

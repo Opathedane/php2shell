@@ -331,6 +331,15 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 			}
 			b.WriteString(`</tbody></table>`)
 		}
+		if len(r.ProcessTelemetry) > 0 {
+			b.WriteString(`<p><strong>Process / EDR telemetry coverage</strong></p>`)
+			b.WriteString(`<p>Offline exports only. Command lines are redacted to classification tokens. Entity/report IDs are retained for analyst trace-back. Never confirmed compromise.</p>`)
+			b.WriteString(`<table><thead><tr><th>File</th><th>Format</th><th>Status</th><th>Events</th><th>Leads</th></tr></thead><tbody>`)
+			for _, c := range r.ProcessTelemetry {
+				b.WriteString(`<tr><td>` + h(c.File) + `</td><td>` + h(c.Format) + `</td><td>` + h(c.Status) + `</td><td>` + fmt.Sprint(c.EventsParsed) + `</td><td>` + fmt.Sprint(c.SuspiciousLeads) + `</td></tr>`)
+			}
+			b.WriteString(`</tbody></table>`)
+		}
 	})
 
 	writeDetails("Scan coverage and limitations", func() {
@@ -494,6 +503,12 @@ func ScanIncomplete(r *Report) bool {
 	for _, log := range r.ErrorLogs {
 		switch strings.ToUpper(log.Status) {
 		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED":
+			return true
+		}
+	}
+	for _, pt := range r.ProcessTelemetry {
+		switch strings.ToUpper(pt.Status) {
+		case "INCOMPLETE", "UNAVAILABLE", "UNSUPPORTED_FORMAT":
 			return true
 		}
 	}

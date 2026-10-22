@@ -1,0 +1,2 @@
+UtcTime,EventID,Image,ParentImage,ProcessId,ParentProcessId,ProcessGuid,CommandLine
+2026-10-18 14:07:00.000,1,C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe,C:\Windows\System32\inetsrv\w3wp.exe,9001,8000,{guid-demo-child},powershell.exe -enc REDACTED_DEMO

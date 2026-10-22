@@ -1,0 +1,1 @@
+{"@timestamp":"2026-10-18T14:05:45Z","host":{"name":"linux-web-01"},"event":{"category":["process"],"type":["start"]},"process":{"name":"sh","executable":"/bin/sh","pid":200,"entity_id":"ent-demo-sh","command_line":"/bin/sh -c id","parent":{"name":"php-fpm","executable":"/usr/sbin/php-fpm","pid":100,"entity_id":"ent-demo-fpm"}}}

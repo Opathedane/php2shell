@@ -53,6 +53,7 @@ Scan options:
   --repo DIR             authorized local repo (repeatable)
   --access-log FILE      local HTTP access log (repeatable; limit 32MiB)
   --error-log FILE       local PHP/Apache error log for investigation (repeatable; limit 32MiB)
+  --process-telemetry F  offline EDR/process export (MDE/Sysmon/auditd/ECS; repeatable; limit 32MiB; max 8)
   --investigate-from T   UTC investigation window start (RFC3339 or YYYY-MM-DD; default 2026-10-17 when investigating)
   --investigate-to T     UTC investigation window end (RFC3339 or YYYY-MM-DD; default scan time)
   --docker               local privileged Docker API metadata (opt-in)
@@ -146,12 +147,13 @@ func runScan(args []string) int {
 	updateRules := fs.Bool("update-rules", false, "opt-in download signed indicator rules; requires --rules-url and previously trusted key")
 	rulesURL := fs.String("rules-url", "", "trusted signed rule bundle HTTPS URL")
 	signedRules := fs.String("rules", "", "local Ed25519-signed bundle; requires previously trusted key")
-	investigateFrom := fs.String("investigate-from", "", "UTC investigation window start (RFC3339 or YYYY-MM-DD); default 2026-10-17 when --access-log/--error-log supplied")
+	investigateFrom := fs.String("investigate-from", "", "UTC investigation window start (RFC3339 or YYYY-MM-DD); default 2026-10-17 when investigating")
 	investigateTo := fs.String("investigate-to", "", "UTC investigation window end (RFC3339 or YYYY-MM-DD); default scan time")
-	var repos, logs, errorLogs, phpInis, configRoots, deepRoots paths
+	var repos, logs, errorLogs, procTelemetry, phpInis, configRoots, deepRoots paths
 	fs.Var(&repos, "repo", "authorized local repo; repeatable")
 	fs.Var(&logs, "access-log", "local HTTP access log; repeatable; limit 32MiB")
 	fs.Var(&errorLogs, "error-log", "local PHP/Apache error log for investigation; repeatable; limit 32MiB")
+	fs.Var(&procTelemetry, "process-telemetry", "offline EDR/process export (MDE DeviceProcessEvents CSV, Sysmon EventID1 CSV, auditd EXECVE text, Elastic ECS JSONL); repeatable; limit 32MiB; max 8")
 	fs.Var(&phpInis, "php-ini", "inspect an explicit php.ini path; repeatable; limit 32; not version/runtime authority")
 	fs.Var(&configRoots, "config-root", "bounded PHP binary + php.ini/conf.d under DIR; repeatable; limit 8; no drive walk")
 	fs.Var(&deepRoots, "deep-root", "optional Deep Discovery under DIR; repeatable; limit 8; off by default; rejects UNC and volume roots")
@@ -159,7 +161,7 @@ func runScan(args []string) int {
 		return audit.ExitFatal
 	}
 	if fs.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "ERROR: unexpected arguments; use --repo PATH, --access-log PATH, --error-log PATH, --php-ini PATH, --config-root DIR, or --deep-root DIR")
+		fmt.Fprintln(os.Stderr, "ERROR: unexpected arguments; use --repo/--access-log/--error-log/--process-telemetry/--php-ini/--config-root/--deep-root")
 		return audit.ExitFatal
 	}
 	if (*runtimeVersion != "" || *runtimeSAPI != "" || *runtimeSource != "") && (*runtimeVersion == "" || *runtimeSAPI == "" || *runtimeSource == "") {
@@ -172,6 +174,10 @@ func runScan(args []string) int {
 	}
 	if len(repos) > 20 || len(logs) > 20 || len(errorLogs) > 20 {
 		fmt.Fprintln(os.Stderr, "ERROR: limit is 20 repositories, 20 access logs, and 20 error logs per scan")
+		return audit.ExitFatal
+	}
+	if len(procTelemetry) > 8 {
+		fmt.Fprintln(os.Stderr, "ERROR: limit is 8 --process-telemetry files per scan")
 		return audit.ExitFatal
 	}
 	invFrom, errFrom := parseInvestigateTime(*investigateFrom)
@@ -188,8 +194,8 @@ func runScan(args []string) int {
 		fmt.Fprintln(os.Stderr, "ERROR: --investigate-to must not be before --investigate-from")
 		return audit.ExitFatal
 	}
-	if (*investigateFrom != "" || *investigateTo != "") && len(logs) == 0 && len(errorLogs) == 0 {
-		fmt.Fprintln(os.Stderr, "ERROR: --investigate-from/--investigate-to require --access-log and/or --error-log")
+	if (*investigateFrom != "" || *investigateTo != "") && len(logs) == 0 && len(errorLogs) == 0 && len(procTelemetry) == 0 {
+		fmt.Fprintln(os.Stderr, "ERROR: --investigate-from/--investigate-to require --access-log, --error-log, and/or --process-telemetry")
 		return audit.ExitFatal
 	}
 	if len(phpInis) > 32 {
@@ -391,11 +397,35 @@ func runScan(args []string) int {
 			r.AddCheck("historical_error_logs", status, fmt.Sprintf("Requested %d error log files; pattern matches are suspected leads only", len(errorLogs)))
 		}
 
+		con.Phase("Process telemetry investigation")
+		var allProcessLeads []audit.ProcessLead
+		for _, p := range procTelemetry {
+			if checkTimeout() {
+				break
+			}
+			_, leads := audit.ScanProcessTelemetry(r, p)
+			allProcessLeads = append(allProcessLeads, leads...)
+		}
+		if len(procTelemetry) == 0 {
+			r.AddCheck("historical_process_telemetry", "NOT_REQUESTED", "Use --process-telemetry FILE for offline MDE/Sysmon/auditd/ECS process exports; never live EDR APIs")
+		} else {
+			status := "PARSED_COVERAGE_LIMITED"
+			for _, pt := range r.ProcessTelemetry {
+				switch pt.Status {
+				case "PARSED_COVERAGE_LIMITED", "PARTIAL":
+				default:
+					status = "INCOMPLETE"
+				}
+			}
+			r.AddCheck("historical_process_telemetry", status, fmt.Sprintf("Requested %d process telemetry file(s); suspicious child leads require analyst validation; command lines redacted", len(procTelemetry)))
+		}
+
 		audit.FinalizeInvestigation(r, audit.InvestigationOptions{
-			From:      invFrom,
-			To:        invTo,
-			Assessing: len(logs) > 0 || len(errorLogs) > 0,
-		}, allAccessEvents, allErrorEvents)
+			From:                invFrom,
+			To:                  invTo,
+			Assessing:           len(logs) > 0 || len(errorLogs) > 0 || len(procTelemetry) > 0,
+			HasProcessTelemetry: len(procTelemetry) > 0,
+		}, allAccessEvents, allErrorEvents, allProcessLeads)
 	}
 
 	if !checkTimeout() {
