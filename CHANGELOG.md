@@ -1,9 +1,9 @@
-## Unreleased (toward v2.7.0)
+## Unreleased
 
-Release-candidate documentation and embedded version `2.7.0` on `release/prepare-2.7.0`. **Not published.** Latest public release remains [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0). See draft [docs/releases/v2.7.0.md](docs/releases/v2.7.0.md) and [docs/FIELD-VALIDATION-2.7.0.md](docs/FIELD-VALIDATION-2.7.0.md).
+## v2.7.0 — 2026-10-22
 
-- Feature (merged to main via #13–#15; shipping candidate for v2.7.0): **Compromise investigation assist** — offline `--access-log` / `--error-log` / `--process-telemetry` / `--webroot` metadata investigation; independent exploitation-attempt, possible-compromise, and investigation-coverage statuses; birth-aware webroot leads with path context vs timestamp evidence; ±15m temporal correlation (proximity ≠ causality); fleet CSV **v3** with IR columns and v1–v3 rollup. Never auto-confirmed compromise; never equates no matches with a clean host. See [docs/COMPROMISE-INVESTIGATION.md](docs/COMPROMISE-INVESTIGATION.md).
-- Roadmap only (not in v2.7.0 RC): RPM DB inventory, PHP lifecycle calendar, AWS IP packs as strong IOCs, generic webshell content detection — [docs/ROADMAP.md](docs/ROADMAP.md).
+- Feature: **Compromise investigation assist** — offline `--access-log` / `--error-log` / `--process-telemetry` / `--webroot` metadata investigation; independent exploitation-attempt, possible-compromise, and investigation-coverage statuses; birth-aware webroot leads with path context vs timestamp evidence; ±15m temporal correlation (proximity ≠ causality); fleet CSV **v3** with IR columns and v1–v3 rollup. Never auto-confirmed compromise; never equates no matches with a clean host. See [docs/COMPROMISE-INVESTIGATION.md](docs/COMPROMISE-INVESTIGATION.md) and [docs/releases/v2.7.0.md](docs/releases/v2.7.0.md).
+- Docs: field validation guide [docs/FIELD-VALIDATION-2.7.0.md](docs/FIELD-VALIDATION-2.7.0.md).
 
 ## v2.6.0 — 2026-10-21
 

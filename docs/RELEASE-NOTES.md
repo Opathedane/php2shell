@@ -1,19 +1,18 @@
 # PHP2Shell release notes
 
-**Latest public release: [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0)** (21 October 2026).
+**Latest public release: [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0)** (22 October 2026).
 
-Version-specific GitHub Release bodies live under [`docs/releases/`](releases/). The publish workflow uses **only** the matching `docs/releases/vX.Y.Z.md` file — never this index and never draft text as a release body.
+Version-specific GitHub Release bodies live under [`docs/releases/`](releases/). The publish workflow uses **only** the matching `docs/releases/vX.Y.Z.md` file — never this index.
 
 | Version | Notes |
 | --- | --- |
+| [v2.7.0](releases/v2.7.0.md) | Compromise investigation assist; fleet CSV v3 |
 | [v2.6.0](releases/v2.6.0.md) | Optional `--deep-root` Deep Discovery; expanded well-known install paths |
 | [v2.5.1](releases/v2.5.1.md) | PATH/junction discovery; multi-install; `--php-ini` / `--config-root` |
 | [v2.5.0](releases/v2.5.0.md) | php.ini discovery; fleet CSV v2 |
 | [v2.4.0](releases/v2.4.0.md) | HTML+CSV pairs; IIS/Apache inventory; fleet rollup |
 | [v2.3.1](https://github.com/Opathedane/php2shell/releases/tag/v2.3.1) | Windows path/PE version inference |
 | [v2.3.0](https://github.com/Opathedane/php2shell/releases/tag/v2.3.0) | First public HTML assessment release |
-
-In-tree candidate (not a public Release): [releases/v2.7.0.md](releases/v2.7.0.md) — compromise investigation assist; fleet CSV v3. Keep v2.6.0 as the latest public download until that file is finalized and tagged.
 
 Historical alpha notes: [ALPHA-RELEASE-NOTES.md](ALPHA-RELEASE-NOTES.md) (not current product status).
 

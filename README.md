@@ -4,7 +4,7 @@ Standalone Windows and Linux scanner for **PHP discovery, upstream patch review,
 
 PHP2Shell writes a matching **HTML + CSV** report pair from one read-only scan. It does **not** prove that a host is fully patched or uncompromised.
 
-**Version in this tree:** 2.7.0 (unreleased release candidate). Latest public release: [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0). Prior: [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1), [v2.5.0](https://github.com/Opathedane/php2shell/releases/tag/v2.5.0), [v2.4.0](https://github.com/Opathedane/php2shell/releases/tag/v2.4.0). Draft notes: [docs/releases/v2.7.0.md](docs/releases/v2.7.0.md). Field validation: [docs/FIELD-VALIDATION-2.7.0.md](docs/FIELD-VALIDATION-2.7.0.md).
+**Version in this tree:** 2.7.0. Latest public release: [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0). Prior: [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0), [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1), [v2.5.0](https://github.com/Opathedane/php2shell/releases/tag/v2.5.0), [v2.4.0](https://github.com/Opathedane/php2shell/releases/tag/v2.4.0). Notes: [docs/releases/v2.7.0.md](docs/releases/v2.7.0.md). Field validation: [docs/FIELD-VALIDATION-2.7.0.md](docs/FIELD-VALIDATION-2.7.0.md).
 
 ## 1. What PHP2Shell does
 
@@ -12,15 +12,15 @@ PHP2Shell writes a matching **HTML + CSV** report pair from one read-only scan. 
 - Compares observed versions to official upstream fix thresholds (21 Oct 2026 advisories)
 - Labels verified binary metadata vs path-inferred versions with explicit confidence
 - Optional `--deep-root` Deep Discovery for consultant-authorized custom directories (off by default; see [ADVANCED-USAGE](docs/ADVANCED-USAGE.md))
-- Compromise investigation assist (in this unreleased tree): `--access-log`, `--error-log`, `--process-telemetry`, `--webroot` metadata IR, investigation window, independent statuses — see [COMPROMISE-INVESTIGATION](docs/COMPROMISE-INVESTIGATION.md); not a clearance tool
+- Compromise investigation assist: `--access-log`, `--error-log`, `--process-telemetry`, `--webroot` metadata IR, investigation window, independent statuses — see [COMPROMISE-INVESTIGATION](docs/COMPROMISE-INVESTIGATION.md); not a clearance tool
 - Optional Ed25519-signed indicator packs for limited IOC triage (not bundled by default)
 - Never executes discovered PHP binaries, never uploads customer data, never opens a browser
 
-## 2. Download the latest **public** release
+## 2. Download the latest release
 
-[**GitHub Releases**](https://github.com/Opathedane/php2shell/releases/latest) (currently **v2.6.0** — v2.7.0 is not published)
+[**GitHub Releases**](https://github.com/Opathedane/php2shell/releases/latest) (**v2.7.0**)
 
-Choose `php2shell-windows-amd64.zip`, `php2shell-linux-amd64.tar.gz`, or `php2shell-linux-arm64.tar.gz`. Verify `SHA256SUMS`. Builds are **not code-signed**. For RC builds from this tree, use a local `go build` or the manual **Build standalone preview** workflow (unsigned; not a Release).
+Choose `php2shell-windows-amd64.zip`, `php2shell-linux-amd64.tar.gz`, or `php2shell-linux-arm64.tar.gz`. Verify `SHA256SUMS`. Builds are **not code-signed**.
 
 ## 3. Quick start
 
@@ -49,7 +49,7 @@ chmod +x php2shell-linux-amd64
 ./php2shell-linux-amd64 scan --deep-root /opt --deep-root /srv/www
 ```
 
-**Optional compromise investigation** (authorized offline inputs; unreleased 2.7.0 tree):
+**Optional compromise investigation** (authorized offline inputs):
 
 ```powershell
 .\php2shell-windows-amd64.exe scan `
