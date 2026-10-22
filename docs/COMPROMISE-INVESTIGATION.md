@@ -1,8 +1,8 @@
-# Compromise investigation (Phases A–C + webroot — development)
+# Compromise investigation (v2.7.0 release candidate)
 
 Evidence-based **investigation assist** for CVE-2026-109618 / CVE-2026-109619. This extends PHP2Shell beyond patch inventory. It is **not** a clearance tool and never claims a host is clean or confirmed compromised.
 
-**Published release v2.6.0 is unchanged.** Phases A–C are on `main` (#13, #14). Webroot filesystem investigation lands via PR from `feat/webroot-compromise-investigation`. Feature development pauses after that PR for end-to-end / real-world validation before v2.7.0.
+**Latest public release remains [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0).** This capability is merged on `main` and packaged as an **unreleased** 2.7.0 release candidate (`release/prepare-2.7.0`). Do not treat draft notes as a published GitHub Release. Field validation: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md).
 
 ## Independent statuses
 
@@ -13,7 +13,7 @@ Evidence-based **investigation assist** for CVE-2026-109618 / CVE-2026-109619. T
 | Possible compromise | **`NOT_ASSESSED`** | Assessed when usable `--process-telemetry` and/or `--webroot` investigation inputs exist: `NO_MATCHES_IN_SCOPE` or `POSSIBLE_COMPROMISE_REVIEW`. Never auto-`CONFIRMED_COMPROMISE`. |
 | Investigation coverage | **`NOT_REQUESTED`** | `ASSESSED_SCOPE_LIMITED`, `PARTIAL_TIMESTAMP_UNCERTAIN`, or `INCOMPLETE` |
 
-Without process telemetry (or when telemetry is unusable/unsupported), possible compromise stays **`NOT_ASSESSED`** — not a negative clearance. Signed-pack IOC matches continue to set legacy `compromise_status` only.
+Without usable process telemetry or webroot investigation (or when those inputs fail), possible compromise stays **`NOT_ASSESSED`** — not a negative clearance. Signed-pack IOC matches continue to set legacy `compromise_status` only.
 
 ## CLI
 
@@ -34,7 +34,7 @@ php2shell scan \
 - `--webroot`: authorized document root — existing filename inventory + SHA-256 IOC hashing unchanged; when investigating, also runs a **metadata-only** filesystem investigation (depth≤8, ≤25k entries, symlinks skipped, **contents never read**).
 - First/last timestamps **do not** prove continuous coverage (rotation, gaps, timezone ambiguity, PID reuse, parser failures).
 
-## Supported offline process telemetry formats (Phase C)
+## Supported offline process telemetry formats
 
 | Format | Detection | Documented fields used |
 | --- | --- | --- |
@@ -57,7 +57,7 @@ Suspicious **web/PHP parent → child** relationships (behavioral convergent; no
 
 Ordinary admin activity (e.g. `explorer.exe` → `cmd.exe`) and application-specific shells are **not** treated as compromise. Missing parents, incomplete ancestry, and PID reuse reduce confidence (`unconfirmed`) and never invent relationships.
 
-## Research-backed log patterns (Phase B)
+## Research-backed log patterns
 
 | Pattern | Class | Max confidence | Notes |
 | --- | --- | --- | --- |
@@ -69,7 +69,7 @@ Ordinary admin activity (e.g. `explorer.exe` → `cmd.exe`) and application-spec
 
 ## Fleet CSV
 
-Writers emit **`php2shell-fleet-csv/v3`** with independent IR columns (unchanged schema; process telemetry feeds `possible_compromise_status` / coverage). Rollup accepts **v1–v3**.
+Writers emit **`php2shell-fleet-csv/v3`** with independent IR columns. Rollup accepts **v1–v3**.
 
 ## Webroot filesystem investigation
 
@@ -82,7 +82,7 @@ Metadata-only leads from an authorized `--webroot` (not a webshell scanner). **A
 | `webroot_birth_in_window` | Timestamp evidence | OS birth/creation in window (even when mtime is old / preserved) |
 | `webroot_mtime_in_window` | Timestamp evidence | Modification time in window when birth is unavailable or outside |
 
-**Critical:** filesystem **mtime is never treated as file creation or execution**. Birth/creation time is used only when the OS exposes it (often unavailable on Linux `stat`). `os.Chtimes` does **not** rewrite creation time on Windows/macOS. Historical CMS files with **both** timestamps outside the investigation window produce **no** leads. Path location context alone never flips `POSSIBLE_COMPROMISE_REVIEW` — only timestamp evidence kinds (plus process/EDR) do.
+**Critical:** filesystem **mtime is never treated as file creation or execution**. Birth/creation time is used only when the OS exposes it (often unavailable on Linux `stat`). Historical CMS files with **both** timestamps outside the investigation window produce **no** leads. Path location context alone never flips `POSSIBLE_COMPROMISE_REVIEW` — only timestamp evidence kinds (plus process/EDR) do.
 
 **Temporal correlation** (`correlated_webroot_and_*`) requires an available **birth** timestamp within ±15m of independent access/error/process evidence. **mtime proximity alone never creates correlation and never elevates confidence.** Proximity ≠ causality.
 
@@ -93,19 +93,21 @@ When `POSSIBLE_COMPROMISE_REVIEW` rests **only** on webroot metadata (no EDR pro
 - Offline, read-only, passive — never execute PHP, command lines, imported telemetry, or webroot file contents.
 - No exploit probes, uploads, live EDR APIs, automatic remediation, or generic webshell/`eval` content scanning.
 - Findings omit HTTP query secrets, raw command lines, file contents, and sensitive EDR fields by default.
-- AWS source IPs / RPM inventory / PHP lifecycle calendar are **out of scope** for this phase.
+- AWS source IPs / RPM inventory / PHP lifecycle calendar are **out of scope** for v2.7.0.
 
-## Synthetic demos
+## Synthetic demos (lab only)
 
-`testdata/demos/process-telemetry/` — MDE php→cmd, Sysmon w3wp→powershell, auditd/ECS php-fpm→sh, correlated error+process, admin negative. Regenerate reports:
+`testdata/demos/process-telemetry/` and `testdata/demos/webroot-investigation/` — **not** a substitute for real-host field validation.
 
 ```bash
-PHP2SHELL_WRITE_DEMOS=1 go test ./internal/audit -run TestGenerateProcessTelemetryDemos -count=1
+PHP2SHELL_WRITE_DEMOS=1 go test ./internal/audit -run 'TestGenerateProcessTelemetryDemos|TestGenerateWebrootInvestigationDemos' -count=1
 ```
 
 ## Related
 
+- [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md)
 - [IOC-RULE-LIMITATIONS.md](IOC-RULE-LIMITATIONS.md)
 - [THREAT-INTELLIGENCE.md](THREAT-INTELLIGENCE.md)
 - [CSV-SCHEMA.md](CSV-SCHEMA.md)
 - [ADVANCED-USAGE.md](ADVANCED-USAGE.md)
+- [releases/v2.7.0.md](releases/v2.7.0.md) (UNRELEASED DRAFT)

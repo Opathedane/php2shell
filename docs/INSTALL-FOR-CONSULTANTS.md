@@ -1,6 +1,6 @@
 # PHP2Shell – consultant quick start
 
-**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory and evidence-qualified patch review. Latest public release: **v2.6.0**. Confirm `php2shell version` on the binary you run matches the release you downloaded.
+**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory, evidence-qualified patch review, and (when using an unreleased 2.7.0 RC binary) offline compromise investigation assist. Latest public release: **v2.6.0**. This documentation tree may include unreleased **2.7.0**. Confirm `php2shell version` on the binary you run.
 
 Download the build matching the destination server from GitHub **Releases**. No Python, Go, PHP, installer, or network access is required for the basic local inventory. The optional IOC update requires an independently authenticated rule signing key and a reviewed signed ruleset; the repository does **not** include a validated PHP2Shell-specific rulepack yet.
 
@@ -71,6 +71,23 @@ Windows executables are **not Authenticode signed** and may generate SmartScreen
 
 Do **not** pass volume roots or UNC shares. Truncated deep scans exit `2` and must be treated as incomplete.
 
+### Compromise investigation (unreleased 2.7.0 RC)
+
+Requires a binary built from this tree (`php2shell version` → `2.7.0`). Keep raw logs, EDR exports, and HTML/CSV reports inside the engagement boundary.
+
+```powershell
+.\php2shell-windows-amd64.exe scan `
+  --webroot 'E:\websites\prod\site' `
+  --access-log 'C:\inetpub\logs\LogFiles\W3SVC1\u_ex261018.log' `
+  --error-log 'C:\PHP\logs\php_errors.log' `
+  --process-telemetry 'C:\Engagement\exports\DeviceProcessEvents.csv' `
+  --process-telemetry 'C:\Engagement\exports\sysmon-eid1.csv' `
+  --investigate-from 2026-10-17 `
+  --quiet --output-dir C:\ProgramData\PHP2Shell\Reports
+```
+
+See [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md) and [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md).
+
 ## Linux x86-64
 
 ```bash
@@ -80,6 +97,14 @@ chmod +x php2shell-linux-amd64
 ./php2shell-linux-amd64 scan --quiet --output-dir "$HOME/.php2shell/reports"
 # Optional Deep Discovery:
 # ./php2shell-linux-amd64 scan --deep-root /opt --deep-root /usr/local --output-dir "$HOME/.php2shell/reports"
+# Optional IR (unreleased 2.7.0 RC binary):
+# ./php2shell-linux-amd64 scan \
+#   --webroot /var/www/html \
+#   --access-log /var/log/nginx/access.log \
+#   --error-log /var/log/php8.3-fpm.log \
+#   --process-telemetry ./exports/auditd-execve.log \
+#   --investigate-from 2026-10-17 \
+#   --quiet --output-dir "$HOME/.php2shell/reports"
 ```
 
 ## Reports

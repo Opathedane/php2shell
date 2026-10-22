@@ -1,8 +1,17 @@
 # PHP2Shell roadmap
 
-**Latest public release: [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0).** This document tracks work **not** yet shipped. Inventory follow-ups: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md). Compromise investigation Phases A–C (development): [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md) on `feat/offline-edr-investigation` (A/B merged via #13) — keep separate from RPM/lifecycle/AWS-IP/webshell work; next version number not finalized.
+**Latest public release: [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0).** Unreleased **2.7.0** release candidate (compromise investigation) is documented in [releases/v2.7.0.md](releases/v2.7.0.md) (UNRELEASED DRAFT) and [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md). Inventory follow-ups that remain after IR: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md) (rename/clarify after publish).
 
 ## Shipped recently
+
+### v2.7.0 (release candidate — not published)
+
+- Offline access/error-log investigation  
+- Offline MDE / Sysmon / auditd / Elastic ECS process telemetry  
+- Passive webroot metadata investigation  
+- Cross-source ±15m correlation (proximity ≠ causality)  
+- Independent exploitation / possible-compromise / coverage statuses  
+- Fleet CSV `php2shell-fleet-csv/v3` + v1–v3 rollup  
 
 ### v2.6.0
 
@@ -24,9 +33,9 @@
 
 ## Planned for a later release (not scheduled)
 
-### v2.7.0 — Inventory accuracy (proposal)
+### Inventory accuracy (was “ROADMAP-2.7.0 proposal”)
 
-Gap analysis and priorities: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md).
+Gap analysis: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md). Remaining after IR ships:
 
 - Package ownership correlation (dpkg file lists; later RPM)  
 - PHP support lifecycle calendar + fleet CSV schema evolution  

@@ -2,12 +2,23 @@
 
 Do not overwrite assets for an existing tag (`v2.3.0`–`v2.6.0`, …). Ship fixes under a new tag only.
 
-## Achieved in v2.6.0 (publish pending maintainer tag)
+## v2.7.0 release candidate (unreleased)
+
+- [x] Embedded `Version` = `2.7.0` on `release/prepare-2.7.0`
+- [x] Draft `docs/releases/v2.7.0.md` marked **UNRELEASED DRAFT**
+- [x] README / CHANGELOG / IR docs updated; latest **public** remains v2.6.0
+- [x] Field validation guide: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md)
+- [ ] Real-host field validation completed and recorded (not synthetic-only)
+- [ ] Finalize `docs/releases/v2.7.0.md` (remove draft language)
+- [ ] `scripts/check-release-docs.sh --for-tag v2.7.0` passes
+- [ ] GitHub Release `v2.7.0` via release workflow (only after GO)
+
+## Achieved in v2.6.0 (published)
 
 - [x] Optional `--deep-root` Deep Discovery (off by default; bounded roots; TRUNCATED/INCOMPLETE signalling)
 - [x] Expanded well-known binary globs (WAMP/Laragon/tools; Remi/cPanel FPM; `/usr/local/php*`; `/opt/php/*`)
 - [x] Version-specific `docs/releases/v2.6.0.md` finalized for `check-release-docs.sh --for-tag v2.6.0`
-- [ ] GitHub Release `v2.6.0` created via release workflow (after CI on this prep PR)
+- [x] GitHub Release `v2.6.0` published
 
 ## Achieved in v2.5.1 (published)
 

@@ -1,8 +1,8 @@
 # PHP2Shell v2.7.0 proposal — inventory accuracy (post–Deep Discovery)
 
-**Status:** proposal for work **after** [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0).  
-**Latest public release (once tagged):** [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0).  
-**Note:** P0 well-known path expansion shipped in v2.6.0 (Option A). Remaining items here are P1+.  
+**Status:** inventory / accuracy proposal originally labeled “2.7.0”. **Compromise investigation** is the actual v2.7.0 RC headline — see [releases/v2.7.0.md](releases/v2.7.0.md) (UNRELEASED DRAFT). Items below remain **post-IR** backlog.
+**Latest public release:** [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0).
+**Note:** P0 well-known path expansion shipped in v2.6.0 (Option A). Remaining items here are P1+.
 **Reference PowerShell/Bash inventory scripts are not in this repository** and must not be copied.
 
 This document is the gap analysis and prioritized plan requested for v2.7.0.

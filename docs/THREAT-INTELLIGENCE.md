@@ -18,18 +18,18 @@
 - CLI PHP version is not evidence of FPM/mod_php/CGI version; repo PHP version is not a deployment assertion; Docker tag is not image attestation.
 - Threat intelligence from VirusTotal can inform priorities via opt-in analyst workflows but does not require uploading any customer data from scanner.
 
-## In progress (not in published v2.6.0)
+## In unreleased 2.7.0 RC (not in published v2.6.0)
 
-- Phases A–C compromise investigation assist (`feat/offline-edr-investigation`; A/B on main via #13): offline access/error-log review, offline process/EDR telemetry (`--process-telemetry`), independent statuses, research-backed PHP/Apache error patterns and web/PHP process-relationship leads. See [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md).
-- AWS MadPot source IPs are tracked as **weak** threat-intelligence candidates only; not imported as proof of exploitation or compromise in Phases A/B.
+- Compromise investigation assist (merged #13–#15): offline access/error-log review, offline process/EDR telemetry (`--process-telemetry`: MDE, Sysmon, auditd, Elastic ECS), passive webroot metadata investigation, independent statuses, research-backed PHP/Apache error patterns and web/PHP process-relationship leads. See [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md) and draft [releases/v2.7.0.md](releases/v2.7.0.md).
+- AWS MadPot source IPs remain **weak** threat-intelligence candidates only; not imported as proof of exploitation or compromise.
 
 ## Planned validated features (not delivered)
 
 - Authoritative version/advisory rule bundle signed by the maintainer, no unattended auto-update.
 - Real serving-runtime evidence per SAPI, IIS and popular vendor hosting panels, container layers, OS package backports.
-- Offline EDR/process telemetry ingestion (Windows + Linux) for suspicious web/PHP worker child processes (priority after Phases A/B).
 - Optional weak client-IP observations with forced low confidence and investigate-not-block guidance.
 - Separate signed offline evidence bundles and customer-safe transfer, tenant-bound ingestion, identity verification, evidence chain of custody.
 - Authorized perimeter origin-versus-WAF check as a separate consenting module (no network requests in default scanner).
+- Generic webshell/`eval` content scanning (explicitly out of scope for v2.7.0).
 
 Reference: https://blog.virustotal.com/2026/10/sizing-php-exposure-window-for-cve-2026.html
