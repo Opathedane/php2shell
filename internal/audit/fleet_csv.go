@@ -471,7 +471,11 @@ func fleetLimitationsSummary(r *Report) string {
 		parts = append(parts, "No exploitation-attempt matches in assessed scope (not a clearance)")
 	}
 	if r.PossibleCompromiseStatus == "NOT_ASSESSED" {
-		parts = append(parts, "Possible compromise NOT_ASSESSED (no offline process/EDR telemetry)")
+		parts = append(parts, "Possible compromise NOT_ASSESSED (no usable offline process/EDR telemetry or webroot investigation — not a negative finding)")
+	} else if r.PossibleCompromiseStatus == "POSSIBLE_COMPROMISE_REVIEW" && possibleCompromiseIsWebrootMetadataOnly(r) {
+		parts = append(parts, "POSSIBLE_COMPROMISE_REVIEW is low-confidence webroot metadata only (not EDR-strength; not confirmed webshell or successful exploitation)")
+	} else if r.PossibleCompromiseStatus == "NO_MATCHES_IN_SCOPE" {
+		parts = append(parts, "No process/webroot compromise matches in assessed scope (not a clearance)")
 	}
 	if r.InvestigationCoverage == "INCOMPLETE" {
 		parts = append(parts, "Investigation coverage incomplete; gaps cannot be ruled out from first/last timestamps")

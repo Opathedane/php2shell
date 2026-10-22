@@ -94,12 +94,13 @@ On Linux and Windows, when a well-known Apache config root is accessible (`/etc/
 - **Inaccessible handler binaries** (missing path, wrong host, permission denied) produce `windows_iis_configuration` **INCOMPLETE** coverage and version-unknown evidence. That must not be read as “the site is patched/safe.”
 - **Active HTTP serving runtime** remains unverified even when site, handler, and binary version evidence align.
 
-## Compromise investigation (development — Phases A–C)
+## Compromise investigation (development — Phases A–C + webroot)
 
-Offline review of consultant-supplied **access logs**, **error logs**, and **process/EDR exports**. Not shipped in published v2.6.0 binaries until a later tagged release. Full detail: [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md).
+Offline review of consultant-supplied **access logs**, **error logs**, **process/EDR exports**, and authorized **`--webroot` filesystem metadata**. Not shipped in published v2.6.0 binaries until a later tagged release. Full detail: [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md).
 
 ```bash
 ./php2shell-linux-amd64 scan \
+  --webroot /var/www/html \
   --access-log /var/log/nginx/access.log \
   --error-log /var/log/php-fpm/error.log \
   --process-telemetry ./exports/DeviceProcessEvents.csv \
@@ -108,9 +109,11 @@ Offline review of consultant-supplied **access logs**, **error logs**, and **pro
   --quiet --output-dir "$HOME/.php2shell/reports"
 ```
 
-Supported offline formats: MDE DeviceProcessEvents CSV, Sysmon Event ID 1 CSV, Linux auditd EXECVE text, Elastic ECS process JSONL. No live EDR APIs. Command lines are redacted; entity/report IDs remain for analyst trace-back.
+Supported offline process formats: MDE DeviceProcessEvents CSV, Sysmon Event ID 1 CSV, Linux auditd EXECVE text, Elastic ECS process JSONL. No live EDR APIs. Command lines are redacted; entity/report IDs remain for analyst trace-back.
 
-Independent statuses: vulnerability exposure, exploitation attempts, possible compromise, investigation coverage. No inputs ⇒ `NOT_ASSESSED` (not a negative finding). Possible compromise is assessed **only** when usable `--process-telemetry` is supplied; strong leads yield `POSSIBLE_COMPROMISE_REVIEW`, never automatic confirmed compromise. First/last timestamps do not prove continuous coverage. The ≥2048 heuristic measures **access-log request-target (URI) length only**, not request-body size.
+`--webroot` investigation is metadata-only (upload-path PHP-like files, unusual extensions, birth/mtime notes). **mtime ≠ creation or execution.** Path location context is distinct from timestamp evidence; historical CMS files (timestamps outside the window) are not treated as recent compromise. In-window birth is still reported when mtime is old. All webroot leads are weak/`unconfirmed` (weaker than EDR). Temporal correlation requires birth timestamps — mtime±15m alone never elevates confidence. File contents are never read; this is not a webshell/`eval` scanner. Signed SHA-256 IOC hashing is unchanged.
+
+Independent statuses: vulnerability exposure, exploitation attempts, possible compromise, investigation coverage. No inputs ⇒ `NOT_ASSESSED` (not a negative finding). Possible compromise is assessed when usable `--process-telemetry` and/or `--webroot` investigation inputs exist; leads yield `POSSIBLE_COMPROMISE_REVIEW` (webroot-only = low-confidence investigative lead), never automatic confirmed compromise. First/last timestamps do not prove continuous coverage. The ≥2048 heuristic measures **access-log request-target (URI) length only**, not request-body size.
 
 ## Signed indicators
 

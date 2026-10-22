@@ -46,7 +46,7 @@ Usage:
   php2shell version
 
 Scan options:
-  --webroot DIR          authorized website document root (file names only)
+  --webroot DIR          authorized website document root (filenames + optional FS investigation metadata; never executes PHP)
   --php-ini PATH         inspect an explicit php.ini (or .ini) path (repeatable; limit 32)
   --config-root DIR      bounded PHP binary + php.ini/conf.d inspection under DIR (repeatable; limit 8; no drive walk)
   --deep-root DIR        optional Deep Discovery: recursive PHP binary + php.ini search under DIR (repeatable; limit 8; off by default; never drive-wide)
@@ -194,8 +194,8 @@ func runScan(args []string) int {
 		fmt.Fprintln(os.Stderr, "ERROR: --investigate-to must not be before --investigate-from")
 		return audit.ExitFatal
 	}
-	if (*investigateFrom != "" || *investigateTo != "") && len(logs) == 0 && len(errorLogs) == 0 && len(procTelemetry) == 0 {
-		fmt.Fprintln(os.Stderr, "ERROR: --investigate-from/--investigate-to require --access-log, --error-log, and/or --process-telemetry")
+	if (*investigateFrom != "" || *investigateTo != "") && len(logs) == 0 && len(errorLogs) == 0 && len(procTelemetry) == 0 && *webroot == "" {
+		fmt.Fprintln(os.Stderr, "ERROR: --investigate-from/--investigate-to require --access-log, --error-log, --process-telemetry, and/or --webroot")
 		return audit.ExitFatal
 	}
 	if len(phpInis) > 32 {
@@ -420,12 +420,21 @@ func runScan(args []string) int {
 			r.AddCheck("historical_process_telemetry", status, fmt.Sprintf("Requested %d process telemetry file(s); suspicious child leads require analyst validation; command lines redacted", len(procTelemetry)))
 		}
 
+		con.Phase("Webroot filesystem investigation")
+		var allWebrootLeads []audit.WebrootLead
+		assessing := len(logs) > 0 || len(errorLogs) > 0 || len(procTelemetry) > 0 || *webroot != ""
+		if assessing && *webroot != "" {
+			from, to, _ := audit.ResolveInvestigationWindow(audit.InvestigationOptions{From: invFrom, To: invTo}, r.GeneratedUTC)
+			allWebrootLeads = audit.ScanWebrootInvestigation(r, *webroot, from, to)
+		}
+
 		audit.FinalizeInvestigation(r, audit.InvestigationOptions{
-			From:                invFrom,
-			To:                  invTo,
-			Assessing:           len(logs) > 0 || len(errorLogs) > 0 || len(procTelemetry) > 0,
-			HasProcessTelemetry: len(procTelemetry) > 0,
-		}, allAccessEvents, allErrorEvents, allProcessLeads)
+			From:                    invFrom,
+			To:                      invTo,
+			Assessing:               assessing,
+			HasProcessTelemetry:     len(procTelemetry) > 0,
+			HasWebrootInvestigation: *webroot != "" && assessing,
+		}, allAccessEvents, allErrorEvents, allProcessLeads, allWebrootLeads)
 	}
 
 	if !checkTimeout() {

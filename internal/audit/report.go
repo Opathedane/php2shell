@@ -137,7 +137,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 	b.WriteString(`<article class="card"><h2>Vulnerability / patch exposure</h2><p class="value">` + h(vulnLabel) + `</p><p class="detail">Upstream thresholds (21 Oct 2026): 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35. Vendor backports require separate verification. Independent of investigation statuses.</p></article>`)
 	b.WriteString(`<article class="card"><h2>Active web runtime</h2><p class="value">` + h(rtLabel) + `</p><p class="detail">` + h(rtDetail) + `</p></article>`)
 	b.WriteString(`<article class="card"><h2>Exploitation attempts</h2><p class="value">` + h(attemptLabel) + `</p><p class="detail">Suspected attempt leads need analyst review. A single memory error, crash, or large POST is not successful exploitation.</p></article>`)
-	b.WriteString(`<article class="card"><h2>Possible compromise</h2><p class="value">` + h(possibleLabel) + `</p><p class="detail">Independent of attempt status. Offline process/EDR telemetry is required for assessment; never auto-confirmed.</p></article>`)
+	b.WriteString(`<article class="card"><h2>Possible compromise</h2><p class="value">` + h(possibleLabel) + `</p><p class="detail">` + h(humanPossibleCompromiseDetail(r)) + `</p></article>`)
 	b.WriteString(`<article class="card"><h2>Investigation coverage</h2><p class="value">` + h(invCovLabel) + `</p><p class="detail">First/last log timestamps do not prove continuous coverage. Incomplete evidence is not the same as no matches.</p></article>`)
 	b.WriteString(`<article class="card"><h2>Signed IOC rollup</h2><p class="value">` + h(compLabel) + `</p><p class="detail">Legacy signed-pack matches only; not a host clearance.</p></article>`)
 	b.WriteString(`</section>`)
@@ -340,6 +340,23 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 			}
 			b.WriteString(`</tbody></table>`)
 		}
+		if len(r.WebrootInvestigation) > 0 {
+			b.WriteString(`<p><strong>Webroot filesystem investigation</strong></p>`)
+			b.WriteString(`<p>Authorized directory metadata only — <strong>weak / unconfirmed</strong> evidence, weaker than EDR process leads. ` +
+				`File contents are never read or executed. Modification time is <em>not</em> file creation or execution evidence. ` +
+				`Leads are investigative heuristics, not proof of a webshell or successful exploitation. ` +
+				`Temporal correlation requires OS birth timestamps; mtime proximity alone never elevates confidence.</p>`)
+			b.WriteString(`<table><thead><tr><th>Root</th><th>Status</th><th>Entries</th><th>PHP-like</th><th>Leads</th><th>Birth avail/unavail</th></tr></thead><tbody>`)
+			for _, c := range r.WebrootInvestigation {
+				b.WriteString(`<tr><td>` + h(c.Root) + `</td><td>` + h(c.Status) + `</td><td>` + fmt.Sprint(c.EntriesSeen) +
+					`</td><td>` + fmt.Sprint(c.PHPLikeSeen) + `</td><td>` + fmt.Sprint(c.Leads) +
+					`</td><td>` + fmt.Sprint(c.BirthAvailable) + `/` + fmt.Sprint(c.BirthUnavailable) + `</td></tr>`)
+				if c.Detail != "" {
+					b.WriteString(`<tr><td colspan="6"><small>` + h(c.Detail) + `</small></td></tr>`)
+				}
+			}
+			b.WriteString(`</tbody></table>`)
+		}
 	})
 
 	writeDetails("Scan coverage and limitations", func() {
@@ -509,6 +526,12 @@ func ScanIncomplete(r *Report) bool {
 	for _, pt := range r.ProcessTelemetry {
 		switch strings.ToUpper(pt.Status) {
 		case "INCOMPLETE", "UNAVAILABLE", "UNSUPPORTED_FORMAT":
+			return true
+		}
+	}
+	for _, w := range r.WebrootInvestigation {
+		switch strings.ToUpper(w.Status) {
+		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED":
 			return true
 		}
 	}

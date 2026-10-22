@@ -40,7 +40,7 @@ Every `php2shell scan` writes a UTF-8 CSV (with BOM for Excel) beside the HTML r
 | `config_primary_ini_path` | Path of a correlated primary `php.ini` when known (path only; never secrets) |
 | `config_ini_classes` | Semicolon-separated classes (e.g. `primary_candidate;sample_or_template`) |
 | `exploitation_attempt_status` | Independent IR axis (e.g. `NOT_ASSESSED`, `NO_MATCHES_IN_SCOPE`, `SUSPECTED_ATTEMPTS_REVIEW`) |
-| `possible_compromise_status` | Independent IR axis: `NOT_ASSESSED` without usable `--process-telemetry`; else `NO_MATCHES_IN_SCOPE` or `POSSIBLE_COMPROMISE_REVIEW` (never auto-confirmed) |
+| `possible_compromise_status` | Independent IR axis: `NOT_ASSESSED` without usable `--process-telemetry` and/or `--webroot` investigation; else `NO_MATCHES_IN_SCOPE` or `POSSIBLE_COMPROMISE_REVIEW` (never auto-confirmed). Webroot-only review is low-confidence metadata (see `limitations_summary`) |
 | `investigation_coverage` | Completeness of investigation inputs (`NOT_REQUESTED`, `ASSESSED_SCOPE_LIMITED`, `INCOMPLETE`, …) |
 | `investigation_window_from_utc` | Effective investigation window start (RFC3339 UTC) |
 | `investigation_window_to_utc` | Effective investigation window end (RFC3339 UTC) |

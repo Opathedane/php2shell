@@ -175,6 +175,9 @@ func overallPriority(r *Report) string {
 		return "Critical — indicator matches require investigation"
 	}
 	if r.PossibleCompromiseStatus == "POSSIBLE_COMPROMISE_REVIEW" {
+		if possibleCompromiseIsWebrootMetadataOnly(r) {
+			return "Elevated — low-confidence webroot metadata leads require review (not EDR-strength evidence)"
+		}
 		return "High — possible compromise leads require review"
 	}
 	if r.ExploitationAttemptStatus == "SUSPECTED_ATTEMPTS_REVIEW" {
@@ -568,12 +571,12 @@ func BuildFocusedNextSteps(r *Report) []string {
 	}
 	switch r.PossibleCompromiseStatus {
 	case "POSSIBLE_COMPROMISE_REVIEW":
-		add("Review possible compromise leads (web/PHP worker child processes) against host baselines. Normal applications can launch shells/interpreters; validate before concluding. Never treat as confirmed compromise.")
+		add("Review possible compromise leads (process relationships and/or webroot filesystem heuristics) against host baselines. Normal apps may launch shells; CMS uploads can look suspicious; validate before concluding. Never treat as confirmed compromise or webshell.")
 	case "NO_MATCHES_IN_SCOPE":
-		add("No suspicious process relationships matched in assessed telemetry — not a clearance. Expand retention and correlate with access/error evidence.")
+		add("No process or webroot compromise patterns matched in assessed scope — not a clearance. Expand retention and correlate with access/error evidence.")
 	case "NOT_ASSESSED":
 		if r.InvestigationCoverage != "NOT_REQUESTED" {
-			add("Possible host compromise was not assessed (offline process/EDR telemetry missing or unusable). Do not equate patched or no attempt matches with an uncompromised host.")
+			add("Possible host compromise was not assessed (offline process/EDR telemetry and/or usable webroot investigation missing). Do not equate patched or no attempt matches with an uncompromised host.")
 		}
 	}
 	switch r.CompromiseStatus {
@@ -583,7 +586,7 @@ func BuildFocusedNextSteps(r *Report) []string {
 		add("Treat the host as not cleared for compromise: expand log/EDR review for the pre-patch window. Absence of IOC matches is not proof of safety.")
 	default:
 		if r.InvestigationCoverage == "NOT_REQUESTED" {
-			add("Compromise investigation was not requested. Use --access-log / --error-log / --process-telemetry for evidence-based review; missing inputs leave statuses NOT_ASSESSED, not negative.")
+			add("Compromise investigation was not requested. Use --access-log / --error-log / --process-telemetry / --webroot for evidence-based review; missing inputs leave statuses NOT_ASSESSED, not negative.")
 		}
 	}
 	if ScanIncomplete(r) {
