@@ -402,10 +402,17 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 			"Authorized webroot metadata reviewed with no upload/unusual-extension leads in scope; not a host clearance (mtime≠creation; truncated walks possible)")
 	}
 
-	// Possible compromise: process telemetry and/or webroot investigation.
+	// Possible compromise: process telemetry and/or webroot timestamp evidence.
+	// Path-context webroot leads alone must not flip POSSIBLE_COMPROMISE_REVIEW.
 	hasCompromiseInputs := hasProcInputs || hasWebrootInputs
 	usableCompromise := usableProc + usableWeb
-	compromiseLeads := len(inScopeProc) + len(inScopeWeb)
+	webrootTemporal := 0
+	for _, lead := range inScopeWeb {
+		if webrootLeadIsTimestampEvidence(lead.Kind) {
+			webrootTemporal++
+		}
+	}
+	compromiseLeads := len(inScopeProc) + webrootTemporal
 	if !hasCompromiseInputs {
 		r.PossibleCompromiseStatus = "NOT_ASSESSED"
 	} else if usableCompromise == 0 {
@@ -413,9 +420,10 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		r.AddWarning("Possible-compromise inputs were requested but none were usable; status remains NOT_ASSESSED (incomplete, not negative)")
 	} else if compromiseLeads > 0 {
 		r.PossibleCompromiseStatus = "POSSIBLE_COMPROMISE_REVIEW"
-		if len(inScopeProc) == 0 && len(inScopeWeb) > 0 {
+		if len(inScopeProc) == 0 && webrootTemporal > 0 {
 			r.AddWarning("POSSIBLE_COMPROMISE_REVIEW rests on low-confidence webroot metadata only (not EDR-strength evidence). " +
-				"This is an investigative lead, not confirmed webshell activity or successful exploitation.")
+				"This is an investigative lead, not confirmed webshell activity or successful exploitation. " +
+				"Path location context alone is not treated as recent compromise evidence.")
 			r.AddAction("Treat webroot-only POSSIBLE_COMPROMISE_REVIEW as a weak investigative lead; validate against deployment baselines before escalating as compromise")
 		}
 	} else {

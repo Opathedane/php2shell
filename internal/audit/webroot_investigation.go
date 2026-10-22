@@ -12,9 +12,11 @@ import (
 // investigation leads. It never opens file contents, never executes PHP, and
 // never treats modification time as proof of file creation.
 //
-// All leads are weak metadata heuristics (confidence=unconfirmed), weaker than
-// EDR process-relationship evidence. Upload/unusual path leads require at least
-// one timestamp inside the investigation window to limit long-lived CMS FPs.
+// Location context (PHP in upload paths / unusual extensions) is distinct from
+// timestamp evidence (birth/mtime in the investigation window). Path context is
+// only emitted when at least one timestamp corroborates window relevance.
+// Birth-in-window remains detectable even when mtime is old (preserved or
+// altered modification times). All leads are unconfirmed / weaker than EDR.
 func ScanWebrootInvestigation(r *Report, root string, from, to time.Time) (leads []WebrootLead) {
 	item := WebrootInvestigationCoverage{Root: root, Status: "NOT_ASSESSED"}
 	fi, err := os.Lstat(root)
@@ -71,76 +73,18 @@ func ScanWebrootInvestigation(r *Report, root string, from, to time.Time) (leads
 			item.BirthUnavailable++
 		}
 
-		upload := pathLooksLikeUploadDir(rel)
-		unusual := isUnusualPHPExtension(name)
-		mtimeIn := !mtime.IsZero() && inInvestigationWindow(mtime, from, to)
-		birthIn := birthOK && inInvestigationWindow(birth, from, to)
-		// Path/extension heuristics are gated on mtime (or unknown timestamps), not
-		// birth. os.Chtimes cannot rewrite creation time on Windows/macOS; using
-		// birth here would FP every freshly created fixture whose mtime was backdated,
-		// and would treat birth as if it were modification evidence.
-		tsUnknown := mtime.IsZero() && !birthOK
-		pathHeuristicInScope := mtimeIn || tsUnknown
-
-		add := func(kind, detail string) {
+		for _, lead := range webrootLeadsForFile(webrootFileMeta{
+			Path: path, RelPath: rel, Name: name,
+			Mtime: mtime, Birth: birth, BirthOK: birthOK,
+		}, from, to) {
 			if len(out) >= webrootInvestMaxLeads {
-				return
+				break
 			}
-			key := kind + "|" + rel
-			if seenKeys[key] {
-				return
+			if seenKeys[lead.DedupKey] {
+				continue
 			}
-			seenKeys[key] = true
-			out = append(out, WebrootLead{
-				Path: path, RelPath: rel, Kind: kind,
-				Confidence: "unconfirmed", // metadata-only: never EDR-strength
-				MtimeUTC: mtime, BirthUTC: birth, BirthAvailable: birthOK,
-				Detail: detail, DedupKey: key,
-			})
-		}
-
-		weakPrefix := "WEAK METADATA-ONLY LEAD (unconfirmed; weaker than EDR process evidence). "
-
-		if upload && pathHeuristicInScope {
-			detail := weakPrefix + fmt.Sprintf(
-				"PHP-related file %q under path segment consistent with upload/writable directories (%s). "+
-					"Not proof of a webshell or successful exploitation — ordinary CMS media/plugins often live here. "+
-					"mtime=%s; birth=%s. Modification time is never treated as file creation.",
-				truncateRunes(name, 80), rel,
-				formatTSOrDash(mtime), formatBirthOrUnavailable(birth, birthOK),
-			)
-			add("webroot_php_in_upload_dir", detail)
-		}
-		if unusual && pathHeuristicInScope {
-			detail := weakPrefix + fmt.Sprintf(
-				"Unusual PHP-related extension or double-extension name %q at %s. "+
-					"Not proof the file is executable PHP or a webshell. mtime=%s; birth=%s. "+
-					"Modification time is never treated as file creation.",
-				truncateRunes(name, 80), rel,
-				formatTSOrDash(mtime), formatBirthOrUnavailable(birth, birthOK),
-			)
-			add("webroot_unusual_extension", detail)
-		}
-		// Birth-in-window is independent creation evidence, but only alongside an
-		// in-scope path heuristic (mtime in window / unknown). A stale mtime with a
-		// "new" birth alone is common when tests backdate via Chtimes on Windows.
-		if birthIn && (upload || unusual) && pathHeuristicInScope {
-			detail := weakPrefix + fmt.Sprintf(
-				"Filesystem birth/creation timestamp %s falls inside the investigation window for %s. "+
-					"OS-reported birth when available is still not proof of attacker write (deploy tools may set it; platforms may lack birth). "+
-					"mtime=%s is not creation. Not a webshell confirmation.",
-				birth.Format(time.RFC3339), rel, formatTSOrDash(mtime),
-			)
-			add("webroot_birth_in_window", detail)
-		}
-		if mtimeIn && (upload || unusual) && !birthIn {
-			detail := weakPrefix + fmt.Sprintf(
-				"Modification time %s falls inside the investigation window for %s. "+
-					"CRITICAL: mtime is not file creation and must not be treated as execution time "+
-					"(timestamps can be altered or preserved by deploy/copy). Birth unavailable=%v. Not a webshell confirmation.",
-				mtime.Format(time.RFC3339), rel, !birthOK,
-			)
-			add("webroot_mtime_in_window", detail)
+			seenKeys[lead.DedupKey] = true
+			out = append(out, lead)
 		}
 		return nil
 	})
@@ -165,12 +109,99 @@ func ScanWebrootInvestigation(r *Report, root string, from, to time.Time) (leads
 		item.Detail = fmt.Sprintf(
 			"Reviewed %d entries (%d PHP-like) under authorized webroot; depth≤%d; symlinks skipped; file contents never read. "+
 				"Leads=%d (all unconfirmed metadata heuristics; weaker than EDR process evidence). "+
+				"Path location context is separate from birth/mtime timestamp evidence. "+
 				"Birth timestamps available=%d unavailable=%d. mtime is never treated as creation. Not a webshell scanner.",
 			seen, phpLike, webrootInvestMaxDepth, len(out), item.BirthAvailable, item.BirthUnavailable,
 		)
 	}
 	r.WebrootInvestigation = append(r.WebrootInvestigation, item)
 	return out
+}
+
+// webrootFileMeta is the metadata inputs for deterministic lead evaluation.
+type webrootFileMeta struct {
+	Path, RelPath, Name string
+	Mtime               time.Time
+	Birth               time.Time
+	BirthOK             bool
+}
+
+// webrootLeadsForFile evaluates location context vs timestamp evidence.
+// Historical CMS files (both timestamps outside the window) produce no leads.
+// In-window birth is reported even when mtime is old.
+func webrootLeadsForFile(meta webrootFileMeta, from, to time.Time) []WebrootLead {
+	upload := pathLooksLikeUploadDir(meta.RelPath)
+	unusual := isUnusualPHPExtension(meta.Name)
+	if !upload && !unusual {
+		return nil
+	}
+
+	mtime := meta.Mtime.UTC()
+	birth := meta.Birth.UTC()
+	mtimeIn := !mtime.IsZero() && inInvestigationWindow(mtime, from, to)
+	birthIn := meta.BirthOK && !birth.IsZero() && inInvestigationWindow(birth, from, to)
+	temporalCorroboration := mtimeIn || birthIn
+
+	var out []WebrootLead
+	add := func(kind, detail string) {
+		key := kind + "|" + meta.RelPath
+		out = append(out, WebrootLead{
+			Path: meta.Path, RelPath: meta.RelPath, Kind: kind,
+			Confidence: "unconfirmed",
+			MtimeUTC: mtime, BirthUTC: birth, BirthAvailable: meta.BirthOK,
+			Detail: detail, DedupKey: key,
+		})
+	}
+
+	weakPrefix := "WEAK METADATA-ONLY LEAD (unconfirmed; weaker than EDR process evidence). "
+
+	// Location context only accompanies timestamp corroboration — never alone as
+	// evidence of recent compromise for long-lived CMS trees.
+	if temporalCorroboration && upload {
+		add("webroot_php_in_upload_dir", weakPrefix+fmt.Sprintf(
+			"LOCATION CONTEXT (not timestamp proof of recent compromise by itself): PHP-related file %q under upload/writable path %s. "+
+				"Ordinary CMS media/plugins often live here. mtime=%s; birth=%s. Modification time is never treated as file creation.",
+			truncateRunes(meta.Name, 80), meta.RelPath,
+			formatTSOrDash(mtime), formatBirthOrUnavailable(birth, meta.BirthOK),
+		))
+	}
+	if temporalCorroboration && unusual {
+		add("webroot_unusual_extension", weakPrefix+fmt.Sprintf(
+			"LOCATION CONTEXT (not timestamp proof of recent compromise by itself): unusual PHP-related extension or double-extension name %q at %s. "+
+				"Not proof the file is executable PHP or a webshell. mtime=%s; birth=%s. Modification time is never treated as file creation.",
+			truncateRunes(meta.Name, 80), meta.RelPath,
+			formatTSOrDash(mtime), formatBirthOrUnavailable(birth, meta.BirthOK),
+		))
+	}
+
+	// Timestamp evidence: birth in window is independent of mtime (preserved/altered mtime cases).
+	if birthIn {
+		add("webroot_birth_in_window", weakPrefix+fmt.Sprintf(
+			"TIMESTAMP EVIDENCE: filesystem birth/creation timestamp %s falls inside the investigation window for %s. "+
+				"OS-reported birth is still not proof of attacker write. mtime=%s is not creation or execution. Not a webshell confirmation.",
+			birth.Format(time.RFC3339), meta.RelPath, formatTSOrDash(mtime),
+		))
+	}
+	if mtimeIn && !birthIn {
+		add("webroot_mtime_in_window", weakPrefix+fmt.Sprintf(
+			"TIMESTAMP EVIDENCE: modification time %s falls inside the investigation window for %s. "+
+				"CRITICAL: mtime is not file creation and must not be treated as execution time "+
+				"(timestamps can be altered or preserved by deploy/copy). Birth unavailable=%v. Not a webshell confirmation.",
+			mtime.Format(time.RFC3339), meta.RelPath, !meta.BirthOK,
+		))
+	}
+	return out
+}
+
+// webrootLeadIsTimestampEvidence reports whether a lead is timestamp-based
+// (drives possible-compromise review). Path-context kinds alone must not.
+func webrootLeadIsTimestampEvidence(kind string) bool {
+	switch kind {
+	case "webroot_birth_in_window", "webroot_mtime_in_window":
+		return true
+	default:
+		return false
+	}
 }
 
 func formatTSOrDash(t time.Time) string {

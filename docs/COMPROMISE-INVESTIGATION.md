@@ -73,16 +73,16 @@ Writers emit **`php2shell-fleet-csv/v3`** with independent IR columns (unchanged
 
 ## Webroot filesystem investigation
 
-Metadata-only leads from an authorized `--webroot` (not a webshell scanner). **All webroot leads are `unconfirmed` weak evidence** — weaker than EDR process-relationship leads. Upload/unusual path heuristics are gated on **mtime** inside the investigation window (or unknown timestamps) — not birth — so long-lived CMS files with old mtime do not become leads when OS creation time cannot be rewritten (Windows/macOS). Non-executable outer double extensions (e.g. `.php.txt`, `.php.bak`) are not treated as unusual PHP leads.
+Metadata-only leads from an authorized `--webroot` (not a webshell scanner). **All webroot leads are `unconfirmed` weak evidence** — weaker than EDR process-relationship leads. Non-executable outer double extensions (e.g. `.php.txt`, `.php.bak`) are not treated as unusual PHP leads.
 
-| Kind | Meaning |
-| --- | --- |
-| `webroot_php_in_upload_dir` | PHP-like name under upload/writable path segments (mtime-window-gated) |
-| `webroot_unusual_extension` | `.phtml` / `.phar` / executable-looking double-extension (e.g. `.php.jpg`) |
-| `webroot_birth_in_window` | OS birth/creation in window for upload/unusual files that also pass the mtime path gate |
-| `webroot_mtime_in_window` | Modification time in window for upload/unusual files only |
+| Kind | Role | Meaning |
+| --- | --- | --- |
+| `webroot_php_in_upload_dir` | Location context | PHP-like name under upload/writable paths — emitted only with timestamp corroboration |
+| `webroot_unusual_extension` | Location context | `.phtml` / `.phar` / executable-looking double-extension (e.g. `.php.jpg`) |
+| `webroot_birth_in_window` | Timestamp evidence | OS birth/creation in window (even when mtime is old / preserved) |
+| `webroot_mtime_in_window` | Timestamp evidence | Modification time in window when birth is unavailable or outside |
 
-**Critical:** filesystem **mtime is never treated as file creation or execution**. Birth/creation time is used only when the OS exposes it (often unavailable on Linux `stat`). Deploy tools can preserve or alter timestamps. Ordinary application trees with only normal `.php` files do **not** become compromise leads solely because mtime falls in the window.
+**Critical:** filesystem **mtime is never treated as file creation or execution**. Birth/creation time is used only when the OS exposes it (often unavailable on Linux `stat`). `os.Chtimes` does **not** rewrite creation time on Windows/macOS. Historical CMS files with **both** timestamps outside the investigation window produce **no** leads. Path location context alone never flips `POSSIBLE_COMPROMISE_REVIEW` — only timestamp evidence kinds (plus process/EDR) do.
 
 **Temporal correlation** (`correlated_webroot_and_*`) requires an available **birth** timestamp within ±15m of independent access/error/process evidence. **mtime proximity alone never creates correlation and never elevates confidence.** Proximity ≠ causality.
 
