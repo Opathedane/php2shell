@@ -81,6 +81,9 @@ func EncodeHTML(r *Report) []byte {
 	vulnLabel := humanVulnerability(r.VulnerabilityStatus)
 	rtLabel, rtDetail := humanRuntime(r)
 	compLabel := humanCompromise(r.CompromiseStatus)
+	attemptLabel := humanExploitationAttempt(r.ExploitationAttemptStatus)
+	possibleLabel := humanPossibleCompromise(r.PossibleCompromiseStatus)
+	invCovLabel := humanInvestigationCoverage(r.InvestigationCoverage)
 	groups := GroupInstallations(r)
 	next := r.Summary.NextSteps
 	if len(next) == 0 {
@@ -108,7 +111,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 	b.WriteString(`<p class="meta"><strong>Host:</strong> ` + h(r.Hostname) + ` &nbsp;·&nbsp; <strong>Assessed (UTC):</strong> ` + h(r.GeneratedUTC.Format("2006-01-02 15:04:05")) + ` &nbsp;·&nbsp; <strong>Scanner:</strong> ` + h(r.ToolVersion) + `</p>`)
 	b.WriteString(`<p class="priority">Overall priority: ` + h(overallPriority(r)) + `</p></header>`)
 
-	b.WriteString(`<div class="notice"><strong>This report is not a clearance.</strong> It does not prove that a host is fully patched, that the correct PHP runtime is serving HTTP, or that the server is uncompromised. Missing findings are not proof of safety.</div>`)
+	b.WriteString(`<div class="notice"><strong>This report is not a clearance.</strong> It does not prove that a host is fully patched, that the correct PHP runtime is serving HTTP, or that the server is uncompromised. Missing findings are not proof of safety. Patched does not mean uncompromised. Independent statuses cover vulnerability exposure, exploitation attempts, possible compromise, and investigation coverage.</div>`)
 
 	b.WriteString(`<section class="cards" aria-label="Executive summary">`)
 	b.WriteString(`<article class="card"><h2>PHP detected</h2><p class="value">` + h(phpLabel) + `</p><p class="detail">`)
@@ -131,10 +134,21 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		b.WriteString("Confirmed host evidence versions: " + h(strings.Join(versions, ", ")))
 	}
 	b.WriteString(`</p></article>`)
-	b.WriteString(`<article class="card"><h2>Vulnerability assessment</h2><p class="value">` + h(vulnLabel) + `</p><p class="detail">Upstream thresholds (21 Oct 2026): 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35. Vendor backports require separate verification.</p></article>`)
+	b.WriteString(`<article class="card"><h2>Vulnerability / patch exposure</h2><p class="value">` + h(vulnLabel) + `</p><p class="detail">Upstream thresholds (21 Oct 2026): 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35. Vendor backports require separate verification. Independent of investigation statuses.</p></article>`)
 	b.WriteString(`<article class="card"><h2>Active web runtime</h2><p class="value">` + h(rtLabel) + `</p><p class="detail">` + h(rtDetail) + `</p></article>`)
-	b.WriteString(`<article class="card"><h2>Compromise assessment</h2><p class="value">` + h(compLabel) + `</p><p class="detail">IOC matches require analyst review; no matches within scope do not clear the host.</p></article>`)
+	b.WriteString(`<article class="card"><h2>Exploitation attempts</h2><p class="value">` + h(attemptLabel) + `</p><p class="detail">Suspected attempt leads need analyst review. A single memory error, crash, or large POST is not successful exploitation.</p></article>`)
+	b.WriteString(`<article class="card"><h2>Possible compromise</h2><p class="value">` + h(possibleLabel) + `</p><p class="detail">Independent of attempt status. Offline process/EDR telemetry is required for assessment; never auto-confirmed.</p></article>`)
+	b.WriteString(`<article class="card"><h2>Investigation coverage</h2><p class="value">` + h(invCovLabel) + `</p><p class="detail">First/last log timestamps do not prove continuous coverage. Incomplete evidence is not the same as no matches.</p></article>`)
+	b.WriteString(`<article class="card"><h2>Signed IOC rollup</h2><p class="value">` + h(compLabel) + `</p><p class="detail">Legacy signed-pack matches only; not a host clearance.</p></article>`)
 	b.WriteString(`</section>`)
+
+	if r.InvestigationWindow != nil {
+		b.WriteString(`<div class="notice"><strong>Investigation window (UTC):</strong> ` + h(r.InvestigationWindow.FromUTC) + ` → ` + h(r.InvestigationWindow.ToUTC))
+		if r.InvestigationWindow.SuggestedFromUTC != "" {
+			b.WriteString(` &nbsp;·&nbsp; Suggested floor: ` + h(r.InvestigationWindow.SuggestedFromUTC))
+		}
+		b.WriteString(`<br>` + h(r.InvestigationWindow.Note) + `</div>`)
+	}
 
 	b.WriteString(`<h2 class="section">Recommended next steps</h2><ol class="actions">`)
 	for _, step := range next {
@@ -272,14 +286,30 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		}
 	})
 
-	writeDetails("Compromise indicators and investigation coverage", func() {
+	writeDetails("Compromise investigation (attempts, coverage, signed IOCs)", func() {
+		b.WriteString(`<p><strong>Exploitation attempts:</strong> ` + h(r.ExploitationAttemptStatus) +
+			` &nbsp;·&nbsp; <strong>Possible compromise:</strong> ` + h(r.PossibleCompromiseStatus) +
+			` &nbsp;·&nbsp; <strong>Investigation coverage:</strong> ` + h(r.InvestigationCoverage) + `</p>`)
+		b.WriteString(`<p>Statuses are independent. This tool never claims a host is clean or confirmed compromised.</p>`)
+		if len(r.InvestigationFindings) > 0 {
+			b.WriteString(`<p><strong>Investigation leads</strong> (sanitized; request/query secrets not retained)</p>`)
+			b.WriteString(`<table><thead><tr><th>Kind</th><th>Class</th><th>Confidence</th><th>Time (UTC)</th><th>Detail</th></tr></thead><tbody>`)
+			for _, f := range r.InvestigationFindings {
+				b.WriteString(`<tr><td>` + h(f.Kind) + `</td><td>` + h(f.Class) + `</td><td>` + h(f.Confidence) +
+					`</td><td>` + h(f.TimestampUTC) + `</td><td>` + h(f.Location) + `: ` + h(f.Detail) +
+					`<br><small>` + h(f.Source) + `</small></td></tr>`)
+			}
+			b.WriteString(`</tbody></table>`)
+		} else if r.InvestigationCoverage != "NOT_REQUESTED" {
+			b.WriteString(`<p>No investigation leads in the assessed scope (not a clearance).</p>`)
+		}
 		if r.RuleSequence > 0 {
 			b.WriteString(`<p>Signed indicator bundle sequence ` + fmt.Sprint(r.RuleSequence) + ` with ` + fmt.Sprint(r.RuleCount) + ` indicators loaded. Matches require manual review.</p>`)
 		} else {
-			b.WriteString(`<p>No trusted signed indicator bundle was loaded for this scan. Compromise status cannot be cleared by this tool alone.</p>`)
+			b.WriteString(`<p>No trusted signed indicator bundle was loaded for this scan. Signed-IOC rollup cannot clear the host.</p>`)
 		}
 		if len(r.Findings) == 0 {
-			b.WriteString(`<p>No indicator matches were recorded in the assessed scope.</p>`)
+			b.WriteString(`<p>No signed-IOC matches were recorded in the assessed scope.</p>`)
 		} else {
 			b.WriteString(`<table><thead><tr><th>Rule</th><th>Severity</th><th>Confidence</th><th>Evidence</th></tr></thead><tbody>`)
 			for _, f := range r.Findings {
@@ -288,9 +318,16 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 			b.WriteString(`</tbody></table>`)
 		}
 		if len(r.Logs) > 0 {
-			b.WriteString(`<p><strong>Access log coverage</strong></p><table><thead><tr><th>File</th><th>Status</th><th>Lines</th><th>Parsed</th></tr></thead><tbody>`)
+			b.WriteString(`<p><strong>Access log coverage</strong></p><table><thead><tr><th>File</th><th>Status</th><th>Lines</th><th>Parsed</th><th>Anomalies</th></tr></thead><tbody>`)
 			for _, c := range r.Logs {
-				b.WriteString(`<tr><td>` + h(c.File) + `</td><td>` + h(c.Status) + `</td><td>` + fmt.Sprint(c.Lines) + `</td><td>` + fmt.Sprint(c.ParsedRequests) + `</td></tr>`)
+				b.WriteString(`<tr><td>` + h(c.File) + `</td><td>` + h(c.Status) + `</td><td>` + fmt.Sprint(c.Lines) + `</td><td>` + fmt.Sprint(c.ParsedRequests) + `</td><td>` + fmt.Sprint(c.AnomalyCount) + `</td></tr>`)
+			}
+			b.WriteString(`</tbody></table>`)
+		}
+		if len(r.ErrorLogs) > 0 {
+			b.WriteString(`<p><strong>Error log coverage</strong></p><table><thead><tr><th>File</th><th>Status</th><th>Lines</th><th>Parsed</th><th>Patterns</th></tr></thead><tbody>`)
+			for _, c := range r.ErrorLogs {
+				b.WriteString(`<tr><td>` + h(c.File) + `</td><td>` + h(c.Status) + `</td><td>` + fmt.Sprint(c.Lines) + `</td><td>` + fmt.Sprint(c.ParsedEvents) + `</td><td>` + fmt.Sprint(c.MatchedPatterns) + `</td></tr>`)
 			}
 			b.WriteString(`</tbody></table>`)
 		}
@@ -453,6 +490,16 @@ func ScanIncomplete(r *Report) bool {
 		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED":
 			return true
 		}
+	}
+	for _, log := range r.ErrorLogs {
+		switch strings.ToUpper(log.Status) {
+		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED":
+			return true
+		}
+	}
+	switch strings.ToUpper(r.InvestigationCoverage) {
+	case "INCOMPLETE":
+		return true
 	}
 	return false
 }

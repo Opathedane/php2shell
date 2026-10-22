@@ -554,13 +554,29 @@ func BuildFocusedNextSteps(r *Report) []string {
 	} else if CountPHPIniSkips(r) > 0 {
 		add("Re-run with read access to skipped PHP configuration candidates (see php_ini_skip evidence), or pass --php-ini / --config-root / --deep-root for known custom paths. Skipped files were not inspected and secrets were not reported.")
 	}
+	switch r.ExploitationAttemptStatus {
+	case "SUSPECTED_ATTEMPTS_REVIEW":
+		add("Review suspected exploitation-attempt leads (error-log patterns, long request-target anomalies, temporal correlations). A single memory error, crash, or long request-target is not proof of successful exploitation; correlation is not causality.")
+	case "NO_MATCHES_IN_SCOPE":
+		add("No exploitation-attempt patterns matched in the assessed log scope — not a clearance. Expand retention from at least 2026-10-17 and supply offline EDR/process telemetry when available.")
+	}
+	switch r.PossibleCompromiseStatus {
+	case "POSSIBLE_COMPROMISE_REVIEW":
+		add("Review possible compromise leads with process/EDR context. Normal applications can launch child processes; validate before concluding.")
+	case "NOT_ASSESSED":
+		if r.InvestigationCoverage != "NOT_REQUESTED" {
+			add("Possible host compromise was not assessed (offline process/EDR telemetry not supplied). Do not equate patched or no attempt matches with an uncompromised host.")
+		}
+	}
 	switch r.CompromiseStatus {
 	case "INDICATORS_MATCHED_REVIEW_REQUIRED":
 		add("Preserve matched files and logs, and escalate for incident response validation. Indicator matches are not automatic proof of successful exploitation.")
 	case "NO_MATCHES_SCOPE_LIMITED":
 		add("Treat the host as not cleared for compromise: expand log/EDR review for the pre-patch window. Absence of IOC matches is not proof of safety.")
 	default:
-		add("Compromise was not assessed with a validated PHP2Shell-specific indicator pack. Retain access/error logs and EDR telemetry if investigation is required.")
+		if r.InvestigationCoverage == "NOT_REQUESTED" {
+			add("Compromise investigation was not requested. Use --access-log / --error-log (and later process telemetry) for evidence-based review; missing inputs leave statuses NOT_ASSESSED, not negative.")
+		}
 	}
 	if ScanIncomplete(r) {
 		add("Re-run with adequate permissions for any incomplete coverage items (packages, configs, logs, or webroot) listed in the coverage section.")

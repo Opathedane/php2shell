@@ -45,7 +45,7 @@ func TestPHPIniAloneNeverConfirmsInstallVersionOrVuln(t *testing.T) {
 	if rows[0].ConfigCandidateCount == "0" || rows[0].ConfigDiscoveryStatus == "NONE" {
 		t.Fatalf("expected config discovery fields: %+v", rows[0])
 	}
-	if rows[0].SchemaVersion != FleetCSVSchemaV2 {
+	if rows[0].SchemaVersion != FleetCSVSchema {
 		t.Fatal(rows[0].SchemaVersion)
 	}
 	if rows[0].ActiveHTTPRuntimeStatus == "VERIFIED" {
@@ -199,7 +199,7 @@ func TestFleetCSVV2ConfigFieldsAndV1RollupCompat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), FleetCSVSchemaV2) {
+	if !strings.Contains(string(data), FleetCSVSchema) {
 		t.Fatal(string(data)[:200])
 	}
 	rows, err := ParseFleetCSV(data)
@@ -243,7 +243,7 @@ func TestFleetCSVV2ConfigFieldsAndV1RollupCompat(t *testing.T) {
 		t.Fatalf("%+v", sumRows)
 	}
 	for _, row := range sumRows {
-		if row.SchemaVersion != FleetCSVSchemaV2 {
+		if row.SchemaVersion != FleetCSVSchema {
 			t.Fatalf("rollup should normalize to v2: %+v", row)
 		}
 	}

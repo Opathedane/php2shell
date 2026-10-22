@@ -12,6 +12,7 @@ PHP2Shell writes a matching **HTML + CSV** report pair from one read-only scan. 
 - Compares observed versions to official upstream fix thresholds (21 Oct 2026 advisories)
 - Labels verified binary metadata vs path-inferred versions with explicit confidence
 - Optional `--deep-root` Deep Discovery for consultant-authorized custom directories (off by default; see [ADVANCED-USAGE](docs/ADVANCED-USAGE.md))
+- Development: evidence-based compromise investigation assist (`--error-log`, investigation window) — see [COMPROMISE-INVESTIGATION](docs/COMPROMISE-INVESTIGATION.md); not a clearance tool
 - Optional Ed25519-signed indicator packs for limited IOC triage (not bundled by default)
 - Never executes discovered PHP binaries, never uploads customer data, never opens a browser
 
@@ -120,6 +121,6 @@ HTML remains the human-readable single-server report; the consolidated CSV is th
 ## Documentation
 
 - [Release notes](docs/RELEASE-NOTES.md) · [Changelog](CHANGELOG.md)
-- [Consultant quick start](docs/INSTALL-FOR-CONSULTANTS.md) · [Advanced usage](docs/ADVANCED-USAGE.md)
+- [Consultant quick start](docs/INSTALL-FOR-CONSULTANTS.md) · [Advanced usage](docs/ADVANCED-USAGE.md) · [Compromise investigation](docs/COMPROMISE-INVESTIGATION.md)
 - [CSV schema](docs/CSV-SCHEMA.md) · [GitHub presentation](docs/GITHUB-PRESENTATION.md)
 - [Official patch guidance](docs/OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md) · [Release checklist](docs/RELEASE-CHECKLIST.md)

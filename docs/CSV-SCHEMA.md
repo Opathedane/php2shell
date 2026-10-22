@@ -2,14 +2,14 @@
 
 Every `php2shell scan` writes a UTF-8 CSV (with BOM for Excel) beside the HTML report. One **logical row per independently identified PHP installation**. Hosts with no comparable installation emit a single host-level row.
 
-**Current writer schema:** `php2shell-fleet-csv/v2`  
-**Readers / rollup:** accept `v1` and `v2` (v1 rows gain empty config columns when rolled up into v2 output).
+**Current writer schema:** `php2shell-fleet-csv/v3`  
+**Readers / rollup:** accept `v1`, `v2`, and `v3` (older rows gain empty investigation columns when rolled up into v3 output).
 
-## Columns (v2)
+## Columns (v3)
 
 | Column | Description |
 | --- | --- |
-| `schema_version` | `php2shell-fleet-csv/v2` (or `v1` on legacy inputs) |
+| `schema_version` | `php2shell-fleet-csv/v3` (or `v1`/`v2` on legacy inputs) |
 | `scan_id` | Stable id for this scan result (derived from host metadata + timestamp) |
 | `hostname` | Assessed host |
 | `os` | GOOS value (e.g. `windows`, `linux`) |
@@ -39,6 +39,13 @@ Every `php2shell scan` writes a UTF-8 CSV (with BOM for Excel) beside the HTML r
 | `config_correlated_to_install` | `YES` / `NO` — whether a candidate relates to **this** install row |
 | `config_primary_ini_path` | Path of a correlated primary `php.ini` when known (path only; never secrets) |
 | `config_ini_classes` | Semicolon-separated classes (e.g. `primary_candidate;sample_or_template`) |
+| `exploitation_attempt_status` | Independent IR axis (e.g. `NOT_ASSESSED`, `NO_MATCHES_IN_SCOPE`, `SUSPECTED_ATTEMPTS_REVIEW`) |
+| `possible_compromise_status` | Independent IR axis (`NOT_ASSESSED` until offline process/EDR telemetry is supplied) |
+| `investigation_coverage` | Completeness of investigation inputs (`NOT_REQUESTED`, `ASSESSED_SCOPE_LIMITED`, `INCOMPLETE`, …) |
+| `investigation_window_from_utc` | Effective investigation window start (RFC3339 UTC) |
+| `investigation_window_to_utc` | Effective investigation window end (RFC3339 UTC) |
+
+`compromise_status` remains the **legacy signed-IOC rollup** only. It is not a host clearance and is independent of exploitation-attempt / possible-compromise statuses.
 
 ### `config_discovery_status` values
 

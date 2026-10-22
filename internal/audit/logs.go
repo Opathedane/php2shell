@@ -8,15 +8,31 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Opathedane/php2shell/internal/rules"
 )
 
+// Request-target capture stays bounded for normal parsing; long-POST heuristics use
+// inspectLongPOSTTarget so oversized lines are still detected without retaining body text.
 var accessLine = regexp.MustCompile(`"(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|TRACE|CONNECT)\s+([^"\r\n]{0,1000})\s+HTTP/[0-9.]+"\s+([0-9]{3})`)
 var accessTime = regexp.MustCompile(`\[([0-9]{2}/[A-Za-z]{3}/[0-9]{4}:[0-9]{2}:[0-9]{2}:[0-9]{2}\s+[+-][0-9]{4})\]`)
 
-func ScanAccessLog(r *Report, path string) { ScanAccessLogWithIndicators(r, path, nil) }
+const srcAccessLongPOST = "Heuristic only: POST request-target (URI/stem+query) length in the access-log line. " +
+	"Combined/IIS W3C access logs do not establish HTTP request-body size; this is not a large-POST-body detector. Weak alone — not proof of exploitation"
+
+func ScanAccessLog(r *Report, path string) {
+	ScanAccessLogWithIndicators(r, path, nil)
+}
+
 func ScanAccessLogWithIndicators(r *Report, path string, indicators []rules.Indicator) {
+	_, _ = ScanAccessLogCollect(r, path, indicators)
+}
+
+// ScanAccessLogCollect summarizes an access log, applies signed IOC literals, and
+// optionally returns heuristic investigation events (long POST targets). Request
+// text and query strings are never retained in findings.
+func ScanAccessLogCollect(r *Report, path string, indicators []rules.Indicator) (anomalies []InvestigationEvent, _ error) {
 	item := LogCoverage{File: path, Status: "NOT_ASSESSED", Methods: map[string]int{}, StatusClasses: map[string]int{}}
 	b, err := ReadRegular(path, 32<<20)
 	if err != nil {
@@ -24,7 +40,7 @@ func ScanAccessLogWithIndicators(r *Report, path string, indicators []rules.Indi
 		item.Detail = "File inaccessible, nonregular, or over 32 MiB: " + err.Error()
 		r.Logs = append(r.Logs, item)
 		r.AddWarning("Access log not reviewed: " + path)
-		return
+		return nil, err
 	}
 	scanner := bufio.NewScanner(bytes.NewReader(b))
 	scanner.Buffer(make([]byte, 64*1024), 1<<20)
@@ -97,6 +113,30 @@ func ScanAccessLogWithIndicators(r *Report, path string, indicators []rules.Indi
 				}
 			}
 		}
+		// Long POST targets may exceed the normal request-target capture; probe raw line.
+		if inspectLongPOSTTarget(line) {
+			if t.IsZero() {
+				if m := accessTime.FindStringSubmatch(line); len(m) > 1 {
+					t, _ = time.Parse("02/Jan/2006:15:04:05 -0700", strings.TrimSpace(m[1]))
+				}
+			}
+			item.AnomalyCount++
+			anomalies = append(anomalies, InvestigationEvent{
+				Kind:       "access_long_post_target",
+				Class:      "heuristic",
+				Confidence: "unconfirmed",
+				Source:     srcAccessLongPOST,
+				Location:   path,
+				Time:       t,
+				Line:       item.Lines,
+				Detail: fmt.Sprintf(
+					"POST request-target (URI path/query as logged) length ≥ %d characters at access-log line %d "+
+						"(target text not retained). This measures request-target length only — not request-body length or total request size. "+
+						"Standard access-log formats do not expose body size here. Weak heuristic (confidence=unconfirmed); not proof of exploitation or compromise.",
+					longPOSTTargetRunes, item.Lines,
+				),
+			})
+		}
 		if !t.IsZero() {
 			if first.IsZero() || t.Before(first) {
 				first = t
@@ -111,10 +151,15 @@ func ScanAccessLogWithIndicators(r *Report, path string, indicators []rules.Indi
 		item.Detail = "Overlong or unreadable log line"
 	} else if len(indicators) == 0 {
 		item.Status = "SUMMARIZED_NO_IOCS"
-		item.Detail = "Request count/time coverage only; no approved indicators loaded"
+		item.Detail = "Request count/time coverage only; no approved indicators loaded. " +
+			"First/last timestamps do not prove continuous coverage across rotations or gaps."
 	} else {
 		item.Status = "RULES_APPLIED_COVERAGE_LIMITED"
-		item.Detail = "Matching rule literals only; no guarantee of detecting PHP2Shell activity"
+		item.Detail = "Matching rule literals only; no guarantee of detecting PHP2Shell activity. " +
+			"First/last timestamps do not prove continuous coverage across rotations or gaps."
+	}
+	if item.AnomalyCount > 0 {
+		item.Detail += fmt.Sprintf(" Heuristic long request-target anomalies: %d (URI length only; body size unknown; weak leads).", item.AnomalyCount)
 	}
 	if !first.IsZero() {
 		item.FirstTimestamp = first.UTC().Format(time.RFC3339)
@@ -123,4 +168,20 @@ func ScanAccessLogWithIndicators(r *Report, path string, indicators []rules.Indi
 		item.LastTimestamp = last.UTC().Format(time.RFC3339)
 	}
 	r.Logs = append(r.Logs, item)
+	return anomalies, nil
+}
+
+func inspectLongPOSTTarget(line string) bool {
+	const prefix = `"POST `
+	i := strings.Index(line, prefix)
+	if i < 0 {
+		return false
+	}
+	rest := line[i+len(prefix):]
+	end := strings.Index(rest, ` HTTP/`)
+	if end < 0 {
+		// Truncated or nonstandard line — count what is present without retaining it.
+		return utf8.RuneCountInString(rest) >= longPOSTTargetRunes
+	}
+	return utf8.RuneCountInString(rest[:end]) >= longPOSTTargetRunes
 }

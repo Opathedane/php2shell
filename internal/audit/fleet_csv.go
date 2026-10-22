@@ -11,15 +11,16 @@ import (
 	"time"
 )
 
-// Fleet CSV schema versions. Writers emit v2; rollup/parsers accept v1 and v2.
+// Fleet CSV schema versions. Writers emit v3; rollup/parsers accept v1–v3.
 const (
 	FleetCSVSchemaV1 = "php2shell-fleet-csv/v1"
 	FleetCSVSchemaV2 = "php2shell-fleet-csv/v2"
-	FleetCSVSchema   = FleetCSVSchemaV2
+	FleetCSVSchemaV3 = "php2shell-fleet-csv/v3"
+	FleetCSVSchema   = FleetCSVSchemaV3
 )
 
-// FleetCSVColumns is the stable header for scan CSV output and fleet rollup (v2).
-// v2 appends configuration-discovery columns; v1 files remain readable by name.
+// FleetCSVColumns is the stable header for scan CSV output and fleet rollup (v3).
+// v3 appends independent investigation statuses; v1/v2 remain readable by name.
 var FleetCSVColumns = []string{
 	"schema_version",
 	"scan_id",
@@ -52,6 +53,12 @@ var FleetCSVColumns = []string{
 	"config_correlated_to_install",
 	"config_primary_ini_path",
 	"config_ini_classes",
+	// v3 compromise investigation (independent axes; never CLEAN / CONFIRMED)
+	"exploitation_attempt_status",
+	"possible_compromise_status",
+	"investigation_coverage",
+	"investigation_window_from_utc",
+	"investigation_window_to_utc",
 }
 
 // FleetRow is one logical PHP installation (or one host-level placeholder).
@@ -87,6 +94,12 @@ type FleetRow struct {
 	ConfigCorrelatedToInstall      string
 	ConfigPrimaryIniPath           string
 	ConfigIniClasses               string
+	// v3 investigation fields (empty when parsing legacy v1/v2 rows)
+	ExploitationAttemptStatus string
+	PossibleCompromiseStatus  string
+	InvestigationCoverage     string
+	InvestigationWindowFrom   string
+	InvestigationWindowTo     string
 }
 
 // ScanIDForReport returns a stable, non-secret identifier for one scan result.
@@ -115,6 +128,10 @@ func BuildFleetRows(r *Report) []FleetRow {
 	discovery := fleetDiscoveryCompleteness(r)
 	limits := fleetLimitationsSummary(r)
 	hostCfg := summarizeHostConfigDiscovery(r)
+	invFrom, invTo := "", ""
+	if r.InvestigationWindow != nil {
+		invFrom, invTo = r.InvestigationWindow.FromUTC, r.InvestigationWindow.ToUTC
+	}
 	base := FleetRow{
 		SchemaVersion:                 FleetCSVSchema,
 		ScanID:                        scanID,
@@ -133,6 +150,11 @@ func BuildFleetRows(r *Report) []FleetRow {
 		ConfigCandidateCount:          fmt.Sprintf("%d", hostCfg.Candidates),
 		ConfigSettingObservationCount: fmt.Sprintf("%d", hostCfg.Settings),
 		ConfigIniClasses:              hostCfg.Classes,
+		ExploitationAttemptStatus:     r.ExploitationAttemptStatus,
+		PossibleCompromiseStatus:      r.PossibleCompromiseStatus,
+		InvestigationCoverage:         r.InvestigationCoverage,
+		InvestigationWindowFrom:       invFrom,
+		InvestigationWindowTo:         invTo,
 	}
 
 	groups := GroupInstallations(r)
@@ -441,7 +463,18 @@ func fleetLimitationsSummary(r *Report) string {
 		"Discovery scope is bounded; not complete host coverage",
 	}
 	if r.CompromiseStatus == "NOT_ASSESSED" {
-		parts = append(parts, "Compromise not assessed (no trusted IOC pack)")
+		parts = append(parts, "Signed-IOC rollup not assessed (no trusted pack)")
+	}
+	if r.ExploitationAttemptStatus == "NOT_ASSESSED" {
+		parts = append(parts, "Exploitation attempts NOT_ASSESSED (no investigation inputs — not a negative finding)")
+	} else if r.ExploitationAttemptStatus == "NO_MATCHES_IN_SCOPE" {
+		parts = append(parts, "No exploitation-attempt matches in assessed scope (not a clearance)")
+	}
+	if r.PossibleCompromiseStatus == "NOT_ASSESSED" {
+		parts = append(parts, "Possible compromise NOT_ASSESSED (no offline process/EDR telemetry)")
+	}
+	if r.InvestigationCoverage == "INCOMPLETE" {
+		parts = append(parts, "Investigation coverage incomplete; gaps cannot be ruled out from first/last timestamps")
 	}
 	iniCandidates, settingObs, skips, uncorrelated := 0, 0, 0, 0
 	for _, e := range r.Evidence {
@@ -544,6 +577,11 @@ func (row FleetRow) csvFields() []string {
 		row.ConfigCorrelatedToInstall,
 		row.ConfigPrimaryIniPath,
 		row.ConfigIniClasses,
+		row.ExploitationAttemptStatus,
+		row.PossibleCompromiseStatus,
+		row.InvestigationCoverage,
+		row.InvestigationWindowFrom,
+		row.InvestigationWindowTo,
 	}
 	for i := range vals {
 		vals[i] = SpreadsheetSafe(vals[i])
@@ -615,8 +653,8 @@ func ParseFleetCSV(data []byte) ([]FleetRow, error) {
 		if schema == "" {
 			return nil, fmt.Errorf("row %d: empty schema_version", line+2)
 		}
-		if schema != FleetCSVSchemaV1 && schema != FleetCSVSchemaV2 {
-			return nil, fmt.Errorf("row %d: unsupported schema_version %q (supported: %s, %s)", line+2, schema, FleetCSVSchemaV1, FleetCSVSchemaV2)
+		if schema != FleetCSVSchemaV1 && schema != FleetCSVSchemaV2 && schema != FleetCSVSchemaV3 {
+			return nil, fmt.Errorf("row %d: unsupported schema_version %q (supported: %s, %s, %s)", line+2, schema, FleetCSVSchemaV1, FleetCSVSchemaV2, FleetCSVSchemaV3)
 		}
 		rows = append(rows, FleetRow{
 			SchemaVersion:                 schema,
@@ -649,6 +687,11 @@ func ParseFleetCSV(data []byte) ([]FleetRow, error) {
 			ConfigCorrelatedToInstall:     get("config_correlated_to_install"),
 			ConfigPrimaryIniPath:          get("config_primary_ini_path"),
 			ConfigIniClasses:              get("config_ini_classes"),
+			ExploitationAttemptStatus:     get("exploitation_attempt_status"),
+			PossibleCompromiseStatus:      get("possible_compromise_status"),
+			InvestigationCoverage:         get("investigation_coverage"),
+			InvestigationWindowFrom:       get("investigation_window_from_utc"),
+			InvestigationWindowTo:         get("investigation_window_to_utc"),
 		})
 	}
 	return rows, nil

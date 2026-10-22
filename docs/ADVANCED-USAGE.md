@@ -94,6 +94,20 @@ On Linux and Windows, when a well-known Apache config root is accessible (`/etc/
 - **Inaccessible handler binaries** (missing path, wrong host, permission denied) produce `windows_iis_configuration` **INCOMPLETE** coverage and version-unknown evidence. That must not be read as “the site is patched/safe.”
 - **Active HTTP serving runtime** remains unverified even when site, handler, and binary version evidence align.
 
+## Compromise investigation (development — Phases A/B)
+
+Offline review of consultant-supplied **access** and **error** logs. Not shipped in published v2.6.0 binaries until a later tagged release. Full detail: [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md).
+
+```bash
+./php2shell-linux-amd64 scan \
+  --access-log /var/log/nginx/access.log \
+  --error-log /var/log/php-fpm/error.log \
+  --investigate-from 2026-10-17 \
+  --quiet --output-dir "$HOME/.php2shell/reports"
+```
+
+Independent statuses: vulnerability exposure, exploitation attempts, possible compromise, investigation coverage. No inputs ⇒ `NOT_ASSESSED` (not a negative finding). Possible compromise stays `NOT_ASSESSED` until offline process/EDR telemetry is implemented. First/last log timestamps do not prove continuous coverage. The ≥2048 heuristic measures **access-log request-target (URI) length only**, not request-body size (which these log formats do not provide).
+
 ## Signed indicators
 
 Same Ed25519 trust/update workflow as prior releases. Empty template only in-repo. See [rules/README.md](../rules/README.md).
