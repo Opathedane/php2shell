@@ -6,7 +6,7 @@ Version-specific GitHub Release bodies live under [`docs/releases/`](releases/).
 
 | Version | Notes |
 | --- | --- |
-| [v2.7.1](releases/v2.7.1.md) | In-tree candidate — IR accuracy / Calif-aligned evidence semantics |
+| [v2.7.1](releases/v2.7.1.md) | In-tree candidate — IR accuracy + Cloudflare firewall_events WAF ingest |
 | [v2.7.0](releases/v2.7.0.md) | Compromise investigation assist; fleet CSV v3 |
 | [v2.6.0](releases/v2.6.0.md) | Optional `--deep-root` Deep Discovery; expanded well-known install paths |
 | [v2.5.1](releases/v2.5.1.md) | PATH/junction discovery; multi-install; `--php-ini` / `--config-root` |

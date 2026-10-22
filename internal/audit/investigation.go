@@ -36,12 +36,14 @@ type InvestigationOptions struct {
 	From time.Time
 	To   time.Time
 	// Assessing is true when the operator supplied any investigation input
-	// (--access-log, --error-log, --process-telemetry, and/or --webroot).
+	// (--access-log, --error-log, --process-telemetry, --webroot, and/or --waf-log).
 	Assessing bool
 	// HasProcessTelemetry is true when at least one --process-telemetry file was requested.
 	HasProcessTelemetry bool
 	// HasWebrootInvestigation is true when --webroot was supplied for FS investigation.
 	HasWebrootInvestigation bool
+	// HasWAFLogs is true when at least one --waf-log file was requested.
+	HasWAFLogs bool
 }
 
 // ResolveInvestigationWindow returns the effective UTC window and a human note.
@@ -95,10 +97,15 @@ func appendInvestigationFinding(r *Report, f InvestigationFinding) {
 // FinalizeInvestigation sets independent exploitation-attempt, possible-compromise,
 // and investigation-coverage statuses. Possible compromise stays NOT_ASSESSED unless
 // offline process telemetry and/or webroot investigation inputs were usable.
+// WAF leads contribute to exploitation-attempt review only (never alone to possible compromise).
 // Never emits CONFIRMED_COMPROMISE or CLEAN.
-func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, errorEvents []InvestigationEvent, processLeads []ProcessLead, webrootLeads []WebrootLead) {
+func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, errorEvents []InvestigationEvent, processLeads []ProcessLead, webrootLeads []WebrootLead, wafEvents ...[]InvestigationEvent) {
 	if r == nil {
 		return
+	}
+	var wafEv []InvestigationEvent
+	if len(wafEvents) > 0 {
+		wafEv = wafEvents[0]
 	}
 	if !opts.Assessing {
 		r.ExploitationAttemptStatus = "NOT_ASSESSED"
@@ -106,11 +113,13 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		r.InvestigationCoverage = "NOT_REQUESTED"
 		r.InvestigationWindow = nil
 		r.AddCheck("compromise_investigation", "NOT_REQUESTED",
-			"No --access-log, --error-log, --process-telemetry, or --webroot investigation inputs supplied; exploitation-attempt and possible-compromise statuses remain NOT_ASSESSED (not a negative finding)")
+			"No --access-log, --error-log, --process-telemetry, --webroot, or --waf-log investigation inputs supplied; exploitation-attempt and possible-compromise statuses remain NOT_ASSESSED (not a negative finding)")
 		r.AddCheck("process_telemetry_investigation", "NOT_REQUESTED",
 			"No offline process/EDR telemetry supplied")
 		r.AddCheck("webroot_investigation", "NOT_REQUESTED",
 			"No --webroot filesystem investigation requested; possible-compromise stays NOT_ASSESSED without process or webroot evidence")
+		r.AddCheck("waf_log_investigation", "NOT_REQUESTED",
+			"No offline WAF event export supplied")
 		return
 	}
 
@@ -121,10 +130,12 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 	usableError, unusableError := countErrorLogUsable(r.ErrorLogs)
 	usableProc, unusableProc := countProcessTelemetryUsable(r.ProcessTelemetry)
 	usableWeb, unusableWeb := countWebrootUsable(r.WebrootInvestigation)
+	usableWAF, unusableWAF := countWAFUsable(r.WAFLogs)
 
 	hasLogInputs := usableAccess+unusableAccess+usableError+unusableError > 0
 	hasProcInputs := opts.HasProcessTelemetry
 	hasWebrootInputs := opts.HasWebrootInvestigation
+	hasWAFInputs := opts.HasWAFLogs
 
 	// P0: SAPI-aware narrative + HTTP body/form metadata limitations (always when assessing).
 	emitInvestigationP0Context(r)
@@ -139,7 +150,7 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 	logsAllFailed := hasLogInputs && usableAccess+usableError == 0
 	procAllFailed := hasProcInputs && usableProc == 0 && unusableProc > 0
 	webAllFailed := hasWebrootInputs && usableWeb == 0 && unusableWeb > 0
-	if hasLogInputs && usableAccess+usableError == 0 && !hasProcInputs && !hasWebrootInputs {
+	if hasLogInputs && usableAccess+usableError == 0 && !hasProcInputs && !hasWebrootInputs && !hasWAFInputs {
 		r.InvestigationCoverage = "INCOMPLETE"
 		r.ExploitationAttemptStatus = "NOT_ASSESSED"
 		r.PossibleCompromiseStatus = "NOT_ASSESSED"
@@ -149,13 +160,15 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 			"No offline process/EDR telemetry supplied")
 		r.AddCheck("webroot_investigation", "NOT_REQUESTED",
 			"No --webroot filesystem investigation requested")
+		r.AddCheck("waf_log_investigation", "NOT_REQUESTED",
+			"No offline WAF event export supplied")
 		r.AddWarning("Investigation coverage incomplete: supplied logs were inaccessible, oversized, or unreadable (unavailable ≠ no matches)")
 		return
 	}
 	_ = logsAllFailed
 	_ = procAllFailed
 	_ = webAllFailed
-	if unusableAccess+unusableError+unusableProc+unusableWeb > 0 {
+	if unusableAccess+unusableError+unusableProc+unusableWeb+unusableWAF > 0 {
 		coverage = "INCOMPLETE"
 		coverageDetail = "At least one requested evidence source was UNAVAILABLE, unsupported, truncated, or incompletely parsed. " +
 			"Unavailable evidence is not the same as a completed assessment with no matches. " +
@@ -166,10 +179,11 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		usableError+unusableError > 0, usableError, unusableError,
 		hasProcInputs, usableProc, unusableProc,
 		hasWebrootInputs, usableWeb, unusableWeb,
+		hasWAFInputs, usableWAF, unusableWAF,
 	))
 
 	var timedUnknown bool
-	var inScopeAccess, inScopeError []InvestigationEvent
+	var inScopeAccess, inScopeError, inScopeWAF []InvestigationEvent
 	for _, ev := range accessEvents {
 		if ev.Time.IsZero() {
 			timedUnknown = true
@@ -188,6 +202,16 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		}
 		if inInvestigationWindow(ev.Time, from, to) {
 			inScopeError = append(inScopeError, ev)
+		}
+	}
+	for _, ev := range wafEv {
+		if ev.Time.IsZero() {
+			timedUnknown = true
+			inScopeWAF = append(inScopeWAF, ev)
+			continue
+		}
+		if inInvestigationWindow(ev.Time, from, to) {
+			inScopeWAF = append(inScopeWAF, ev)
 		}
 	}
 
@@ -220,7 +244,7 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		coverageDetail += " Some matched lines/events lacked reliable timestamps (timezone/format uncertainty)."
 	}
 
-	// --- Exploitation-attempt leads (access/error) ---
+	// --- Exploitation-attempt leads (access/error/WAF) ---
 	attemptHits := 0
 	if usableAccess+usableError > 0 {
 		for _, ev := range inScopeError {
@@ -232,7 +256,16 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 			appendInvestigationFinding(r, findingFromLogEvent("acc", ev))
 		}
 	}
+	if usableWAF > 0 {
+		for _, ev := range inScopeWAF {
+			attemptHits++
+			appendInvestigationFinding(r, findingFromLogEvent("waf", ev))
+		}
+	}
+
 	corr := correlateAccessError(r, inScopeError, inScopeAccess)
+	wafCorr := correlateWAF(r, inScopeWAF, inScopeError, inScopeAccess, inScopeProc)
+	_ = wafCorr
 
 	// Process ↔ attempt temporal proximity (not causality).
 	procCorr := 0
@@ -357,9 +390,9 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 
 	r.InvestigationCoverage = coverage
 
-	// Exploitation attempts: access/error logs.
-	hasAttemptInputs := hasLogInputs
-	usableAttempt := usableAccess + usableError
+	// Exploitation attempts: access/error logs and/or offline WAF events.
+	hasAttemptInputs := hasLogInputs || hasWAFInputs
+	usableAttempt := usableAccess + usableError + usableWAF
 	if hasAttemptInputs {
 		if usableAttempt == 0 {
 			r.ExploitationAttemptStatus = "NOT_ASSESSED"
@@ -368,10 +401,10 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 			r.ExploitationAttemptStatus = "SUSPECTED_ATTEMPTS_REVIEW"
 			r.AddWarning("Suspected exploitation-attempt leads require analyst validation; they are not proof of successful exploitation or host compromise")
 			r.AddWarning("Successful in-process exploitation may produce neither a worker crash nor a suspicious child process; absence of those signals is not a negative finding")
-			r.AddAction("Preserve original access/error logs covering the investigation window (from at least 2026-10-17 when possible) and escalate suspected attempt leads for human review")
+			r.AddAction("Preserve original access/error/WAF logs covering the investigation window (from at least 2026-10-17 when possible) and escalate suspected attempt leads for human review")
 		} else {
 			r.ExploitationAttemptStatus = "NO_MATCHES_IN_SCOPE"
-			r.AddAction("Usable exploitation-attempt evidence was assessed and no patterns matched in scope — this is a completed no-match result for those sources, not unavailable evidence, and not a host clearance. Expand retention and offline EDR/process review.")
+			r.AddAction("Usable exploitation-attempt evidence was assessed and no patterns matched in scope — this is a completed no-match result for those sources, not unavailable evidence, and not a host clearance. Expand retention, offline EDR/process review, and WAF exports when missing.")
 			r.AddWarning("Successful in-process exploitation may produce neither a worker crash nor a suspicious child process; no-match on current heuristics is not proof of safety")
 		}
 	} else {
@@ -442,12 +475,30 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		}
 	} else {
 		r.PossibleCompromiseStatus = "NO_MATCHES_IN_SCOPE"
-		r.AddAction("Usable process/webroot evidence was assessed with no compromise patterns in scope — completed no-match for those sources (not unavailable evidence) and not a host clearance. Expand retention and correlate log/EDR sources.")
+		r.AddAction("Usable process/webroot evidence was assessed with no compromise patterns in scope — completed no-match for those sources (not unavailable evidence) and not a host clearance. Expand retention and correlate WAF/log/EDR sources.")
 		r.AddWarning("Possible-compromise no-match does not rule out in-process code execution without a suspicious child process")
 	}
 
-	if procCorr > 0 || webCorr > 0 {
-		r.AddAction("Review temporally proximate process, webroot, and log leads together; proximity is not causation and is not same-worker identity")
+	// WAF coverage check (attempt axis only — never flips possible-compromise alone).
+	if !hasWAFInputs {
+		r.AddCheck("waf_log_investigation", "NOT_REQUESTED",
+			"No offline WAF event export supplied")
+	} else if usableWAF == 0 {
+		r.AddCheck("waf_log_investigation", "INCOMPLETE",
+			"WAF logs were requested but no usable events were parsed (unavailable/incomplete — not absence of matches)")
+		r.AddWarning("WAF log review incomplete; do not treat as a negative exploitation-attempt finding")
+	} else if len(inScopeWAF) > 0 {
+		r.AddCheck("waf_log_investigation", coverage,
+			fmt.Sprintf("Parsed offline WAF events with %d research-backed lead(s) in window. "+
+				"Blocked/challenged actions are NOT successful exploitation. WAF alone does not set possible-compromise.",
+				len(inScopeWAF)))
+	} else {
+		r.AddCheck("waf_log_investigation", coverage,
+			"Offline WAF events reviewed in scope with no allowlisted PHP2Shell rule or upload-progress indicators; not a clearance")
+	}
+
+	if procCorr > 0 || webCorr > 0 || wafCorr > 0 {
+		r.AddAction("Review temporally proximate WAF, process, webroot, and log leads together; proximity is not causation and is not same-worker identity")
 	}
 
 	r.AddCheck("compromise_investigation", coverage, fmt.Sprintf(
@@ -478,6 +529,7 @@ func formatEvidenceSourceAvailability(
 	hasError bool, usableError, unusableError int,
 	hasProc bool, usableProc, unusableProc int,
 	hasWeb bool, usableWeb, unusableWeb int,
+	hasWAF bool, usableWAF, unusableWAF int,
 ) string {
 	describe := func(label string, requested bool, usable, unusable int) string {
 		if !requested {
@@ -499,6 +551,7 @@ func formatEvidenceSourceAvailability(
 		describe("error_logs", hasError, usableError, unusableError),
 		describe("process_telemetry", hasProc, usableProc, unusableProc),
 		describe("webroot", hasWeb, usableWeb, unusableWeb),
+		describe("waf_logs", hasWAF, usableWAF, unusableWAF),
 		"Distinguish REQUESTED_UNAVAILABLE from completed assessments with NO_MATCHES_IN_SCOPE on usable sources.",
 	}, "; ")
 }
@@ -773,7 +826,7 @@ func humanInvestigationCoverage(status string) string {
 func humanExploitationAttemptDetail(r *Report) string {
 	base := "Suspected attempt leads need analyst review. " +
 		"Long request-target ≠ large body ≠ unusual form-field names ≠ multipart nesting. " +
-		"A single memory error or crash is not successful exploitation. " +
+		"A single memory error, crash, or WAF block is not successful exploitation. " +
 		"Successful in-process exploitation may leave no crash and no suspicious child process."
 	switch r.ExploitationAttemptStatus {
 	case "NO_MATCHES_IN_SCOPE":

@@ -52,6 +52,7 @@ Scan options:
   --deep-root DIR        optional Deep Discovery: recursive PHP binary + php.ini search under DIR (repeatable; limit 8; off by default; never drive-wide)
   --repo DIR             authorized local repo (repeatable)
   --access-log FILE      local HTTP access log (repeatable; limit 32MiB)
+  --waf-log FILE         offline WAF export (Cloudflare firewall_events JSONL; repeatable; limit 32MiB; max 8)
   --error-log FILE       local PHP/Apache error log for investigation (repeatable; limit 32MiB)
   --process-telemetry F  offline EDR/process export (MDE/Sysmon/auditd/ECS; repeatable; limit 32MiB; max 8)
   --investigate-from T   UTC investigation window start (RFC3339 or YYYY-MM-DD; default 2026-10-17 when investigating)
@@ -149,11 +150,12 @@ func runScan(args []string) int {
 	signedRules := fs.String("rules", "", "local Ed25519-signed bundle; requires previously trusted key")
 	investigateFrom := fs.String("investigate-from", "", "UTC investigation window start (RFC3339 or YYYY-MM-DD); default 2026-10-17 when investigating")
 	investigateTo := fs.String("investigate-to", "", "UTC investigation window end (RFC3339 or YYYY-MM-DD); default scan time")
-	var repos, logs, errorLogs, procTelemetry, phpInis, configRoots, deepRoots paths
+	var repos, logs, errorLogs, procTelemetry, wafLogs, phpInis, configRoots, deepRoots paths
 	fs.Var(&repos, "repo", "authorized local repo; repeatable")
 	fs.Var(&logs, "access-log", "local HTTP access log; repeatable; limit 32MiB")
 	fs.Var(&errorLogs, "error-log", "local PHP/Apache error log for investigation; repeatable; limit 32MiB")
 	fs.Var(&procTelemetry, "process-telemetry", "offline EDR/process export (MDE DeviceProcessEvents CSV, Sysmon EventID1 CSV, auditd EXECVE text, Elastic ECS JSONL); repeatable; limit 32MiB; max 8")
+	fs.Var(&wafLogs, "waf-log", "offline WAF export (Cloudflare Logpush firewall_events JSONL); repeatable; limit 32MiB; max 8")
 	fs.Var(&phpInis, "php-ini", "inspect an explicit php.ini path; repeatable; limit 32; not version/runtime authority")
 	fs.Var(&configRoots, "config-root", "bounded PHP binary + php.ini/conf.d under DIR; repeatable; limit 8; no drive walk")
 	fs.Var(&deepRoots, "deep-root", "optional Deep Discovery under DIR; repeatable; limit 8; off by default; rejects UNC and volume roots")
@@ -161,7 +163,7 @@ func runScan(args []string) int {
 		return audit.ExitFatal
 	}
 	if fs.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "ERROR: unexpected arguments; use --repo/--access-log/--error-log/--process-telemetry/--php-ini/--config-root/--deep-root")
+		fmt.Fprintln(os.Stderr, "ERROR: unexpected arguments; use --repo/--access-log/--error-log/--process-telemetry/--waf-log/--php-ini/--config-root/--deep-root")
 		return audit.ExitFatal
 	}
 	if (*runtimeVersion != "" || *runtimeSAPI != "" || *runtimeSource != "") && (*runtimeVersion == "" || *runtimeSAPI == "" || *runtimeSource == "") {
@@ -180,6 +182,10 @@ func runScan(args []string) int {
 		fmt.Fprintln(os.Stderr, "ERROR: limit is 8 --process-telemetry files per scan")
 		return audit.ExitFatal
 	}
+	if len(wafLogs) > 8 {
+		fmt.Fprintln(os.Stderr, "ERROR: limit is 8 --waf-log files per scan")
+		return audit.ExitFatal
+	}
 	invFrom, errFrom := parseInvestigateTime(*investigateFrom)
 	if errFrom != nil {
 		fmt.Fprintln(os.Stderr, "ERROR: invalid --investigate-from; use RFC3339 or YYYY-MM-DD:", errFrom)
@@ -194,8 +200,8 @@ func runScan(args []string) int {
 		fmt.Fprintln(os.Stderr, "ERROR: --investigate-to must not be before --investigate-from")
 		return audit.ExitFatal
 	}
-	if (*investigateFrom != "" || *investigateTo != "") && len(logs) == 0 && len(errorLogs) == 0 && len(procTelemetry) == 0 && *webroot == "" {
-		fmt.Fprintln(os.Stderr, "ERROR: --investigate-from/--investigate-to require --access-log, --error-log, --process-telemetry, and/or --webroot")
+	if (*investigateFrom != "" || *investigateTo != "") && len(logs) == 0 && len(errorLogs) == 0 && len(procTelemetry) == 0 && len(wafLogs) == 0 && *webroot == "" {
+		fmt.Fprintln(os.Stderr, "ERROR: --investigate-from/--investigate-to require --access-log, --error-log, --process-telemetry, --waf-log, and/or --webroot")
 		return audit.ExitFatal
 	}
 	if len(phpInis) > 32 {
@@ -420,9 +426,31 @@ func runScan(args []string) int {
 			r.AddCheck("historical_process_telemetry", status, fmt.Sprintf("Requested %d process telemetry file(s); suspicious child leads require analyst validation; command lines redacted", len(procTelemetry)))
 		}
 
+		con.Phase("Offline WAF event investigation")
+		var allWAFEvents []audit.InvestigationEvent
+		for _, p := range wafLogs {
+			if checkTimeout() {
+				break
+			}
+			allWAFEvents = append(allWAFEvents, audit.ScanWAFLog(r, p)...)
+		}
+		if len(wafLogs) == 0 {
+			r.AddCheck("historical_waf_logs", "NOT_REQUESTED", "Use --waf-log FILE for offline Cloudflare firewall_events JSONL; never live WAF APIs; block≠success")
+		} else {
+			status := "PARSED_COVERAGE_LIMITED"
+			for _, w := range r.WAFLogs {
+				switch w.Status {
+				case "PARSED_COVERAGE_LIMITED", "PARTIAL":
+				default:
+					status = "INCOMPLETE"
+				}
+			}
+			r.AddCheck("historical_waf_logs", status, fmt.Sprintf("Requested %d WAF export file(s); allowlisted rule matches are attempt assists only", len(wafLogs)))
+		}
+
 		con.Phase("Webroot filesystem investigation")
 		var allWebrootLeads []audit.WebrootLead
-		assessing := len(logs) > 0 || len(errorLogs) > 0 || len(procTelemetry) > 0 || *webroot != ""
+		assessing := len(logs) > 0 || len(errorLogs) > 0 || len(procTelemetry) > 0 || len(wafLogs) > 0 || *webroot != ""
 		if assessing && *webroot != "" {
 			from, to, _ := audit.ResolveInvestigationWindow(audit.InvestigationOptions{From: invFrom, To: invTo}, r.GeneratedUTC)
 			allWebrootLeads = audit.ScanWebrootInvestigation(r, *webroot, from, to)
@@ -434,7 +462,8 @@ func runScan(args []string) int {
 			Assessing:               assessing,
 			HasProcessTelemetry:     len(procTelemetry) > 0,
 			HasWebrootInvestigation: *webroot != "" && assessing,
-		}, allAccessEvents, allErrorEvents, allProcessLeads, allWebrootLeads)
+			HasWAFLogs:              len(wafLogs) > 0,
+		}, allAccessEvents, allErrorEvents, allProcessLeads, allWebrootLeads, allWAFEvents)
 	}
 
 	if !checkTimeout() {

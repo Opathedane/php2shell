@@ -295,6 +295,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		b.WriteString(`<p>Statuses are independent. This tool never claims a host is clean or confirmed compromised. ` +
 			`Long request-target length, large HTTP bodies, unusual form-field names, and multipart nesting are distinct signals; ` +
 			`ordinary access logs typically provide only the first (URI length heuristic). ` +
+			`Blocked WAF actions are not successful exploitation. WAF leads do not alone set possible-compromise. ` +
 			`Do not claim two requests shared a PHP worker without worker identity evidence.</p>`)
 		b.WriteString(`<div class="notice"><strong>Configured SAPI hints:</strong> ` + h(ClassifyConfiguredSAPIContext(r).Detail) + `</div>`)
 		b.WriteString(`<div class="notice"><strong>HTTP body / form metadata:</strong> Not available from ordinary access logs. ` +
@@ -363,6 +364,21 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 					`</td><td>` + fmt.Sprint(c.BirthAvailable) + `/` + fmt.Sprint(c.BirthUnavailable) + `</td></tr>`)
 				if c.Detail != "" {
 					b.WriteString(`<tr><td colspan="6"><small>` + h(c.Detail) + `</small></td></tr>`)
+				}
+			}
+			b.WriteString(`</tbody></table>`)
+		}
+		if len(r.WAFLogs) > 0 {
+			b.WriteString(`<p><strong>Offline WAF event coverage</strong></p>`)
+			b.WriteString(`<p>Documented export fields only. Raw bodies, cookies, session IDs, and auth headers are not retained. ` +
+				`Blocked/challenged actions are exploitation-attempt assists — not successful compromise. ` +
+				`WAF matches alone never set possible-compromise.</p>`)
+			b.WriteString(`<table><thead><tr><th>File</th><th>Format</th><th>Status</th><th>Events</th><th>Leads</th></tr></thead><tbody>`)
+			for _, c := range r.WAFLogs {
+				b.WriteString(`<tr><td>` + h(c.File) + `</td><td>` + h(c.Format) + `</td><td>` + h(c.Status) +
+					`</td><td>` + fmt.Sprint(c.EventsParsed) + `</td><td>` + fmt.Sprint(c.MatchedLeads) + `</td></tr>`)
+				if c.Detail != "" {
+					b.WriteString(`<tr><td colspan="5"><small>` + h(c.Detail) + `</small></td></tr>`)
 				}
 			}
 			b.WriteString(`</tbody></table>`)
