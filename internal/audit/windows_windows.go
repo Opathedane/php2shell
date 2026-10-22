@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -45,9 +46,26 @@ func scanIISConfig(r *Report) {
 		windir = `C:\Windows`
 	}
 	path := filepath.Join(windir, "System32", "inetsrv", "config", "applicationHost.config")
+	// Distinguish absent IIS (not an incomplete scan) from permission / I/O failures.
+	if _, err := os.Lstat(path); err != nil {
+		if os.IsNotExist(err) {
+			r.AddCheck("windows_iis_configuration", "NOT_APPLICABLE",
+				"IIS applicationHost.config not present; IIS role appears absent — not an incomplete inventory")
+			return
+		}
+		r.AddCheck("windows_iis_configuration", "ACCESS_DENIED",
+			"Cannot stat IIS applicationHost.config (permission or I/O): "+err.Error())
+		return
+	}
 	b, err := ReadRegular(path, 8<<20)
 	if err != nil {
-		r.AddCheck("windows_iis_configuration", "UNAVAILABLE", "IIS config not accessible or IIS absent (requires permission): "+err.Error())
+		low := strings.ToLower(err.Error())
+		status := "UNAVAILABLE"
+		if strings.Contains(low, "permission denied") || strings.Contains(low, "access is denied") {
+			status = "ACCESS_DENIED"
+		}
+		r.AddCheck("windows_iis_configuration", status,
+			"IIS config present but not readable: "+err.Error())
 		return
 	}
 	ApplyIISApplicationHostInventory(r, path, b)

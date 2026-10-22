@@ -82,7 +82,7 @@ Every scan writes two files with the same basename:
 | `php2shell-<host>-<UTC>.html` | Offline executive summary, grouped installs, next steps, expandable evidence |
 | `php2shell-<host>-<UTC>.csv` | Fleet schema for Excel / Power BI / scripts ([CSV-SCHEMA.md](docs/CSV-SCHEMA.md)) |
 
-Defaults: `C:\ProgramData\PHP2Shell\Reports` (Windows), `$HOME/.php2shell/reports` (Unix). Use `--output-dir` or `--out path.html` (CSV becomes `path.csv`). Existing files are never overwritten; a failed CSV write does not leave a lone HTML file.
+Defaults: `C:\ProgramData\PHP2Shell\Reports` (Windows), `$HOME/.php2shell/reports` (Unix). Use `--output-dir` or `--out path.html` (a `.csv` `--out` remaps to `.html`+`.csv`). Also writes `*.status.json`. Existing files are never overwritten; a failed CSV write does not leave a lone HTML file. Exit **2** means reports were written with incomplete coverage — see [docs/EXIT-CODES-AND-DEPLOYMENT.md](docs/EXIT-CODES-AND-DEPLOYMENT.md).
 
 ## 5. How to combine customer CSV reports
 

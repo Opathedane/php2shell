@@ -422,14 +422,13 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 
 // Save writes a single self-contained HTML report as owner-readable only and refuses overwrite.
 // Prefer SaveReportPair for normal scanning (HTML + fleet CSV).
+// Paths ending in .csv are remapped to .html (same rule as ResolveScanReportPath).
 func Save(r *Report, htmlPath string) error {
 	htmlPath = strings.TrimSpace(htmlPath)
 	if htmlPath == "" {
 		return fmt.Errorf("empty HTML report path")
 	}
-	if !strings.HasSuffix(strings.ToLower(htmlPath), ".html") && !strings.HasSuffix(strings.ToLower(htmlPath), ".htm") {
-		htmlPath = htmlPath + ".html"
-	}
+	htmlPath = NormalizeHTMLReportPath(htmlPath)
 	return writeExclusiveFile(htmlPath, EncodeHTML(r))
 }
 
@@ -442,9 +441,7 @@ func SaveReportPair(r *Report, htmlPath, csvPath string) error {
 	if htmlPath == "" || csvPath == "" {
 		return fmt.Errorf("HTML and CSV report paths are required")
 	}
-	if !strings.HasSuffix(strings.ToLower(htmlPath), ".html") && !strings.HasSuffix(strings.ToLower(htmlPath), ".htm") {
-		htmlPath += ".html"
-	}
+	htmlPath = NormalizeHTMLReportPath(htmlPath)
 	if !strings.HasSuffix(strings.ToLower(csvPath), ".csv") {
 		csvPath += ".csv"
 	}
@@ -519,45 +516,57 @@ func ScanExitCode(r *Report, saveErr error) int {
 	return ExitOK
 }
 
+// incompleteCoverageStatus reports whether a coverage status contributes to exit code 2.
+// NOT_APPLICABLE / NOT_SUPPORTED / NOT_REQUESTED / PARTIAL / HINTS-only statuses do not.
+func incompleteCoverageStatus(status string) bool {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED", "TIMEOUT", "ACCESS_DENIED", "UNSUPPORTED_FORMAT":
+		return true
+	default:
+		return false
+	}
+}
+
 // ScanIncomplete reports whether coverage indicates inaccessible resources or truncated checks.
-// Exit code 2 uses this after a successful HTML write; it is not a security clearance signal.
+// Exit code 2 uses this after a successful HTML+CSV write; it is not a security clearance signal.
+// Optional probes that are simply absent (e.g. IIS not installed → NOT_APPLICABLE) must not
+// flip exit 2 — that previously broke PSAppDeployToolkit uploads on non-IIS Windows hosts.
 func ScanIncomplete(r *Report) bool {
 	if r == nil {
 		return true
 	}
 	for _, c := range r.Coverage {
-		switch strings.ToUpper(c.Status) {
-		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED", "TIMEOUT":
+		if incompleteCoverageStatus(c.Status) {
 			return true
 		}
 	}
 	for _, repo := range r.Repositories {
-		switch strings.ToUpper(repo.Status) {
-		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED":
+		if incompleteCoverageStatus(repo.Status) {
 			return true
 		}
 	}
 	for _, log := range r.Logs {
-		switch strings.ToUpper(log.Status) {
-		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED":
+		if incompleteCoverageStatus(log.Status) {
 			return true
 		}
 	}
 	for _, log := range r.ErrorLogs {
-		switch strings.ToUpper(log.Status) {
-		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED":
+		if incompleteCoverageStatus(log.Status) {
 			return true
 		}
 	}
 	for _, pt := range r.ProcessTelemetry {
-		switch strings.ToUpper(pt.Status) {
-		case "INCOMPLETE", "UNAVAILABLE", "UNSUPPORTED_FORMAT":
+		if incompleteCoverageStatus(pt.Status) {
 			return true
 		}
 	}
 	for _, w := range r.WebrootInvestigation {
-		switch strings.ToUpper(w.Status) {
-		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED":
+		if incompleteCoverageStatus(w.Status) {
+			return true
+		}
+	}
+	for _, w := range r.WAFLogs {
+		if incompleteCoverageStatus(w.Status) {
 			return true
 		}
 	}

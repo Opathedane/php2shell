@@ -29,12 +29,18 @@ func TestRunScanWritesHTMLAndCSVQuiet(t *testing.T) {
 			}
 		case strings.HasSuffix(e.Name(), ".csv"):
 			csv++
-		case strings.HasSuffix(e.Name(), ".json"):
-			t.Fatal("JSON must not be written by scan")
+		case strings.HasSuffix(e.Name(), ".json") && !strings.HasSuffix(e.Name(), ".status.json"):
+			t.Fatal("assessment JSON must not be written by scan")
 		}
 	}
-	if html != 1 || csv != 1 {
-		t.Fatalf("expected 1 html + 1 csv, got html=%d csv=%d entries=%v", html, csv, entries)
+	var status int
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".status.json") {
+			status++
+		}
+	}
+	if html != 1 || csv != 1 || status != 1 {
+		t.Fatalf("expected 1 html + 1 csv + 1 status.json, got html=%d csv=%d status=%d entries=%v", html, csv, status, entries)
 	}
 }
 
@@ -54,6 +60,25 @@ func TestRunScanOutExplicitPair(t *testing.T) {
 	code = run([]string{"scan", "--quiet", "--out", path})
 	if code != audit.ExitFatal {
 		t.Fatalf("overwrite should be fatal, got %d", code)
+	}
+}
+
+func TestRunScanOutCSVRemapWritesHTMLCSVStatus(t *testing.T) {
+	dir := t.TempDir()
+	csvOut := filepath.Join(dir, "SERVER.csv")
+	code := run([]string{"scan", "--quiet", "--out", csvOut})
+	if code != audit.ExitOK && code != audit.ExitIncomplete {
+		t.Fatalf("exit %d", code)
+	}
+	html := filepath.Join(dir, "SERVER.html")
+	if _, err := os.Stat(html); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(csvOut); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "SERVER.status.json")); err != nil {
+		t.Fatal(err)
 	}
 }
 

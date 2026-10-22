@@ -39,24 +39,24 @@ func EvaluateWindowsCompatibility(goos string, flavor string, info *WindowsHostI
 			return true, ""
 		}
 		return false, fmt.Sprintf(
-			"ERROR: cannot determine Windows version (%v).\n"+
+			"ERROR [%s]: cannot determine Windows version (%v).\n"+
+				"Phase: preflight. Reports: not written.\n"+
 				"The standard Windows build requires Windows 10 / Windows Server 2016 or newer (Go 1.21+ runtime).\n"+
-				"On Windows Server 2012 R2 x64, use php2shell-windows-legacy-amd64.exe from the same release.\n"+
+				"Action: on Windows Server 2012 R2 x64, use php2shell-windows-legacy-amd64.exe from the same release.\n"+
 				"See docs/WINDOWS-LEGACY-2012R2.md.",
-			infoErr,
+			DiagUnsupportedOS, infoErr,
 		)
 	}
 
 	if !legacy {
 		if info.Major < ModernWindowsMinMajor {
 			return false, fmt.Sprintf(
-				"ERROR: this standard PHP2Shell build cannot run on Windows %d.%d (build %d).\n"+
-					"Go 1.21+ requires Windows 10 or Windows Server 2016 or newer.\n"+
-					"On Windows Server 2012 R2 x64, download and run php2shell-windows-legacy-amd64.exe\n"+
-					"(same release; built with Go 1.20). For PSAppDeployToolkit, point Deploy-Application.ps1\n"+
-					"at the legacy executable on 2012 R2 hosts.\n"+
-					"See docs/WINDOWS-LEGACY-2012R2.md.",
-				info.Major, info.Minor, info.Build,
+				"ERROR [%s]: this standard PHP2Shell build cannot run on Windows %d.%d (build %d).\n"+
+					"Phase: preflight. Reports: not written. Go 1.21+ requires Windows 10 or Server 2016+.\n"+
+					"Action: on Windows Server 2012 R2 x64, run php2shell-windows-legacy-amd64.exe (Go 1.20).\n"+
+					"For PSAppDeployToolkit, deploy the legacy EXE on 2012 R2 collections only.\n"+
+					"See docs/WINDOWS-LEGACY-2012R2.md and docs/EXIT-CODES-AND-DEPLOYMENT.md.",
+				DiagUnsupportedOS, info.Major, info.Minor, info.Build,
 			)
 		}
 		return true, ""
@@ -66,10 +66,10 @@ func EvaluateWindowsCompatibility(goos string, flavor string, info *WindowsHostI
 	if info.Major < LegacyWindowsMinMajor ||
 		(info.Major == LegacyWindowsMinMajor && info.Minor < LegacyWindowsMinMinor) {
 		return false, fmt.Sprintf(
-			"ERROR: the legacy PHP2Shell build targets Windows Server 2012 / 2012 R2 or newer;\n"+
-				"this host reports Windows %d.%d (build %d), which is below that floor.\n"+
+			"ERROR [%s]: legacy build targets Windows Server 2012 / 2012 R2 or newer;\n"+
+				"host reports Windows %d.%d (build %d). Phase: preflight. Reports: not written.\n"+
 				"See docs/WINDOWS-LEGACY-2012R2.md.",
-			info.Major, info.Minor, info.Build,
+			DiagUnsupportedOS, info.Major, info.Minor, info.Build,
 		)
 	}
 	return true, ""

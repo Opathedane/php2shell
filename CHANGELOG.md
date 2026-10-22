@@ -3,6 +3,8 @@
 - Improve: Calif-aligned IR accuracy — SAPI-aware investigation hints (mod_php vs PHP-FPM; never active-runtime attestation); explicit HTTP body/form/multipart unavailability vs long request-target heuristics; in-process exploitation-without-child warnings; stronger OBSERVED≠EFFECTIVE configuration labelling; evidence-source availability distinguishing REQUESTED_UNAVAILABLE from completed NO_MATCHES_IN_SCOPE.
 - Feature: offline `--waf-log` ingestion for Cloudflare Logpush **firewall_events** JSONL — allowlisted php2shell Anomalous Execution RuleIDs; optional `PHP_SESSION_UPLOAD_PROGRESS` query-presence heuristic; block≠success; WAF alone never sets possible-compromise; no raw bodies/cookies/session values retained.
 - Feature: Windows Server **2012 R2** support via `php2shell-windows-legacy-amd64.exe` (Go **1.20.14** only); primary Windows build stays on current Go and refuses NT &lt; 10 with an actionable redirect; see [docs/WINDOWS-LEGACY-2012R2.md](docs/WINDOWS-LEGACY-2012R2.md).
+- Fix: absent IIS / missing dpkg|apk no longer mark coverage `UNAVAILABLE` (was forcing exit **2** on common Windows/RHEL inventory scans and breaking PSADT uploads).
+- Feature: execution-status JSON (`.status.json`), stable error IDs, `--status-json`, `--accept-incomplete`; `--quiet` still emits stderr status. Deployment guide: [docs/EXIT-CODES-AND-DEPLOYMENT.md](docs/EXIT-CODES-AND-DEPLOYMENT.md); PSADT reference under `deploy/`.
 
 ## v2.7.0 — 2026-10-22
 
