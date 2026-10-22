@@ -107,7 +107,7 @@ func TestWindowsPHPIniSidecarDiscoveryAndHTMLCSV(t *testing.T) {
 	if !strings.Contains(rows[0].LimitationsSummary, "PHP config candidates observed") {
 		t.Fatal(rows[0].LimitationsSummary)
 	}
-	if rows[0].SchemaVersion != FleetCSVSchemaV2 {
+	if rows[0].SchemaVersion != FleetCSVSchema {
 		t.Fatal(rows[0].SchemaVersion)
 	}
 	if rows[0].ConfigCorrelatedToInstall != "YES" || rows[0].ConfigCandidateCount == "0" {

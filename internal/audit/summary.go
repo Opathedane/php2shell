@@ -6,10 +6,13 @@ import "strings"
 // It cannot establish active runtime state, internet exposure or prior compromise.
 // HTML rendering maps these identifiers to human-readable labels.
 type ReviewSummary struct {
-	PHPDiscovery     string   `json:"php_discovery"`
-	PatchReview      string   `json:"patch_review"`
-	CompromiseReview string   `json:"compromise_review"`
-	NextSteps        []string `json:"next_steps"`
+	PHPDiscovery              string   `json:"php_discovery"`
+	PatchReview               string   `json:"patch_review"`
+	CompromiseReview          string   `json:"compromise_review"` // legacy signed-IOC rollup
+	ExploitationAttemptReview string   `json:"exploitation_attempt_review,omitempty"`
+	PossibleCompromiseReview  string   `json:"possible_compromise_review,omitempty"`
+	InvestigationCoverageReview string `json:"investigation_coverage_review,omitempty"`
+	NextSteps                 []string `json:"next_steps"`
 }
 
 // FinalizeSummary must run after host/repository collection, patch assessment,
@@ -50,6 +53,34 @@ func FinalizeSummary(r *Report) {
 		s.CompromiseReview = "NO_IOC_MATCHES_LIMITED_COVERAGE_NOT_CLEARED"
 	default:
 		s.CompromiseReview = "NOT_ASSESSED_NO_VALIDATED_CVE_DETECTION"
+	}
+	switch r.ExploitationAttemptStatus {
+	case "SUSPECTED_ATTEMPTS_REVIEW":
+		s.ExploitationAttemptReview = "SUSPECTED_ATTEMPTS_REVIEW_REQUIRED"
+	case "NO_MATCHES_IN_SCOPE":
+		s.ExploitationAttemptReview = "NO_ATTEMPT_MATCHES_IN_SCOPE_NOT_CLEARED"
+	default:
+		s.ExploitationAttemptReview = "EXPLOITATION_ATTEMPTS_NOT_ASSESSED"
+	}
+	switch r.PossibleCompromiseStatus {
+	case "POSSIBLE_COMPROMISE_REVIEW":
+		s.PossibleCompromiseReview = "POSSIBLE_COMPROMISE_REVIEW_REQUIRED"
+	case "NO_MATCHES_IN_SCOPE":
+		s.PossibleCompromiseReview = "NO_COMPROMISE_MATCHES_IN_SCOPE_NOT_CLEARED"
+	default:
+		s.PossibleCompromiseReview = "POSSIBLE_COMPROMISE_NOT_ASSESSED"
+	}
+	switch r.InvestigationCoverage {
+	case "NOT_REQUESTED":
+		s.InvestigationCoverageReview = "INVESTIGATION_NOT_REQUESTED"
+	case "INCOMPLETE":
+		s.InvestigationCoverageReview = "INVESTIGATION_COVERAGE_INCOMPLETE"
+	case "PARTIAL_TIMESTAMP_UNCERTAIN":
+		s.InvestigationCoverageReview = "INVESTIGATION_COVERAGE_PARTIAL_TIMESTAMP_UNCERTAIN"
+	case "ASSESSED_SCOPE_LIMITED":
+		s.InvestigationCoverageReview = "INVESTIGATION_ASSESSED_SCOPE_LIMITED_CONTINUITY_UNPROVEN"
+	default:
+		s.InvestigationCoverageReview = "INVESTIGATION_COVERAGE_UNDETERMINED"
 	}
 	r.Summary = s
 }

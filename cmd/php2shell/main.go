@@ -52,6 +52,9 @@ Scan options:
   --deep-root DIR        optional Deep Discovery: recursive PHP binary + php.ini search under DIR (repeatable; limit 8; off by default; never drive-wide)
   --repo DIR             authorized local repo (repeatable)
   --access-log FILE      local HTTP access log (repeatable; limit 32MiB)
+  --error-log FILE       local PHP/Apache error log for investigation (repeatable; limit 32MiB)
+  --investigate-from T   UTC investigation window start (RFC3339 or YYYY-MM-DD; default 2026-10-17 when investigating)
+  --investigate-to T     UTC investigation window end (RFC3339 or YYYY-MM-DD; default scan time)
   --docker               local privileged Docker API metadata (opt-in)
   --output-dir DIR       directory for HTML+CSV reports (local or UNC if accessible)
   --out PATH             explicit HTML path or prefix (overrides --output-dir); matching .csv is written beside it
@@ -143,9 +146,12 @@ func runScan(args []string) int {
 	updateRules := fs.Bool("update-rules", false, "opt-in download signed indicator rules; requires --rules-url and previously trusted key")
 	rulesURL := fs.String("rules-url", "", "trusted signed rule bundle HTTPS URL")
 	signedRules := fs.String("rules", "", "local Ed25519-signed bundle; requires previously trusted key")
-	var repos, logs, phpInis, configRoots, deepRoots paths
+	investigateFrom := fs.String("investigate-from", "", "UTC investigation window start (RFC3339 or YYYY-MM-DD); default 2026-10-17 when --access-log/--error-log supplied")
+	investigateTo := fs.String("investigate-to", "", "UTC investigation window end (RFC3339 or YYYY-MM-DD); default scan time")
+	var repos, logs, errorLogs, phpInis, configRoots, deepRoots paths
 	fs.Var(&repos, "repo", "authorized local repo; repeatable")
 	fs.Var(&logs, "access-log", "local HTTP access log; repeatable; limit 32MiB")
+	fs.Var(&errorLogs, "error-log", "local PHP/Apache error log for investigation; repeatable; limit 32MiB")
 	fs.Var(&phpInis, "php-ini", "inspect an explicit php.ini path; repeatable; limit 32; not version/runtime authority")
 	fs.Var(&configRoots, "config-root", "bounded PHP binary + php.ini/conf.d under DIR; repeatable; limit 8; no drive walk")
 	fs.Var(&deepRoots, "deep-root", "optional Deep Discovery under DIR; repeatable; limit 8; off by default; rejects UNC and volume roots")
@@ -153,7 +159,7 @@ func runScan(args []string) int {
 		return audit.ExitFatal
 	}
 	if fs.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "ERROR: unexpected arguments; use --repo PATH, --access-log PATH, --php-ini PATH, --config-root DIR, or --deep-root DIR")
+		fmt.Fprintln(os.Stderr, "ERROR: unexpected arguments; use --repo PATH, --access-log PATH, --error-log PATH, --php-ini PATH, --config-root DIR, or --deep-root DIR")
 		return audit.ExitFatal
 	}
 	if (*runtimeVersion != "" || *runtimeSAPI != "" || *runtimeSource != "") && (*runtimeVersion == "" || *runtimeSAPI == "" || *runtimeSource == "") {
@@ -164,8 +170,26 @@ func runScan(args []string) int {
 		fmt.Fprintln(os.Stderr, "ERROR: runtime evidence fields too long")
 		return audit.ExitFatal
 	}
-	if len(repos) > 20 || len(logs) > 20 {
-		fmt.Fprintln(os.Stderr, "ERROR: limit is 20 repositories and 20 log files per scan")
+	if len(repos) > 20 || len(logs) > 20 || len(errorLogs) > 20 {
+		fmt.Fprintln(os.Stderr, "ERROR: limit is 20 repositories, 20 access logs, and 20 error logs per scan")
+		return audit.ExitFatal
+	}
+	invFrom, errFrom := parseInvestigateTime(*investigateFrom)
+	if errFrom != nil {
+		fmt.Fprintln(os.Stderr, "ERROR: invalid --investigate-from; use RFC3339 or YYYY-MM-DD:", errFrom)
+		return audit.ExitFatal
+	}
+	invTo, errTo := parseInvestigateTime(*investigateTo)
+	if errTo != nil {
+		fmt.Fprintln(os.Stderr, "ERROR: invalid --investigate-to; use RFC3339 or YYYY-MM-DD:", errTo)
+		return audit.ExitFatal
+	}
+	if !invFrom.IsZero() && !invTo.IsZero() && invTo.Before(invFrom) {
+		fmt.Fprintln(os.Stderr, "ERROR: --investigate-to must not be before --investigate-from")
+		return audit.ExitFatal
+	}
+	if (*investigateFrom != "" || *investigateTo != "") && len(logs) == 0 && len(errorLogs) == 0 {
+		fmt.Fprintln(os.Stderr, "ERROR: --investigate-from/--investigate-to require --access-log and/or --error-log")
 		return audit.ExitFatal
 	}
 	if len(phpInis) > 32 {
@@ -316,11 +340,13 @@ func runScan(args []string) int {
 
 	if !checkTimeout() {
 		con.Phase("Access logs and file indicators")
+		var allAccessEvents []audit.InvestigationEvent
 		for _, p := range logs {
 			if checkTimeout() {
 				break
 			}
-			audit.ScanAccessLogWithIndicators(r, p, indicators)
+			evs, _ := audit.ScanAccessLogCollect(r, p, indicators)
+			allAccessEvents = append(allAccessEvents, evs...)
 		}
 		audit.ScanFileHashes(r, *webroot, indicators)
 		if len(r.Findings) > 0 {
@@ -341,8 +367,35 @@ func runScan(args []string) int {
 					break
 				}
 			}
-			r.AddCheck("historical_access_logs", status, fmt.Sprintf("Requested %d log files; see detailed coverage. Matched indicators require validation, and missing matches do not prove safety", len(logs)))
+			r.AddCheck("historical_access_logs", status, fmt.Sprintf("Requested %d log files; see detailed coverage. Matched indicators require validation, and missing matches do not prove safety. Timestamps do not prove continuous coverage.", len(logs)))
 		}
+
+		con.Phase("Error logs and compromise investigation")
+		var allErrorEvents []audit.InvestigationEvent
+		for _, p := range errorLogs {
+			if checkTimeout() {
+				break
+			}
+			allErrorEvents = append(allErrorEvents, audit.ScanErrorLog(r, p)...)
+		}
+		if len(errorLogs) == 0 {
+			r.AddCheck("historical_error_logs", "NOT_REQUESTED", "Use --error-log PATH to review PHP/Apache error patterns; research-backed leads only")
+		} else {
+			status := "PATTERNS_REVIEWED_COVERAGE_LIMITED"
+			for _, log := range r.ErrorLogs {
+				if log.Status != "PATTERNS_REVIEWED_COVERAGE_LIMITED" {
+					status = "INCOMPLETE"
+					break
+				}
+			}
+			r.AddCheck("historical_error_logs", status, fmt.Sprintf("Requested %d error log files; pattern matches are suspected leads only", len(errorLogs)))
+		}
+
+		audit.FinalizeInvestigation(r, audit.InvestigationOptions{
+			From:      invFrom,
+			To:        invTo,
+			Assessing: len(logs) > 0 || len(errorLogs) > 0,
+		}, allAccessEvents, allErrorEvents)
 	}
 
 	if !checkTimeout() {
@@ -540,4 +593,19 @@ func runRules(args []string) error {
 	default:
 		return fmt.Errorf("unknown rules subcommand %q", args[0])
 	}
+}
+
+// parseInvestigateTime accepts RFC3339, date-only YYYY-MM-DD (UTC midnight), or empty.
+func parseInvestigateTime(s string) (time.Time, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Time{}, nil
+	}
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t.UTC(), nil
+	}
+	if t, err := time.ParseInLocation("2006-01-02", s, time.UTC); err == nil {
+		return t.UTC(), nil
+	}
+	return time.Time{}, fmt.Errorf("unrecognized time %q", s)
 }

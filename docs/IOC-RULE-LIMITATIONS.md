@@ -9,7 +9,8 @@ Detection constraints:
 - Log files must be explicitly supplied using `--access-log`. They must be regular files and 32 MiB or smaller. Rotated `.gz` logs, oversized lines, other log formats and missing timestamps are not supported; see log coverage status.
 - IIS `applicationHost.config` is static handler metadata, not a proof that a specific site has a vulnerable or patched active PHP runtime.
 - File hash checks require `--webroot`, are bounded, and deliberately skip symlinks, devices and large files. No malware code executes.
-- No historical parent-child process telemetry, Windows event history, Sysmon queries, Defender queries, scheduled task audit, web shell heuristics, exploit requests or YARA engine.
+- No historical parent-child process telemetry, Windows event history, Sysmon queries, Defender queries, scheduled task audit, web shell heuristics, exploit requests or YARA engine (offline process/EDR file ingest is planned after Phases A/B; see [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md)).
+- Phases A/B investigation patterns (error-log OOM/segfault, long POST heuristic) are **suspected leads** only; they do not use the signed pack engine and never imply confirmed compromise.
 - Verified rules can arrive via GitHub *after operator key pinning*. A repo compromise alone cannot alter accepted rules, but a compromised signing key could. Public key rotation is manual.
 - PHP2Shell official affected/fixed versions and actual exploitation characteristics are required before publishing vulnerability rules or meaningful CVE-specific match claims. Vendor backports can invalidate naive version comparisons.
 

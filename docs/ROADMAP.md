@@ -1,6 +1,6 @@
 # PHP2Shell roadmap
 
-**Prepared release: [v2.6.0](releases/v2.6.0.md)** (documentation finalized; GitHub Release pending maintainer tag). Until `v2.6.0` is published, the latest published tag remains [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1). This document tracks work **not** yet shipped after that release. See [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md) for the next inventory-accuracy proposal.
+**Latest public release: [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0).** This document tracks work **not** yet shipped. Inventory follow-ups: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md). Compromise investigation Phases A/B (development): [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md) on `feat/compromise-investigation` — keep separate from RPM/lifecycle work; next version number not finalized.
 
 ## Shipped recently
 

@@ -1,0 +1,3 @@
+[18-Oct-2026 12:00:00 UTC] PHP Notice: Undefined variable: x in /var/www/app.php on line 12
+[18-Oct-2026 14:05:30 UTC] PHP Fatal error: Allowed memory size of 16777216 bytes exhausted (tried to allocate 3500032 bytes) in Unknown on line 0
+[Wed Oct 18 14:06:02.123456 2026] [core:notice] AH00052: child pid 4242 exit signal Segmentation fault (11)

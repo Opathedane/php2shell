@@ -1,6 +1,7 @@
 ## Unreleased
 
-- Roadmap only (not implemented): RPM DB inventory, PHP support lifecycle calendar, advanced runtime correlation — [docs/ROADMAP.md](docs/ROADMAP.md), [docs/ROADMAP-2.7.0.md](docs/ROADMAP-2.7.0.md).
+- Feature (development branch `feat/compromise-investigation`, version number not finalized): Phases A/B evidence-based compromise investigation — independent exploitation-attempt / possible-compromise / investigation-coverage statuses; `--error-log`; `--investigate-from`/`--investigate-to` (default floor 2026-10-17); research-backed PHP OOM `Unknown on line 0` and Apache segfault leads; bounded long-POST heuristic + ±15m correlation; fleet CSV **`php2shell-fleet-csv/v3`** with rollup accepting v1–v3. Possible compromise remains `NOT_ASSESSED` until offline process/EDR telemetry. Never CLEAN / CONFIRMED_COMPROMISE. See [docs/COMPROMISE-INVESTIGATION.md](docs/COMPROMISE-INVESTIGATION.md).
+- Roadmap only (not implemented): RPM DB inventory, PHP support lifecycle calendar, advanced runtime correlation — [docs/ROADMAP.md](docs/ROADMAP.md), [docs/ROADMAP-2.7.0.md](docs/ROADMAP-2.7.0.md). Keep separate from compromise-investigation work.
 
 ## v2.6.0 — 2026-10-21
 
