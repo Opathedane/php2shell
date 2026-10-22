@@ -38,3 +38,18 @@ jobs:
           test -s reports/ci-smoke.csv
           test ! -e reports/ci-smoke.json
           head -1 reports/ci-smoke.csv | grep -q schema_version
+  legacy-windows-build:
+    name: Windows legacy (Go 1.20) cross-build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build php2shell-windows-legacy-amd64.exe
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq zip >/dev/null
+          bash scripts/build-windows-legacy.sh
+          test -s dist/php2shell-windows-legacy-amd64.exe
+          test -s dist/php2shell-windows-legacy-amd64.zip
+          # PE header sanity (MZ); runtime on Server 2012 R2 is a field checklist, not CI
+          xxd -l 2 dist/php2shell-windows-legacy-amd64.exe | grep -q '4d5a'

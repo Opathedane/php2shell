@@ -8,9 +8,19 @@ Download the build matching the destination server from GitHub **Releases**. No 
 
 ## Windows Server x64 (PowerShell)
 
+**Windows 10 / Server 2016+:** use `php2shell-windows-amd64.exe` (standard build).
+
+**Windows Server 2012 R2 x64:** use `php2shell-windows-legacy-amd64.exe` (Go 1.20 legacy build). The standard EXE refuses NT &lt; 10 with an actionable error. See [WINDOWS-LEGACY-2012R2.md](WINDOWS-LEGACY-2012R2.md) for security implications and PSAppDeployToolkit notes.
+
 ```powershell
 .\php2shell-windows-amd64.exe doctor
 .\php2shell-windows-amd64.exe scan --quiet --output-dir C:\ProgramData\PHP2Shell\Reports
+```
+
+```powershell
+# Server 2012 R2 only
+.\php2shell-windows-legacy-amd64.exe doctor
+.\php2shell-windows-legacy-amd64.exe scan --quiet --output-dir C:\ProgramData\PHP2Shell\Reports
 ```
 
 ### Windows / IIS — what is automatic vs `--webroot`

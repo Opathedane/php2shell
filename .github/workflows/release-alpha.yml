@@ -44,7 +44,7 @@ jobs:
         with:
           go-version: '1.27.3'
           cache: false
-      - name: Build five portable executable variants
+      - name: Build portable executable variants (incl. Windows legacy)
         run: bash scripts/build-release.sh
       - name: Inspect assets
         run: |
