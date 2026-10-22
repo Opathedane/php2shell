@@ -516,11 +516,14 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 func emitInvestigationP0Context(r *Report) {
 	sapi := ClassifyConfiguredSAPIContext(r)
 	r.AddCheck("sapi_investigation_context", "HINTS_ONLY_ACTIVE_RUNTIME_UNVERIFIED", sapi.Detail)
-	r.AddCheck("http_request_body_form_metadata", "UNAVAILABLE",
+	// Status must NOT be UNAVAILABLE/INCOMPLETE/TRUNCATED — those flip process exit 2.
+	// This is an inherent access-log schema limitation, not a failed requested input.
+	r.AddCheck("http_request_body_form_metadata", "NOT_AVAILABLE_IN_ACCESS_LOGS",
 		"HTTP request-body bytes, form-field names/lengths, multipart nesting depth, empty filename=\"\" parts, and Content-Length vs consumed-body mismatches are NOT available from ordinary Combined/IIS access logs. "+
 			"The access-log long-POST heuristic measures request-target (URI path/query) length only. "+
 			"Do not treat a long or short request-target as evidence of large bodies, unusual field names, or multipart structure. "+
-			"Prefer offline WAF/proxy exports that document those fields when investigating Calif-style producers.")
+			"Prefer offline WAF/proxy exports that document those fields when investigating Calif-style producers. "+
+			"This documented limitation is not incomplete coverage of a requested evidence file.")
 	r.AddWarning("Configured PHP SAPI hints are not proof of the active HTTP-serving runtime; do not infer safety from PHP-FPM vs mod_php inventory differences alone")
 }
 

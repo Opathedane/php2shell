@@ -54,8 +54,11 @@ func TestP0HTTPBodyFormMetadataUnavailableCheck(t *testing.T) {
 		switch c.Name {
 		case "http_request_body_form_metadata":
 			foundBody = true
-			if c.Status != "UNAVAILABLE" {
+			if c.Status != "NOT_AVAILABLE_IN_ACCESS_LOGS" {
 				t.Fatalf("body metadata status=%s", c.Status)
+			}
+			if ScanIncomplete(r) {
+				t.Fatal("documented access-log body/form limitation must not mark ScanIncomplete / exit 2")
 			}
 			low := strings.ToLower(c.Detail)
 			for _, want := range []string{"request-target", "form-field", "multipart", "body"} {
