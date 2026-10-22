@@ -63,6 +63,25 @@ func TestRunScanOutExplicitPair(t *testing.T) {
 	}
 }
 
+func TestRunScanOutCSVRemapWritesHTMLCSVStatus(t *testing.T) {
+	dir := t.TempDir()
+	csvOut := filepath.Join(dir, "SERVER.csv")
+	code := run([]string{"scan", "--quiet", "--out", csvOut})
+	if code != audit.ExitOK && code != audit.ExitIncomplete {
+		t.Fatalf("exit %d", code)
+	}
+	html := filepath.Join(dir, "SERVER.html")
+	if _, err := os.Stat(html); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(csvOut); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "SERVER.status.json")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRunRollupCSVInputDir(t *testing.T) {
 	dir := t.TempDir()
 	// Produce two scans into dir

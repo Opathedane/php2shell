@@ -422,14 +422,13 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 
 // Save writes a single self-contained HTML report as owner-readable only and refuses overwrite.
 // Prefer SaveReportPair for normal scanning (HTML + fleet CSV).
+// Paths ending in .csv are remapped to .html (same rule as ResolveScanReportPath).
 func Save(r *Report, htmlPath string) error {
 	htmlPath = strings.TrimSpace(htmlPath)
 	if htmlPath == "" {
 		return fmt.Errorf("empty HTML report path")
 	}
-	if !strings.HasSuffix(strings.ToLower(htmlPath), ".html") && !strings.HasSuffix(strings.ToLower(htmlPath), ".htm") {
-		htmlPath = htmlPath + ".html"
-	}
+	htmlPath = NormalizeHTMLReportPath(htmlPath)
 	return writeExclusiveFile(htmlPath, EncodeHTML(r))
 }
 
@@ -442,9 +441,7 @@ func SaveReportPair(r *Report, htmlPath, csvPath string) error {
 	if htmlPath == "" || csvPath == "" {
 		return fmt.Errorf("HTML and CSV report paths are required")
 	}
-	if !strings.HasSuffix(strings.ToLower(htmlPath), ".html") && !strings.HasSuffix(strings.ToLower(htmlPath), ".htm") {
-		htmlPath += ".html"
-	}
+	htmlPath = NormalizeHTMLReportPath(htmlPath)
 	if !strings.HasSuffix(strings.ToLower(csvPath), ".csv") {
 		csvPath += ".csv"
 	}

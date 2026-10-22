@@ -68,10 +68,28 @@ func UniqueReportPath(dir, hostname string, t time.Time) string {
 	return filepath.Join(dir, name)
 }
 
+// NormalizeHTMLReportPath maps operator --out values to an HTML path.
+// .html/.htm kept; .csv remapped to .html; bare prefixes get .html appended.
+func NormalizeHTMLReportPath(p string) string {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return p
+	}
+	lower := strings.ToLower(p)
+	switch {
+	case strings.HasSuffix(lower, ".html"), strings.HasSuffix(lower, ".htm"):
+		return p
+	case strings.HasSuffix(lower, ".csv"):
+		return p[:len(p)-len(".csv")] + ".html"
+	default:
+		return p + ".html"
+	}
+}
+
 // MatchingCSVPath returns the CSV sibling for an HTML report path.
-// report.html → report.csv; paths without .html get .csv appended after normalizing to .html first.
+// report.html → report.csv; .csv inputs are normalized to .html first then remapped.
 func MatchingCSVPath(htmlPath string) string {
-	htmlPath = strings.TrimSpace(htmlPath)
+	htmlPath = NormalizeHTMLReportPath(htmlPath)
 	lower := strings.ToLower(htmlPath)
 	if strings.HasSuffix(lower, ".html") {
 		return htmlPath[:len(htmlPath)-len(".html")] + ".csv"
@@ -84,23 +102,13 @@ func MatchingCSVPath(htmlPath string) string {
 
 // ResolveScanReportPath chooses the HTML report path.
 // --out (exact path or prefix) wins over --output-dir when set.
-// A path ending in .html (case-insensitive) is used as-is; otherwise .html is appended.
+// .html/.htm kept; .csv remapped to .html; otherwise .html is appended.
 // The matching CSV path is always MatchingCSVPath(html).
 func ResolveScanReportPath(outFlag, outputDir, hostname string, t time.Time) (string, error) {
 	outFlag = strings.TrimSpace(outFlag)
 	outputDir = strings.TrimSpace(outputDir)
 	if outFlag != "" {
-		p := outFlag
-		lower := strings.ToLower(p)
-		switch {
-		case strings.HasSuffix(lower, ".html"), strings.HasSuffix(lower, ".htm"):
-			// keep
-		case strings.HasSuffix(lower, ".csv"):
-			p = p[:len(p)-len(".csv")] + ".html"
-		default:
-			p = p + ".html"
-		}
-		return filepath.Clean(p), nil
+		return filepath.Clean(NormalizeHTMLReportPath(outFlag)), nil
 	}
 	dir := outputDir
 	if dir == "" {
