@@ -143,19 +143,28 @@ func TestWebrootCMSUploadOutsideWindowNoLead(t *testing.T) {
 	f := filepath.Join(up, "legacy-plugin.php")
 	_ = os.WriteFile(f, []byte("<?php /* old cms */"), 0644)
 	old := time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC)
-	_ = os.Chtimes(f, old, old)
+	// Path heuristics are mtime-gated; Chtimes is enough. Birth may remain "now"
+	// on Windows/macOS and must not by itself create upload/unusual leads.
+	if err := os.Chtimes(f, old, old); err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewReport("host", "linux", "amd64")
 	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
-	leads := ScanWebrootInvestigation(r, root, SuggestedInvestigateFromUTC, r.GeneratedUTC)
+	from, to := SuggestedInvestigateFromUTC, r.GeneratedUTC
+	leads := ScanWebrootInvestigation(r, root, from, to)
 	FinalizeInvestigation(r, InvestigationOptions{
 		Assessing: true, HasWebrootInvestigation: true,
 	}, nil, nil, nil, leads)
-	if len(leads) != 0 {
-		t.Fatalf("long-lived CMS upload outside window must not lead: %+v", leads)
+	for _, l := range leads {
+		switch l.Kind {
+		case "webroot_php_in_upload_dir", "webroot_unusual_extension", "webroot_mtime_in_window", "webroot_birth_in_window":
+			t.Fatalf("mtime outside investigation window must not produce %s (mtime=%s birth=%s avail=%v): %s",
+				l.Kind, l.MtimeUTC.Format(time.RFC3339), l.BirthUTC.Format(time.RFC3339), l.BirthAvailable, l.Detail)
+		}
 	}
 	if r.PossibleCompromiseStatus != "NO_MATCHES_IN_SCOPE" {
-		t.Fatalf("got %s", r.PossibleCompromiseStatus)
+		t.Fatalf("got %s leads=%d", r.PossibleCompromiseStatus, len(leads))
 	}
 }
 

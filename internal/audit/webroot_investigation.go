@@ -75,10 +75,12 @@ func ScanWebrootInvestigation(r *Report, root string, from, to time.Time) (leads
 		unusual := isUnusualPHPExtension(name)
 		mtimeIn := !mtime.IsZero() && inInvestigationWindow(mtime, from, to)
 		birthIn := birthOK && inInvestigationWindow(birth, from, to)
-		// Require window relevance for path/extension heuristics so long-lived
-		// CMS files in uploads/ do not all become compromise leads.
-		inWindow := mtimeIn || birthIn
+		// Path/extension heuristics are gated on mtime (or unknown timestamps), not
+		// birth. os.Chtimes cannot rewrite creation time on Windows/macOS; using
+		// birth here would FP every freshly created fixture whose mtime was backdated,
+		// and would treat birth as if it were modification evidence.
 		tsUnknown := mtime.IsZero() && !birthOK
+		pathHeuristicInScope := mtimeIn || tsUnknown
 
 		add := func(kind, detail string) {
 			if len(out) >= webrootInvestMaxLeads {
@@ -99,7 +101,7 @@ func ScanWebrootInvestigation(r *Report, root string, from, to time.Time) (leads
 
 		weakPrefix := "WEAK METADATA-ONLY LEAD (unconfirmed; weaker than EDR process evidence). "
 
-		if upload && (inWindow || tsUnknown) {
+		if upload && pathHeuristicInScope {
 			detail := weakPrefix + fmt.Sprintf(
 				"PHP-related file %q under path segment consistent with upload/writable directories (%s). "+
 					"Not proof of a webshell or successful exploitation — ordinary CMS media/plugins often live here. "+
@@ -109,7 +111,7 @@ func ScanWebrootInvestigation(r *Report, root string, from, to time.Time) (leads
 			)
 			add("webroot_php_in_upload_dir", detail)
 		}
-		if unusual && (inWindow || tsUnknown) {
+		if unusual && pathHeuristicInScope {
 			detail := weakPrefix + fmt.Sprintf(
 				"Unusual PHP-related extension or double-extension name %q at %s. "+
 					"Not proof the file is executable PHP or a webshell. mtime=%s; birth=%s. "+
@@ -119,7 +121,10 @@ func ScanWebrootInvestigation(r *Report, root string, from, to time.Time) (leads
 			)
 			add("webroot_unusual_extension", detail)
 		}
-		if birthIn && (upload || unusual) {
+		// Birth-in-window is independent creation evidence, but only alongside an
+		// in-scope path heuristic (mtime in window / unknown). A stale mtime with a
+		// "new" birth alone is common when tests backdate via Chtimes on Windows.
+		if birthIn && (upload || unusual) && pathHeuristicInScope {
 			detail := weakPrefix + fmt.Sprintf(
 				"Filesystem birth/creation timestamp %s falls inside the investigation window for %s. "+
 					"OS-reported birth when available is still not proof of attacker write (deploy tools may set it; platforms may lack birth). "+

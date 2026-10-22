@@ -73,13 +73,13 @@ Writers emit **`php2shell-fleet-csv/v3`** with independent IR columns (unchanged
 
 ## Webroot filesystem investigation
 
-Metadata-only leads from an authorized `--webroot` (not a webshell scanner). **All webroot leads are `unconfirmed` weak evidence** — weaker than EDR process-relationship leads. Upload/unusual path heuristics require at least one timestamp inside the investigation window (limits long-lived CMS false positives). Non-executable outer double extensions (e.g. `.php.txt`, `.php.bak`) are not treated as unusual PHP leads.
+Metadata-only leads from an authorized `--webroot` (not a webshell scanner). **All webroot leads are `unconfirmed` weak evidence** — weaker than EDR process-relationship leads. Upload/unusual path heuristics are gated on **mtime** inside the investigation window (or unknown timestamps) — not birth — so long-lived CMS files with old mtime do not become leads when OS creation time cannot be rewritten (Windows/macOS). Non-executable outer double extensions (e.g. `.php.txt`, `.php.bak`) are not treated as unusual PHP leads.
 
 | Kind | Meaning |
 | --- | --- |
-| `webroot_php_in_upload_dir` | PHP-like name under upload/writable path segments (window-gated) |
+| `webroot_php_in_upload_dir` | PHP-like name under upload/writable path segments (mtime-window-gated) |
 | `webroot_unusual_extension` | `.phtml` / `.phar` / executable-looking double-extension (e.g. `.php.jpg`) |
-| `webroot_birth_in_window` | OS birth/creation timestamp in window (when platform exposes it) |
+| `webroot_birth_in_window` | OS birth/creation in window for upload/unusual files that also pass the mtime path gate |
 | `webroot_mtime_in_window` | Modification time in window for upload/unusual files only |
 
 **Critical:** filesystem **mtime is never treated as file creation or execution**. Birth/creation time is used only when the OS exposes it (often unavailable on Linux `stat`). Deploy tools can preserve or alter timestamps. Ordinary application trees with only normal `.php` files do **not** become compromise leads solely because mtime falls in the window.
