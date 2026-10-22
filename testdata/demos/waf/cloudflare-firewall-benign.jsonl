@@ -1,0 +1,1 @@
+{"Action":"allow","Datetime":"2026-10-18T16:00:00Z","Description":"","RuleID":"unrelated-managed-rule","Source":"waf","RayID":"ray-demo-benign","ClientRequestMethod":"GET","ClientRequestHost":"customer.example","ClientRequestPath":"/health","ClientRequestQuery":"","EdgeResponseStatus":200,"ClientIP":"192.0.2.10","Kind":"firewall"}

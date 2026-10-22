@@ -1,19 +1,19 @@
-# Compromise investigation (v2.7.0)
+# Compromise investigation (v2.7.0+)
 
 Evidence-based **investigation assist** for CVE-2026-109618 / CVE-2026-109619. This extends PHP2Shell beyond patch inventory. It is **not** a clearance tool and never claims a host is clean or confirmed compromised.
 
-**Shipped in [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0).** Field validation: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md).
+**Shipped in [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0).** Unreleased **2.7.1** adds Calif-aligned IR accuracy and offline Cloudflare WAF `firewall_events` ingestion (attempt axis only). Field validation: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md). Draft notes: [releases/v2.7.1.md](releases/v2.7.1.md).
 
 ## Independent statuses
 
 | Status | Meaning when investigation inputs are absent | Meaning when assessed |
 | --- | --- | --- |
 | Vulnerability / patch exposure | Existing host vulnerability rollup | Unchanged; independent of IR |
-| Exploitation attempts | **`NOT_ASSESSED`** (not a negative finding) | `NO_MATCHES_IN_SCOPE` or `SUSPECTED_ATTEMPTS_REVIEW` (access/error logs) |
-| Possible compromise | **`NOT_ASSESSED`** | Assessed when usable `--process-telemetry` and/or `--webroot` investigation inputs exist: `NO_MATCHES_IN_SCOPE` or `POSSIBLE_COMPROMISE_REVIEW`. Never auto-`CONFIRMED_COMPROMISE`. |
-| Investigation coverage | **`NOT_REQUESTED`** | `ASSESSED_SCOPE_LIMITED`, `PARTIAL_TIMESTAMP_UNCERTAIN`, or `INCOMPLETE` |
+| Exploitation attempts | **`NOT_ASSESSED`** (not a negative finding) | `NO_MATCHES_IN_SCOPE` or `SUSPECTED_ATTEMPTS_REVIEW` (access/error logs and/or offline `--waf-log`) |
+| Possible compromise | **`NOT_ASSESSED`** | Assessed when usable `--process-telemetry` and/or `--webroot` investigation inputs exist: `NO_MATCHES_IN_SCOPE` or `POSSIBLE_COMPROMISE_REVIEW`. Never auto-`CONFIRMED_COMPROMISE`. WAF alone never sets this axis. |
+| Investigation coverage | **`NOT_REQUESTED`** | `ASSESSED_SCOPE_LIMITED`, `PARTIAL_TIMESTAMP_UNCERTAIN`, or `INCOMPLETE` (requested sources unavailable — distinct from completed no-match) |
 
-Without usable process telemetry or webroot investigation (or when those inputs fail), possible compromise stays **`NOT_ASSESSED`** — not a negative clearance. Signed-pack IOC matches continue to set legacy `compromise_status` only.
+Without usable process telemetry or webroot investigation (or when those inputs fail), possible compromise stays **`NOT_ASSESSED`** — not a negative clearance. Signed-pack IOC matches continue to set legacy `compromise_status` only. Successful in-process exploitation may produce neither a crash nor a suspicious child process.
 
 ## CLI
 
@@ -22,17 +22,34 @@ php2shell scan \
   --webroot /var/www/html \
   --access-log /var/log/nginx/access.log \
   --error-log /var/log/php8.3-fpm.log \
+  --waf-log ./exports/cloudflare-firewall_events.jsonl \
   --process-telemetry ./exports/DeviceProcessEvents.csv \
   --process-telemetry ./exports/sysmon-eventid1.csv \
   --investigate-from 2026-10-17 \
   --output-dir "$HOME/.php2shell/reports"
 ```
 
-- `--investigate-from` / `--investigate-to`: UTC `RFC3339` or `YYYY-MM-DD`. Default from **2026-10-17** when investigating; analysts may choose an **earlier** date. Requires `--access-log`, `--error-log`, `--process-telemetry`, and/or `--webroot`.
+- `--investigate-from` / `--investigate-to`: UTC `RFC3339` or `YYYY-MM-DD`. Default from **2026-10-17** when investigating; analysts may choose an **earlier** date. Requires `--access-log`, `--error-log`, `--process-telemetry`, `--waf-log`, and/or `--webroot`.
 - `--error-log`: bounded PHP/Apache error logs (≤32 MiB each).
+- `--waf-log`: offline WAF exports (≤32 MiB each, ≤8 files, ≤50 000 events). Currently **Cloudflare Logpush `firewall_events` JSONL** only. Documented fields only — no raw bodies/cookies/session values. Block/challenge ≠ successful exploitation. WAF leads feed **exploitation-attempt** review only.
 - `--process-telemetry`: offline EDR/process exports only (≤32 MiB each, ≤8 files, ≤50 000 events). **No live EDR APIs, credentials, or uploads.**
 - `--webroot`: authorized document root — existing filename inventory + SHA-256 IOC hashing unchanged; when investigating, also runs a **metadata-only** filesystem investigation (depth≤8, ≤25k entries, symlinks skipped, **contents never read**).
 - First/last timestamps **do not** prove continuous coverage (rotation, gaps, timezone ambiguity, PID reuse, parser failures).
+- Ordinary access logs do **not** expose HTTP bodies, form-field names, or multipart nesting. Long request-target length is a distinct, weak heuristic — not body size.
+
+## Configured SAPI hints (not active-runtime attestation)
+
+Reports summarize inventory hints for **Apache mod_php**, **PHP-FPM**, CGI/IIS, and LiteSpeed when evidence exists. Configuration/process/binary artifacts **do not** prove the HTTP-serving SAPI. Calif-documented interrupt behavior differs by SAPI (mod_php may reuse a worker after some startup fatals; PHP-FPM exits on `php_request_startup` failure) but **PHP-FPM remains exploitable** via post-startup paths — do not treat FPM as safe.
+
+Observed `php.ini` whitelist settings (`memory_limit`, `post_max_size`, `session.upload_progress.enabled`, …) remain **OBSERVED≠EFFECTIVE** text only; temporary mitigations are unverified and do not replace patching.
+
+## Supported offline WAF formats
+
+| Format | Detection | Documented fields used | Not available (not invented) |
+| --- | --- | --- | --- |
+| Cloudflare Logpush `firewall_events` JSONL | `Action` + `RuleID` + `Datetime` | Action, RuleID, Description, Source, RayID, ClientRequestMethod/Host/Path/Query, EdgeResponseStatus, Datetime | Content-Length, multipart nesting, empty `filename`, raw bodies |
+
+High-confidence `waf_php2shell_rule_match` leads require an allowlisted Cloudflare php2shell / Anomalous Execution **RuleID** from the public Cloudflare blog. Query-string **presence** of `PHP_SESSION_UPLOAD_PROGRESS` may emit a weak heuristic (value never retained). ClientIP is not retained in findings.
 
 ## Supported offline process telemetry formats
 
@@ -63,7 +80,9 @@ Ordinary admin activity (e.g. `explorer.exe` → `cmd.exe`) and application-spec
 | --- | --- | --- | --- |
 | PHP Fatal memory exhausted **in Unknown on line 0** | verified_public_pattern | suspected | Datadog; memory exhaustion alone ≠ attack |
 | Apache `AH00052` / child Segmentation fault | verified_public_pattern | suspected | Datadog; successful exploits may not crash |
-| Long POST **request-target** (≥2048 characters of URI path/query as logged) | heuristic | unconfirmed | Measures **request-target length only** — not body size |
+| Long POST **request-target** (≥2048 characters of URI path/query as logged) | heuristic | unconfirmed | Measures **request-target length only** — not body size, form-field names, or multipart nesting |
+| Cloudflare allowlisted php2shell WAF RuleID | verified_public_pattern | suspected | Attempt assist; **block≠success**; never alone sets possible-compromise |
+| WAF query token `PHP_SESSION_UPLOAD_PROGRESS` (presence) | heuristic | unconfirmed | Value not retained; body multipart fields still unavailable |
 | Error research pattern within ±15 m of long request-target | correlation | unconfirmed | **Temporal proximity only — not causality** |
 | Process lead within ±15 m of error/access lead | correlation | unconfirmed | **Not causality**; does not confirm successful exploitation |
 
