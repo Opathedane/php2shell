@@ -2,13 +2,13 @@
 
 # Advanced usage — PHP2Shell Assessment
 
-Latest public release: **v2.6.0** (optional `--deep-root` Deep Discovery; expanded well-known install paths).
+Latest public release: **v2.6.0**. This documentation tree may include unreleased **2.7.0** compromise-investigation tooling (confirm `php2shell version`).
 
-PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory and evidence-qualified patch review for CVE-2026-109618 / CVE-2026-109619.
+PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory, evidence-qualified patch review, and (in the 2.7.0 RC tree) offline compromise investigation assist for CVE-2026-109618 / CVE-2026-109619.
 
 ## Download
 
-Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.6.0** (or newer), and download the archive for the destination OS/CPU. Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.6.0`, …).
+Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.6.0** (latest public), and download the archive for the destination OS/CPU. **v2.7.0 is not published.** Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.6.0`, …).
 
 ## Scan output pair
 
@@ -94,9 +94,9 @@ On Linux and Windows, when a well-known Apache config root is accessible (`/etc/
 - **Inaccessible handler binaries** (missing path, wrong host, permission denied) produce `windows_iis_configuration` **INCOMPLETE** coverage and version-unknown evidence. That must not be read as “the site is patched/safe.”
 - **Active HTTP serving runtime** remains unverified even when site, handler, and binary version evidence align.
 
-## Compromise investigation (development — Phases A–C + webroot)
+## Compromise investigation (v2.7.0 RC — not a published release)
 
-Offline review of consultant-supplied **access logs**, **error logs**, **process/EDR exports**, and authorized **`--webroot` filesystem metadata**. Not shipped in published v2.6.0 binaries until a later tagged release. Full detail: [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md).
+Offline review of consultant-supplied **access logs**, **error logs**, **process/EDR exports**, and authorized **`--webroot` filesystem metadata**. Present in this unreleased tree; **not** in published v2.6.0 binaries. Full detail: [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md). Field checklist: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md).
 
 ```bash
 ./php2shell-linux-amd64 scan \

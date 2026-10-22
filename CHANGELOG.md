@@ -1,9 +1,9 @@
-## Unreleased
+## Unreleased (toward v2.7.0)
 
-- Feature (development branch `feat/webroot-compromise-investigation`, version number not finalized): **Webroot filesystem investigation** — when `--webroot` is supplied during investigation, metadata-only walk (depth≤8, ≤25k entries) for PHP-like files in upload/writable paths, unusual/double extensions, and window-aware birth/mtime notes; **all leads `unconfirmed`/weaker than EDR**; path location context distinct from timestamp evidence (path alone never flips `POSSIBLE_COMPROMISE_REVIEW`); historical CMS (both timestamps outside window) produces no leads; in-window birth still detected when mtime is old; **mtime is never treated as creation or execution**; birth-only temporal correlation (±15m); webroot-only `POSSIBLE_COMPROMISE_REVIEW` labeled low-confidence investigative lead in HTML/CSV; file contents never read or executed; no generic webshell/`eval` scanning. Preserves existing SHA-256 IOC hashing and fleet CSV v3. See [docs/COMPROMISE-INVESTIGATION.md](docs/COMPROMISE-INVESTIGATION.md).
-- Feature (merged to main via #14): Phase C offline EDR/process telemetry (`--process-telemetry`).
-- Feature (merged to main via #13): Phases A/B evidence-based compromise investigation.
-- Roadmap only (not in this PR): RPM DB inventory, PHP lifecycle calendar, AWS IP packs, generic webshell content detection — [docs/ROADMAP.md](docs/ROADMAP.md).
+Release-candidate documentation and embedded version `2.7.0` on `release/prepare-2.7.0`. **Not published.** Latest public release remains [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0). See draft [docs/releases/v2.7.0.md](docs/releases/v2.7.0.md) and [docs/FIELD-VALIDATION-2.7.0.md](docs/FIELD-VALIDATION-2.7.0.md).
+
+- Feature (merged to main via #13–#15; shipping candidate for v2.7.0): **Compromise investigation assist** — offline `--access-log` / `--error-log` / `--process-telemetry` / `--webroot` metadata investigation; independent exploitation-attempt, possible-compromise, and investigation-coverage statuses; birth-aware webroot leads with path context vs timestamp evidence; ±15m temporal correlation (proximity ≠ causality); fleet CSV **v3** with IR columns and v1–v3 rollup. Never auto-confirmed compromise; never equates no matches with a clean host. See [docs/COMPROMISE-INVESTIGATION.md](docs/COMPROMISE-INVESTIGATION.md).
+- Roadmap only (not in v2.7.0 RC): RPM DB inventory, PHP lifecycle calendar, AWS IP packs as strong IOCs, generic webshell content detection — [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## v2.6.0 — 2026-10-21
 
