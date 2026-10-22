@@ -1,4 +1,6 @@
-## Unreleased
+## Unreleased (toward v2.7.1)
+
+- Improve: Calif-aligned IR accuracy — SAPI-aware investigation hints (mod_php vs PHP-FPM; never active-runtime attestation); explicit HTTP body/form/multipart unavailability vs long request-target heuristics; in-process exploitation-without-child warnings; stronger OBSERVED≠EFFECTIVE configuration labelling; evidence-source availability distinguishing REQUESTED_UNAVAILABLE from completed NO_MATCHES_IN_SCOPE.
 
 ## v2.7.0 — 2026-10-22
 

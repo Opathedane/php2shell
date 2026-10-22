@@ -111,7 +111,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 	b.WriteString(`<p class="meta"><strong>Host:</strong> ` + h(r.Hostname) + ` &nbsp;·&nbsp; <strong>Assessed (UTC):</strong> ` + h(r.GeneratedUTC.Format("2006-01-02 15:04:05")) + ` &nbsp;·&nbsp; <strong>Scanner:</strong> ` + h(r.ToolVersion) + `</p>`)
 	b.WriteString(`<p class="priority">Overall priority: ` + h(overallPriority(r)) + `</p></header>`)
 
-	b.WriteString(`<div class="notice"><strong>This report is not a clearance.</strong> It does not prove that a host is fully patched, that the correct PHP runtime is serving HTTP, or that the server is uncompromised. Missing findings are not proof of safety. Patched does not mean uncompromised. Independent statuses cover vulnerability exposure, exploitation attempts, possible compromise, and investigation coverage.</div>`)
+	b.WriteString(`<div class="notice"><strong>This report is not a clearance.</strong> It does not prove that a host is fully patched, that the correct PHP runtime is serving HTTP, or that the server is uncompromised. Missing findings are not proof of safety. Patched does not mean uncompromised. Unavailable evidence is not the same as a completed assessment with no matches. Successful in-process exploitation may produce neither a crash nor a suspicious child process. Independent statuses cover vulnerability exposure, exploitation attempts, possible compromise, and investigation coverage.</div>`)
 
 	b.WriteString(`<section class="cards" aria-label="Executive summary">`)
 	b.WriteString(`<article class="card"><h2>PHP detected</h2><p class="value">` + h(phpLabel) + `</p><p class="detail">`)
@@ -136,9 +136,11 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 	b.WriteString(`</p></article>`)
 	b.WriteString(`<article class="card"><h2>Vulnerability / patch exposure</h2><p class="value">` + h(vulnLabel) + `</p><p class="detail">Upstream thresholds (21 Oct 2026): 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35. Vendor backports require separate verification. Independent of investigation statuses.</p></article>`)
 	b.WriteString(`<article class="card"><h2>Active web runtime</h2><p class="value">` + h(rtLabel) + `</p><p class="detail">` + h(rtDetail) + `</p></article>`)
-	b.WriteString(`<article class="card"><h2>Exploitation attempts</h2><p class="value">` + h(attemptLabel) + `</p><p class="detail">Suspected attempt leads need analyst review. A single memory error, crash, or large POST is not successful exploitation.</p></article>`)
+	sapi := ClassifyConfiguredSAPIContext(r)
+	b.WriteString(`<article class="card"><h2>Configured SAPI hints</h2><p class="value">` + h(sapi.Label) + `</p><p class="detail">` + h(sapi.Detail) + `</p></article>`)
+	b.WriteString(`<article class="card"><h2>Exploitation attempts</h2><p class="value">` + h(attemptLabel) + `</p><p class="detail">` + h(humanExploitationAttemptDetail(r)) + `</p></article>`)
 	b.WriteString(`<article class="card"><h2>Possible compromise</h2><p class="value">` + h(possibleLabel) + `</p><p class="detail">` + h(humanPossibleCompromiseDetail(r)) + `</p></article>`)
-	b.WriteString(`<article class="card"><h2>Investigation coverage</h2><p class="value">` + h(invCovLabel) + `</p><p class="detail">First/last log timestamps do not prove continuous coverage. Incomplete evidence is not the same as no matches.</p></article>`)
+	b.WriteString(`<article class="card"><h2>Investigation coverage</h2><p class="value">` + h(invCovLabel) + `</p><p class="detail">First/last timestamps do not prove continuous coverage. REQUESTED_UNAVAILABLE sources differ from completed NO_MATCHES_IN_SCOPE on usable sources. Ordinary access logs lack HTTP body and form-field metadata.</p></article>`)
 	b.WriteString(`<article class="card"><h2>Signed IOC rollup</h2><p class="value">` + h(compLabel) + `</p><p class="detail">Legacy signed-pack matches only; not a host clearance.</p></article>`)
 	b.WriteString(`</section>`)
 
@@ -170,7 +172,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		}
 		if cfgCount > 0 || skipCount > 0 {
 			b.WriteString(`<h2 class="section">PHP configuration candidates (no confirmed install)</h2>`)
-			b.WriteString(`<div class="notice"><strong>Configuration-only evidence.</strong> Discovered php.ini paths are not proof of a PHP installation, PHP version, or active web runtime. Settings are observed text only (OBSERVED≠EFFECTIVE).</div>`)
+			b.WriteString(`<div class="notice"><strong>Configuration-only evidence.</strong> Discovered php.ini paths are not proof of a PHP installation, PHP version, or active web runtime. Settings are observed text only (OBSERVED≠EFFECTIVE) and temporary mitigations are unverified — patching remains required.</div>`)
 			b.WriteString(`<table><thead><tr><th>File / setting</th><th>Detail</th><th>Meaning</th></tr></thead><tbody>`)
 			shown := 0
 			for _, e := range r.Evidence {
@@ -290,7 +292,15 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		b.WriteString(`<p><strong>Exploitation attempts:</strong> ` + h(r.ExploitationAttemptStatus) +
 			` &nbsp;·&nbsp; <strong>Possible compromise:</strong> ` + h(r.PossibleCompromiseStatus) +
 			` &nbsp;·&nbsp; <strong>Investigation coverage:</strong> ` + h(r.InvestigationCoverage) + `</p>`)
-		b.WriteString(`<p>Statuses are independent. This tool never claims a host is clean or confirmed compromised.</p>`)
+		b.WriteString(`<p>Statuses are independent. This tool never claims a host is clean or confirmed compromised. ` +
+			`Long request-target length, large HTTP bodies, unusual form-field names, and multipart nesting are distinct signals; ` +
+			`ordinary access logs typically provide only the first (URI length heuristic). ` +
+			`Do not claim two requests shared a PHP worker without worker identity evidence.</p>`)
+		b.WriteString(`<div class="notice"><strong>Configured SAPI hints:</strong> ` + h(ClassifyConfiguredSAPIContext(r).Detail) + `</div>`)
+		b.WriteString(`<div class="notice"><strong>HTTP body / form metadata:</strong> Not available from ordinary access logs. ` +
+			`Prefer offline WAF exports with documented fields. Content-Length and multipart nesting are not inferred from URI lines.</div>`)
+		b.WriteString(`<div class="notice"><strong>Observed PHP configuration:</strong> Whitelisted php.ini settings are static text only ` +
+			`(OBSERVED≠EFFECTIVE). Temporary mitigations such as session.upload_progress.enabled or memory_limit changes are unverified and do not replace patching.</div>`)
 		if len(r.InvestigationFindings) > 0 {
 			b.WriteString(`<p><strong>Investigation leads</strong> (sanitized; request/query secrets not retained)</p>`)
 			b.WriteString(`<table><thead><tr><th>Kind</th><th>Class</th><th>Confidence</th><th>Time (UTC)</th><th>Detail</th></tr></thead><tbody>`)

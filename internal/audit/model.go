@@ -6,7 +6,7 @@ import (
 )
 
 const Schema = "php2shell-assessment/v1"
-const Version = "2.7.0"
+const Version = "2.7.1"
 
 type Evidence struct {
 	Type           string `json:"type"`
@@ -42,22 +42,22 @@ type LogCoverage struct {
 
 // ErrorLogCoverage summarizes one bounded PHP/webserver error log review.
 type ErrorLogCoverage struct {
-	File           string `json:"file"`
-	Status         string `json:"status"`
-	Lines          int    `json:"lines"`
-	ParsedEvents   int    `json:"parsed_events"`
-	FirstTimestamp string `json:"first_timestamp,omitempty"`
-	LastTimestamp  string `json:"last_timestamp,omitempty"`
-	MatchedPatterns int   `json:"matched_patterns,omitempty"`
-	Detail         string `json:"detail,omitempty"`
+	File            string `json:"file"`
+	Status          string `json:"status"`
+	Lines           int    `json:"lines"`
+	ParsedEvents    int    `json:"parsed_events"`
+	FirstTimestamp  string `json:"first_timestamp,omitempty"`
+	LastTimestamp   string `json:"last_timestamp,omitempty"`
+	MatchedPatterns int    `json:"matched_patterns,omitempty"`
+	Detail          string `json:"detail,omitempty"`
 }
 
 // InvestigationFinding is a source-attributed investigation lead — never proof of
 // successful exploitation or host compromise by itself.
 type InvestigationFinding struct {
 	ID           string `json:"id"`
-	Class        string `json:"class"` // verified_public_pattern | heuristic | correlation
-	Kind         string `json:"kind"`  // e.g. php_oom_unknown_line0, apache_segfault, access_long_post, correlated_attempt
+	Class        string `json:"class"`      // verified_public_pattern | heuristic | correlation
+	Kind         string `json:"kind"`       // e.g. php_oom_unknown_line0, apache_segfault, access_long_post, correlated_attempt
 	Confidence   string `json:"confidence"` // unconfirmed | suspected
 	Source       string `json:"source"`
 	Location     string `json:"location"`
@@ -93,37 +93,37 @@ type IndicatorFinding struct {
 }
 
 type Report struct {
-	Schema              string             `json:"schema"`
-	ToolVersion         string             `json:"tool_version"`
-	GeneratedUTC        time.Time          `json:"generated_utc"`
-	Hostname            string             `json:"hostname"`
-	OS                  string             `json:"os"`
-	Architecture        string             `json:"architecture"`
-	CVEs                []string           `json:"cves"`
-	CustomerLabel       string             `json:"customer_label,omitempty"`
-	VulnerabilityStatus string             `json:"vulnerability_status"`
-	CompromiseStatus    string             `json:"compromise_status"` // legacy signed-IOC rollup only; not host clearance
-	EffectiveWebRuntime string             `json:"effective_web_runtime"`
+	Schema              string    `json:"schema"`
+	ToolVersion         string    `json:"tool_version"`
+	GeneratedUTC        time.Time `json:"generated_utc"`
+	Hostname            string    `json:"hostname"`
+	OS                  string    `json:"os"`
+	Architecture        string    `json:"architecture"`
+	CVEs                []string  `json:"cves"`
+	CustomerLabel       string    `json:"customer_label,omitempty"`
+	VulnerabilityStatus string    `json:"vulnerability_status"`
+	CompromiseStatus    string    `json:"compromise_status"` // legacy signed-IOC rollup only; not host clearance
+	EffectiveWebRuntime string    `json:"effective_web_runtime"`
 	// Independent investigation axes (Phases A/B). Never emit CLEAN or CONFIRMED_COMPROMISE.
-	ExploitationAttemptStatus string `json:"exploitation_attempt_status"`
-	PossibleCompromiseStatus  string `json:"possible_compromise_status"`
-	InvestigationCoverage     string `json:"investigation_coverage"`
-	InvestigationWindow       *InvestigationWindow  `json:"investigation_window,omitempty"`
-	Evidence                  []Evidence            `json:"evidence"`
-	Summary                   ReviewSummary         `json:"summary"`
-	PatchAssessments          []PatchAssessment     `json:"patch_assessments"`
-	Coverage                  []Check               `json:"coverage"`
-	Repositories              []RepoCoverage        `json:"repositories,omitempty"`
-	Logs                      []LogCoverage         `json:"logs,omitempty"`
-	ErrorLogs                 []ErrorLogCoverage    `json:"error_logs,omitempty"`
-	ProcessTelemetry          []ProcessTelemetryCoverage `json:"process_telemetry,omitempty"`
+	ExploitationAttemptStatus string                         `json:"exploitation_attempt_status"`
+	PossibleCompromiseStatus  string                         `json:"possible_compromise_status"`
+	InvestigationCoverage     string                         `json:"investigation_coverage"`
+	InvestigationWindow       *InvestigationWindow           `json:"investigation_window,omitempty"`
+	Evidence                  []Evidence                     `json:"evidence"`
+	Summary                   ReviewSummary                  `json:"summary"`
+	PatchAssessments          []PatchAssessment              `json:"patch_assessments"`
+	Coverage                  []Check                        `json:"coverage"`
+	Repositories              []RepoCoverage                 `json:"repositories,omitempty"`
+	Logs                      []LogCoverage                  `json:"logs,omitempty"`
+	ErrorLogs                 []ErrorLogCoverage             `json:"error_logs,omitempty"`
+	ProcessTelemetry          []ProcessTelemetryCoverage     `json:"process_telemetry,omitempty"`
 	WebrootInvestigation      []WebrootInvestigationCoverage `json:"webroot_investigation,omitempty"`
-	InvestigationFindings     []InvestigationFinding `json:"investigation_findings,omitempty"`
-	RuleSequence              uint64                `json:"rule_sequence,omitempty"`
-	RuleCount                 int                   `json:"rule_count,omitempty"`
-	Findings                  []IndicatorFinding    `json:"indicator_findings,omitempty"`
-	Warnings                  []string              `json:"warnings"`
-	RecommendedActions        []string              `json:"recommended_actions"`
+	InvestigationFindings     []InvestigationFinding         `json:"investigation_findings,omitempty"`
+	RuleSequence              uint64                         `json:"rule_sequence,omitempty"`
+	RuleCount                 int                            `json:"rule_count,omitempty"`
+	Findings                  []IndicatorFinding             `json:"indicator_findings,omitempty"`
+	Warnings                  []string                       `json:"warnings"`
+	RecommendedActions        []string                       `json:"recommended_actions"`
 
 	// aliasDirs maps a corroborated alias install directory (e.g. ...\PHP\current)
 	// to a canonical versioned directory. Not serialized; used only while building

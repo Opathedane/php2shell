@@ -18,8 +18,10 @@ import (
 var accessLine = regexp.MustCompile(`"(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|TRACE|CONNECT)\s+([^"\r\n]{0,1000})\s+HTTP/[0-9.]+"\s+([0-9]{3})`)
 var accessTime = regexp.MustCompile(`\[([0-9]{2}/[A-Za-z]{3}/[0-9]{4}:[0-9]{2}:[0-9]{2}:[0-9]{2}\s+[+-][0-9]{4})\]`)
 
-const srcAccessLongPOST = "Heuristic only: POST request-target (URI/stem+query) length in the access-log line. " +
-	"Combined/IIS W3C access logs do not establish HTTP request-body size; this is not a large-POST-body detector. Weak alone — not proof of exploitation"
+const srcAccessLongPOST = "Heuristic only: POST request-target (URI path/stem+query) length in the access-log line. " +
+	"Distinct from: (1) large HTTP request-body size, (2) unusual form-field name length, (3) multipart nesting / empty filename parts. " +
+	"Ordinary Combined/IIS W3C access logs do not expose body bytes or form-field metadata — those require WAF/proxy exports. " +
+	"Weak alone — not proof of exploitation"
 
 func ScanAccessLog(r *Report, path string) {
 	ScanAccessLogWithIndicators(r, path, nil)
@@ -131,8 +133,10 @@ func ScanAccessLogCollect(r *Report, path string, indicators []rules.Indicator) 
 				Line:       item.Lines,
 				Detail: fmt.Sprintf(
 					"POST request-target (URI path/query as logged) length ≥ %d characters at access-log line %d "+
-						"(target text not retained). This measures request-target length only — not request-body length or total request size. "+
-						"Standard access-log formats do not expose body size here. Weak heuristic (confidence=unconfirmed); not proof of exploitation or compromise.",
+						"(target text not retained). Measures request-target length ONLY — not HTTP body size, not form-field name length, "+
+						"and not multipart nesting/empty-filename structure (Calif-style producers). "+
+						"Ordinary access logs lack those fields; prefer offline WAF metadata when available. "+
+						"Weak heuristic (confidence=unconfirmed); not proof of exploitation or compromise.",
 					longPOSTTargetRunes, item.Lines,
 				),
 			})

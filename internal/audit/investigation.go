@@ -36,7 +36,7 @@ type InvestigationOptions struct {
 	From time.Time
 	To   time.Time
 	// Assessing is true when the operator supplied any investigation input
-	// (--access-log, --error-log, and/or --process-telemetry).
+	// (--access-log, --error-log, --process-telemetry, and/or --webroot).
 	Assessing bool
 	// HasProcessTelemetry is true when at least one --process-telemetry file was requested.
 	HasProcessTelemetry bool
@@ -126,10 +126,14 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 	hasProcInputs := opts.HasProcessTelemetry
 	hasWebrootInputs := opts.HasWebrootInvestigation
 
+	// P0: SAPI-aware narrative + HTTP body/form metadata limitations (always when assessing).
+	emitInvestigationP0Context(r)
+
 	coverage := "ASSESSED_SCOPE_LIMITED"
-	coverageDetail := "Investigation inputs were reviewed inside the selected UTC window. " +
+	coverageDetail := "Usable investigation inputs were reviewed inside the selected UTC window (completed assessment of available evidence — not the same as unavailable sources). " +
 		"First/last timestamps do not prove continuous coverage; rotation gaps and missing sources cannot be ruled out. " +
-		"Filesystem modification times are not file creation evidence."
+		"Filesystem modification times are not file creation evidence. " +
+		"Ordinary access logs do not expose HTTP request bodies, form-field names, or multipart nesting."
 
 	// If every requested input class failed entirely, mark incomplete.
 	logsAllFailed := hasLogInputs && usableAccess+usableError == 0
@@ -140,12 +144,12 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		r.ExploitationAttemptStatus = "NOT_ASSESSED"
 		r.PossibleCompromiseStatus = "NOT_ASSESSED"
 		r.AddCheck("compromise_investigation", "INCOMPLETE",
-			"Investigation was requested but no usable access/error log could be parsed; statuses remain NOT_ASSESSED (incomplete evidence, not absence of matches)")
+			"Investigation was requested but no usable access/error log could be parsed; statuses remain NOT_ASSESSED (unavailable/incomplete evidence, not absence of matches)")
 		r.AddCheck("process_telemetry_investigation", "NOT_REQUESTED",
 			"No offline process/EDR telemetry supplied")
 		r.AddCheck("webroot_investigation", "NOT_REQUESTED",
 			"No --webroot filesystem investigation requested")
-		r.AddWarning("Investigation coverage incomplete: supplied logs were inaccessible, oversized, or unreadable")
+		r.AddWarning("Investigation coverage incomplete: supplied logs were inaccessible, oversized, or unreadable (unavailable ≠ no matches)")
 		return
 	}
 	_ = logsAllFailed
@@ -153,9 +157,16 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 	_ = webAllFailed
 	if unusableAccess+unusableError+unusableProc+unusableWeb > 0 {
 		coverage = "INCOMPLETE"
-		coverageDetail = "At least one requested log, telemetry, or webroot input was unavailable, unsupported, truncated, or incompletely parsed. " +
+		coverageDetail = "At least one requested evidence source was UNAVAILABLE, unsupported, truncated, or incompletely parsed. " +
+			"Unavailable evidence is not the same as a completed assessment with no matches. " +
 			"Do not treat missing matches as proof of safety; gaps cannot be ruled out from first/last timestamps alone."
 	}
+	r.AddCheck("investigation_evidence_sources", coverage, formatEvidenceSourceAvailability(
+		usableAccess+unusableAccess > 0, usableAccess, unusableAccess,
+		usableError+unusableError > 0, usableError, unusableError,
+		hasProcInputs, usableProc, unusableProc,
+		hasWebrootInputs, usableWeb, unusableWeb,
+	))
 
 	var timedUnknown bool
 	var inScopeAccess, inScopeError []InvestigationEvent
@@ -211,7 +222,7 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 
 	// --- Exploitation-attempt leads (access/error) ---
 	attemptHits := 0
-	if usableAccess+usableError > 0 || (hasLogInputs && usableAccess+usableError > 0) {
+	if usableAccess+usableError > 0 {
 		for _, ev := range inScopeError {
 			attemptHits++
 			appendInvestigationFinding(r, findingFromLogEvent("err", ev))
@@ -221,7 +232,6 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 			appendInvestigationFinding(r, findingFromLogEvent("acc", ev))
 		}
 	}
-
 	corr := correlateAccessError(r, inScopeError, inScopeAccess)
 
 	// Process ↔ attempt temporal proximity (not causality).
@@ -347,18 +357,22 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 
 	r.InvestigationCoverage = coverage
 
-	// Exploitation attempts: only when access/error logs were part of the assessment.
-	if hasLogInputs {
-		if usableAccess+usableError == 0 {
+	// Exploitation attempts: access/error logs.
+	hasAttemptInputs := hasLogInputs
+	usableAttempt := usableAccess + usableError
+	if hasAttemptInputs {
+		if usableAttempt == 0 {
 			r.ExploitationAttemptStatus = "NOT_ASSESSED"
-			r.AddWarning("Access/error logs were requested but not usable; exploitation-attempt status remains NOT_ASSESSED (incomplete, not negative)")
+			r.AddWarning("Exploitation-attempt inputs were requested but not usable; status remains NOT_ASSESSED (unavailable/incomplete evidence — not the same as no matches)")
 		} else if attemptHits > 0 || corr > 0 {
 			r.ExploitationAttemptStatus = "SUSPECTED_ATTEMPTS_REVIEW"
 			r.AddWarning("Suspected exploitation-attempt leads require analyst validation; they are not proof of successful exploitation or host compromise")
+			r.AddWarning("Successful in-process exploitation may produce neither a worker crash nor a suspicious child process; absence of those signals is not a negative finding")
 			r.AddAction("Preserve original access/error logs covering the investigation window (from at least 2026-10-17 when possible) and escalate suspected attempt leads for human review")
 		} else {
 			r.ExploitationAttemptStatus = "NO_MATCHES_IN_SCOPE"
-			r.AddAction("No exploitation-attempt patterns matched in the assessed log scope; this is not a clearance — expand retention and offline EDR/process review")
+			r.AddAction("Usable exploitation-attempt evidence was assessed and no patterns matched in scope — this is a completed no-match result for those sources, not unavailable evidence, and not a host clearance. Expand retention and offline EDR/process review.")
+			r.AddWarning("Successful in-process exploitation may produce neither a worker crash nor a suspicious child process; no-match on current heuristics is not proof of safety")
 		}
 	} else {
 		r.ExploitationAttemptStatus = "NOT_ASSESSED"
@@ -428,20 +442,65 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		}
 	} else {
 		r.PossibleCompromiseStatus = "NO_MATCHES_IN_SCOPE"
-		r.AddAction("No process or webroot compromise patterns matched in assessed scope; this is not a clearance — expand retention and correlate evidence sources")
+		r.AddAction("Usable process/webroot evidence was assessed with no compromise patterns in scope — completed no-match for those sources (not unavailable evidence) and not a host clearance. Expand retention and correlate log/EDR sources.")
+		r.AddWarning("Possible-compromise no-match does not rule out in-process code execution without a suspicious child process")
 	}
 
 	if procCorr > 0 || webCorr > 0 {
-		r.AddAction("Review temporally proximate process, webroot, and log leads together; proximity is not causation")
+		r.AddAction("Review temporally proximate process, webroot, and log leads together; proximity is not causation and is not same-worker identity")
 	}
 
 	r.AddCheck("compromise_investigation", coverage, fmt.Sprintf(
 		"%s Findings: %d investigation lead(s). ExploitationAttempt=%s PossibleCompromise=%s (independent). "+
+			"Long request-target length ≠ large HTTP body ≠ unusual form-field names ≠ multipart nesting. "+
 			"A single memory error, crash, long request-target, child process, or PHP-like file never implies confirmed compromise. "+
-			"Correlation is temporal proximity only. Filesystem mtime is not creation evidence.",
+			"Successful exploitation may leave no crash and no suspicious child. "+
+			"Correlation is temporal proximity only (not same-worker identity). Filesystem mtime is not creation evidence.",
 		coverageDetail, len(r.InvestigationFindings),
 		r.ExploitationAttemptStatus, r.PossibleCompromiseStatus,
 	))
+}
+
+// emitInvestigationP0Context records SAPI-aware narrative and HTTP body/form metadata limits.
+func emitInvestigationP0Context(r *Report) {
+	sapi := ClassifyConfiguredSAPIContext(r)
+	r.AddCheck("sapi_investigation_context", "HINTS_ONLY_ACTIVE_RUNTIME_UNVERIFIED", sapi.Detail)
+	r.AddCheck("http_request_body_form_metadata", "UNAVAILABLE",
+		"HTTP request-body bytes, form-field names/lengths, multipart nesting depth, empty filename=\"\" parts, and Content-Length vs consumed-body mismatches are NOT available from ordinary Combined/IIS access logs. "+
+			"The access-log long-POST heuristic measures request-target (URI path/query) length only. "+
+			"Do not treat a long or short request-target as evidence of large bodies, unusual field names, or multipart structure. "+
+			"Prefer offline WAF/proxy exports that document those fields when investigating Calif-style producers.")
+	r.AddWarning("Configured PHP SAPI hints are not proof of the active HTTP-serving runtime; do not infer safety from PHP-FPM vs mod_php inventory differences alone")
+}
+
+func formatEvidenceSourceAvailability(
+	hasAccess bool, usableAccess, unusableAccess int,
+	hasError bool, usableError, unusableError int,
+	hasProc bool, usableProc, unusableProc int,
+	hasWeb bool, usableWeb, unusableWeb int,
+) string {
+	describe := func(label string, requested bool, usable, unusable int) string {
+		if !requested {
+			return label + "=NOT_REQUESTED"
+		}
+		if usable == 0 && unusable > 0 {
+			return fmt.Sprintf("%s=REQUESTED_UNAVAILABLE (usable=0 unusable=%d)", label, unusable)
+		}
+		if usable == 0 && unusable == 0 {
+			return label + "=REQUESTED_EMPTY"
+		}
+		if unusable > 0 {
+			return fmt.Sprintf("%s=REQUESTED_PARTIAL (usable=%d unusable=%d)", label, usable, unusable)
+		}
+		return fmt.Sprintf("%s=REQUESTED_USABLE (usable=%d)", label, usable)
+	}
+	return strings.Join([]string{
+		describe("access_logs", hasAccess, usableAccess, unusableAccess),
+		describe("error_logs", hasError, usableError, unusableError),
+		describe("process_telemetry", hasProc, usableProc, unusableProc),
+		describe("webroot", hasWeb, usableWeb, unusableWeb),
+		"Distinguish REQUESTED_UNAVAILABLE from completed assessments with NO_MATCHES_IN_SCOPE on usable sources.",
+	}, "; ")
 }
 
 // correlateWebroot emits unconfirmed temporal links only when an OS birth/creation
@@ -698,15 +757,30 @@ func humanInvestigationCoverage(status string) string {
 	case "NOT_REQUESTED":
 		return "Not requested"
 	case "ASSESSED_SCOPE_LIMITED":
-		return "Assessed (scope limited; continuity not proven)"
+		return "Assessed usable sources (scope limited; continuity not proven)"
 	case "PARTIAL_TIMESTAMP_UNCERTAIN":
-		return "Partial (timestamp uncertainty)"
+		return "Partial (timestamp uncertainty on usable sources)"
 	case "INCOMPLETE":
-		return "Incomplete"
+		return "Incomplete — one or more requested sources unavailable"
 	default:
 		if status == "" {
 			return "Not requested"
 		}
 		return status
+	}
+}
+
+func humanExploitationAttemptDetail(r *Report) string {
+	base := "Suspected attempt leads need analyst review. " +
+		"Long request-target ≠ large body ≠ unusual form-field names ≠ multipart nesting. " +
+		"A single memory error or crash is not successful exploitation. " +
+		"Successful in-process exploitation may leave no crash and no suspicious child process."
+	switch r.ExploitationAttemptStatus {
+	case "NO_MATCHES_IN_SCOPE":
+		return "Completed assessment of usable attempt evidence found no matches in scope — not the same as unavailable evidence, and not a clearance. " + base
+	case "NOT_ASSESSED":
+		return "Attempt status not assessed (inputs absent or unavailable). Unavailable evidence is not a no-match result. " + base
+	default:
+		return base
 	}
 }

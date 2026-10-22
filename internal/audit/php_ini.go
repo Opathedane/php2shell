@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	maxPHPIniFiles           = 200
-	maxPHPIniBytes           = 2 << 20
-	maxPHPIniScanDirPerDir   = 32
-	maxNearbyBinaryProbes    = 16
-	maxNearbyBinaryDiscover  = 8
+	maxPHPIniFiles          = 200
+	maxPHPIniBytes          = 2 << 20
+	maxPHPIniScanDirPerDir  = 32
+	maxNearbyBinaryProbes   = 16
+	maxNearbyBinaryDiscover = 8
 )
 
 // readPHPIniContents loads a candidate ini for inspection. Defaults to ReadRegular
@@ -29,23 +29,23 @@ var phpIniWellKnownPatternsFn = phpIniWellKnownPatterns
 // phpIniScanState collects bounded php.ini / conf.d candidates without claiming
 // effective SAPI settings or exact PHP versions.
 type phpIniScanState struct {
-	seenFile         map[string]bool
-	seenSkip         map[string]bool
-	seenNearbyProbe  map[string]bool
-	inspected        int
-	truncated        bool
-	templates        int
-	primaries        int
-	fragments        int
-	settings         int
-	correlated       int
-	uncorrelated     int
-	skippedUnread    int
-	skippedOversize  int
-	skippedSymlink   int
-	skippedOther     int
+	seenFile          map[string]bool
+	seenSkip          map[string]bool
+	seenNearbyProbe   map[string]bool
+	inspected         int
+	truncated         bool
+	templates         int
+	primaries         int
+	fragments         int
+	settings          int
+	correlated        int
+	uncorrelated      int
+	skippedUnread     int
+	skippedOversize   int
+	skippedSymlink    int
+	skippedOther      int
 	operatorInspected int
-	nearbyFromIni    int
+	nearbyFromIni     int
 }
 
 func newPHPIniScanState() *phpIniScanState {
@@ -510,9 +510,15 @@ func (st *phpIniScanState) observePHPIniFile(r *Report, path, source, class stri
 			settingDetail += "; related_binary=" + relatedBinary
 		}
 		settingDetail += "; ini_class=" + class
+		settingName := strings.ToLower(m[1])
+		settingDetail += "; observed_text_only=not_effective_runtime_setting"
+		switch settingName {
+		case "session.upload_progress.enabled", "memory_limit", "post_max_size", "fatal_error_backtraces":
+			settingDetail += "; temporary_mitigation_unverified=patch_required; do_not_treat_as_validated_hardening"
+		}
 		r.AddEvidence(Evidence{
 			Type:           "configuration_observation",
-			Name:           strings.ToLower(m[1]),
+			Name:           settingName,
 			Source:         "static PHP configuration text",
 			Location:       path,
 			Detail:         settingDetail,
