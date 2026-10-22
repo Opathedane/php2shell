@@ -59,9 +59,11 @@ Scan options:
   --investigate-to T     UTC investigation window end (RFC3339 or YYYY-MM-DD; default scan time)
   --docker               local privileged Docker API metadata (opt-in)
   --output-dir DIR       directory for HTML+CSV reports (local or UNC if accessible)
-  --out PATH             explicit HTML path or prefix (overrides --output-dir); matching .csv is written beside it
-  --quiet                unattended mode: no progress, no ANSI, stdout silent on success
-  --timeout DURATION     wall-clock budget (e.g. 30m); incomplete scan exits 2
+  --out PATH             explicit HTML path or prefix (overrides --output-dir); .csv remaps to .html+.csv siblings
+  --status-json PATH     optional execution-status JSON path (default: sibling .status.json beside HTML)
+  --accept-incomplete    if HTML+CSV written, exit 0 even when coverage is incomplete (still records SCAN_INCOMPLETE)
+  --quiet                unattended: no progress/ANSI; stdout silent on success; errors+status still on stderr
+  --timeout DURATION     wall-clock budget (e.g. 30m); incomplete scan exits 2 unless --accept-incomplete
   --customer LABEL       optional self-declared label (not authenticated tenancy)
   --runtime-version VER  operator-supplied WEB runtime (with --runtime-sapi and --runtime-source)
   --rules PATH           local Ed25519-signed indicator bundle
@@ -71,15 +73,16 @@ Default report directory:
   Windows: C:\ProgramData\PHP2Shell\Reports
   Unix:    $HOME/.php2shell/reports (or /var/tmp/php2shell/reports if HOME unset)
 
-Each scan writes a matching pair:
+Each scan writes a matching pair (+ execution status JSON):
   php2shell-<hostname>-<timestamp>.html
   php2shell-<hostname>-<timestamp>.csv
-Existing reports are never overwritten. If either file cannot be written, the pair is not left half-complete.
+  php2shell-<hostname>-<timestamp>.status.json
+Existing reports are never overwritten. If either HTML/CSV cannot be written, the pair is not left half-complete.
 
-Exit codes:
-  0  scan finished and HTML+CSV written (findings may exist; not a clearance)
-  1  fatal tool, configuration, or report write failure
-  2  report pair written but scan incomplete (permissions, truncation, timeout)
+Exit codes (see docs/EXIT-CODES-AND-DEPLOYMENT.md):
+  0  HTML+CSV written (findings may exist; not a clearance). With --accept-incomplete, also used when coverage incomplete.
+  1  fatal tool, configuration, OS, or report write failure (reports may be absent)
+  2  HTML+CSV written but scan coverage incomplete (permissions, truncation, timeout, requested evidence gaps)
 
 Examples:
   php2shell scan
@@ -129,7 +132,8 @@ func run(args []string) int {
 		fmt.Println("Official upstream PHP2Shell fix thresholds: AVAILABLE. Web-runtime patch attestation: NOT IMPLEMENTED.")
 		fmt.Println("Signed indicator packs: manually trusted Ed25519 key; no automatic internet access.")
 		fmt.Println("Default: offline, no code execution, HTML+CSV report pair, no automatic browser or upload.")
-		fmt.Println("Exit codes: 0=report pair written, 1=fatal error, 2=report pair written but incomplete.")
+		fmt.Println("Exit codes: 0=HTML+CSV written, 1=fatal (often no reports), 2=HTML+CSV written but incomplete coverage.")
+		fmt.Println("Deployment: treat 0 and 2 as upload-eligible; use --accept-incomplete only when wrappers cannot. See docs/EXIT-CODES-AND-DEPLOYMENT.md.")
 		fmt.Println("Not a clearance: missing findings do not prove a host is patched or uncompromised.")
 		if audit.IsLegacyWindowsBuild() {
 			fmt.Println("Windows legacy build: compiled with Go 1.20 for Server 2012 R2; prefer standard amd64 on Win10/Server 2016+.")
@@ -159,9 +163,11 @@ func runScan(args []string) int {
 	fs := flag.NewFlagSet("scan", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	webroot := fs.String("webroot", "", "authorized website document root (file names only)")
-	out := fs.String("out", "", "explicit HTML path or prefix; matching .csv written beside it; overrides --output-dir")
+	out := fs.String("out", "", "explicit HTML path or prefix; .csv remaps to .html+.csv; overrides --output-dir")
 	outputDir := fs.String("output-dir", "", "directory for unique HTML+CSV report pair (local or accessible UNC)")
-	quiet := fs.Bool("quiet", false, "unattended: no progress, no ANSI; stdout silent on success")
+	statusJSON := fs.String("status-json", "", "execution-status JSON path (default: HTML sibling .status.json)")
+	acceptIncomplete := fs.Bool("accept-incomplete", false, "exit 0 when HTML+CSV written even if coverage incomplete (status still SCAN_INCOMPLETE)")
+	quiet := fs.Bool("quiet", false, "unattended: no progress, no ANSI; stdout silent on success; stderr keeps errors+status")
 	timeoutStr := fs.String("timeout", "", "wall-clock scan budget (e.g. 30m)")
 	customer := fs.String("customer", "", "optional self-declared label; not authenticated tenant")
 	runtimeVersion := fs.String("runtime-version", "", "operator-supplied WEB runtime PHP version; requires --runtime-sapi and --runtime-source; NOT independently verified")
@@ -497,21 +503,84 @@ func runScan(args []string) int {
 	con.Phase("Writing HTML and CSV reports")
 	audit.FinalizeSummary(r)
 
+	execID := audit.NewExecutionID()
 	htmlPath, csvPath, err := audit.ResolveScanReportPair(*out, *outputDir, name, time.Now().UTC())
 	if err != nil {
-		con.Error(err.Error())
-		return audit.ExitFatal
+		con.Error(fmt.Sprintf("[%s] %s", audit.DiagInvalidArgument, err.Error()))
+		return finishScan(con, *quiet, audit.ExecutionStatusOptions{
+			ExecutionID: execID, Started: started, Ended: time.Now(), GOOS: runtime.GOOS, GOARCH: runtime.GOARCH,
+			Hostname: name, ExitCode: audit.ExitFatal, FailurePhase: "resolve_output",
+			ErrorIDs: []string{audit.DiagInvalidArgument}, ErrorDetail: err.Error(),
+			StatusJSONPath: strings.TrimSpace(*statusJSON), Report: r,
+		})
 	}
+	statusPath := audit.ResolveStatusJSONPath(*statusJSON, htmlPath)
 	saveErr := audit.SaveReportPair(r, htmlPath, csvPath)
 	if saveErr != nil {
-		con.Error("cannot write report pair: " + saveErr.Error())
-		return audit.ExitFatal
+		id, detail := audit.ClassifySaveError(saveErr)
+		con.Error(fmt.Sprintf("[%s] cannot write report pair: %s", id, detail))
+		return finishScan(con, *quiet, audit.ExecutionStatusOptions{
+			ExecutionID: execID, Started: started, Ended: time.Now(), GOOS: runtime.GOOS, GOARCH: runtime.GOARCH,
+			Hostname: name, ExitCode: audit.ExitFatal, FailurePhase: "write_reports",
+			ErrorIDs: []string{id}, ErrorDetail: detail,
+			HTMLPath: htmlPath, CSVPath: csvPath, StatusJSONPath: statusPath, Report: r,
+		})
 	}
 
 	incomplete := audit.ScanIncomplete(r)
+	exitCode := audit.ScanExitCode(r, nil)
+	errorIDs := []string{}
+	if incomplete {
+		errorIDs = append(errorIDs, audit.DiagScanIncomplete)
+	}
+	if timedOut {
+		errorIDs = append(errorIDs, audit.DiagTimedOut)
+	}
+	if *acceptIncomplete && exitCode == audit.ExitIncomplete {
+		con.Warn(fmt.Sprintf("[%s] HTML+CSV written with incomplete coverage; --accept-incomplete maps exit 2→0 (not a clearance)", audit.DiagScanIncomplete))
+		exitCode = audit.ExitOK
+	}
 	elapsed := time.Since(started)
 	con.Summary(r, htmlPath, csvPath, elapsed, incomplete)
-	return audit.ScanExitCode(r, nil)
+	return finishScan(con, *quiet, audit.ExecutionStatusOptions{
+		ExecutionID: execID, Started: started, Ended: time.Now(), GOOS: runtime.GOOS, GOARCH: runtime.GOARCH,
+		Hostname: name, ExitCode: exitCode, FailurePhase: "",
+		ErrorIDs: errorIDs, ReportsWritten: true,
+		HTMLPath: htmlPath, CSVPath: csvPath, StatusJSONPath: statusPath,
+		Incomplete: incomplete, AcceptIncomplete: *acceptIncomplete, Report: r,
+	})
+}
+
+// finishScan writes execution-status JSON (best effort), prints quiet stderr summary, returns exit code.
+func finishScan(con *console.Printer, quiet bool, opts audit.ExecutionStatusOptions) int {
+	st := audit.BuildExecutionStatus(opts)
+	if path := strings.TrimSpace(opts.StatusJSONPath); path != "" {
+		writePath := path
+		if err := audit.WriteExecutionStatusJSON(writePath, st); err != nil {
+			// Prior successful run may own the sibling .status.json; use an execution-scoped name.
+			alt := audit.FailedStatusJSONPath(path, opts.ExecutionID)
+			if alt != "" && alt != writePath {
+				if err2 := audit.WriteExecutionStatusJSON(alt, st); err2 == nil {
+					writePath = alt
+					st.StatusJSONPath = alt
+					err = nil
+				} else {
+					err = err2
+				}
+			}
+			if err != nil {
+				con.Error(fmt.Sprintf("[%s] cannot write status JSON %s: %v", audit.DiagOutputWriteFailed, writePath, err))
+			}
+		} else {
+			st.StatusJSONPath = writePath
+		}
+	}
+	// Always emit a concise status on stderr (including --quiet) so Intune/PSADT logs capture outcome.
+	fmt.Fprintln(os.Stderr, audit.FormatQuietStatusLine(st))
+	if quiet && opts.ReportsWritten && opts.Incomplete && opts.ExitCode == audit.ExitIncomplete {
+		con.Warn(fmt.Sprintf("[%s] reports written but coverage incomplete (exit 2); see status JSON and docs/EXIT-CODES-AND-DEPLOYMENT.md", audit.DiagScanIncomplete))
+	}
+	return opts.ExitCode
 }
 
 func runRollup(args []string) int {

@@ -337,7 +337,9 @@ func scanPackages(r *Report) {
 		r.AddWarning("Cannot read apk status database: " + err.Error())
 	}
 	if supported == 0 {
-		r.AddCheck("packages", "UNAVAILABLE", "No readable dpkg/apk database; RPM/pacman/vendor packages not inventoried")
+		// Not UNAVAILABLE: absence of dpkg/apk on RPM/other distros is expected coverage limit,
+		// not a failed requested input — must not force exit code 2 on every RHEL/host without dpkg.
+		r.AddCheck("packages", "NOT_SUPPORTED", "No readable dpkg/apk database; RPM/pacman/vendor packages are not inventoried in this release")
 	} else {
 		r.AddCheck("packages", "PARTIAL", fmt.Sprintf("Read %d supported package databases; %d PHP-related packages; RPM/pacman and vendor alternatives not covered", supported, found))
 	}

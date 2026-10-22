@@ -124,7 +124,9 @@ Each scan writes **two** files with the same basename:
 - HTML — human-readable single-server assessment
 - CSV — fleet schema for Excel / Power BI / rollup ([CSV-SCHEMA.md](CSV-SCHEMA.md))
 
-Defaults: `C:\ProgramData\PHP2Shell\Reports` or `$HOME/.php2shell/reports`. Use `--output-dir` or `--out path.html` (CSV → `path.csv`). Never overwrites existing files.
+Defaults: `C:\ProgramData\PHP2Shell\Reports` or `$HOME/.php2shell/reports`. Use `--output-dir` or `--out path.html` (a `.csv` `--out` remaps to `.html`+`.csv`). Also writes `*.status.json`. Never overwrites existing files.
+
+**Exit codes / Intune / PSADT:** `0` = reports written; `2` = reports written but incomplete coverage (still upload); `1` = fatal. See [EXIT-CODES-AND-DEPLOYMENT.md](EXIT-CODES-AND-DEPLOYMENT.md). Optional `--accept-incomplete` maps exit 2→0 when wrappers cannot tolerate non-zero.
 
 **Customer-wide overview** (one customer’s servers only):
 

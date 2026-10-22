@@ -62,10 +62,13 @@ On Windows Server 2012 R2 x64, download and run php2shell-windows-legacy-amd64.e
 
 On 2012 R2 application collections, deploy **`php2shell-windows-legacy-amd64.exe`** (not the standard amd64 EXE). Example fragment:
 
+See also [deploy/PSADT-PHP2Shell-Reference.ps1](../deploy/PSADT-PHP2Shell-Reference.ps1) and [EXIT-CODES-AND-DEPLOYMENT.md](EXIT-CODES-AND-DEPLOYMENT.md) (treat exit **0** and **2** as upload-eligible).
+
 ```powershell
 # Deploy-Application.ps1 (illustrative)
 $Php2ShellExe = Join-Path $dirFiles 'php2shell-windows-legacy-amd64.exe'
 Execute-Process -Path $Php2ShellExe -Parameters 'scan --quiet --output-dir C:\ProgramData\PHP2Shell\Reports' -WindowStyle Hidden
+# SuccessCodes for report collection should include 0 and 2 (or use --accept-incomplete).
 ```
 
 Keep reports under the engagement boundary. Do not substitute the standard EXE on 2012 R2 — it will fail the OS gate (or fail to start under an incompatible Go runtime).
