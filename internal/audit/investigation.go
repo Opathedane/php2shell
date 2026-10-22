@@ -40,6 +40,8 @@ type InvestigationOptions struct {
 	Assessing bool
 	// HasProcessTelemetry is true when at least one --process-telemetry file was requested.
 	HasProcessTelemetry bool
+	// HasWebrootInvestigation is true when --webroot was supplied for FS investigation.
+	HasWebrootInvestigation bool
 }
 
 // ResolveInvestigationWindow returns the effective UTC window and a human note.
@@ -92,8 +94,9 @@ func appendInvestigationFinding(r *Report, f InvestigationFinding) {
 
 // FinalizeInvestigation sets independent exploitation-attempt, possible-compromise,
 // and investigation-coverage statuses. Possible compromise stays NOT_ASSESSED unless
-// offline process telemetry was supplied. Never emits CONFIRMED_COMPROMISE or CLEAN.
-func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, errorEvents []InvestigationEvent, processLeads []ProcessLead) {
+// offline process telemetry and/or webroot investigation inputs were usable.
+// Never emits CONFIRMED_COMPROMISE or CLEAN.
+func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, errorEvents []InvestigationEvent, processLeads []ProcessLead, webrootLeads []WebrootLead) {
 	if r == nil {
 		return
 	}
@@ -103,9 +106,11 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		r.InvestigationCoverage = "NOT_REQUESTED"
 		r.InvestigationWindow = nil
 		r.AddCheck("compromise_investigation", "NOT_REQUESTED",
-			"No --access-log, --error-log, or --process-telemetry supplied; exploitation-attempt and possible-compromise statuses remain NOT_ASSESSED (not a negative finding)")
+			"No --access-log, --error-log, --process-telemetry, or --webroot investigation inputs supplied; exploitation-attempt and possible-compromise statuses remain NOT_ASSESSED (not a negative finding)")
 		r.AddCheck("process_telemetry_investigation", "NOT_REQUESTED",
-			"No offline process/EDR telemetry supplied; possible-compromise stays NOT_ASSESSED")
+			"No offline process/EDR telemetry supplied")
+		r.AddCheck("webroot_investigation", "NOT_REQUESTED",
+			"No --webroot filesystem investigation requested; possible-compromise stays NOT_ASSESSED without process or webroot evidence")
 		return
 	}
 
@@ -115,33 +120,40 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 	usableAccess, unusableAccess := countLogUsable(r.Logs)
 	usableError, unusableError := countErrorLogUsable(r.ErrorLogs)
 	usableProc, unusableProc := countProcessTelemetryUsable(r.ProcessTelemetry)
+	usableWeb, unusableWeb := countWebrootUsable(r.WebrootInvestigation)
 
 	hasLogInputs := usableAccess+unusableAccess+usableError+unusableError > 0
 	hasProcInputs := opts.HasProcessTelemetry
+	hasWebrootInputs := opts.HasWebrootInvestigation
 
 	coverage := "ASSESSED_SCOPE_LIMITED"
 	coverageDetail := "Investigation inputs were reviewed inside the selected UTC window. " +
-		"First/last timestamps do not prove continuous coverage; rotation gaps and missing sources cannot be ruled out."
+		"First/last timestamps do not prove continuous coverage; rotation gaps and missing sources cannot be ruled out. " +
+		"Filesystem modification times are not file creation evidence."
 
 	// If every requested input class failed entirely, mark incomplete.
 	logsAllFailed := hasLogInputs && usableAccess+usableError == 0
 	procAllFailed := hasProcInputs && usableProc == 0 && unusableProc > 0
-	if (hasLogInputs || hasProcInputs) && logsAllFailed && (procAllFailed || !hasProcInputs) && !(hasProcInputs && usableProc > 0) {
-		if hasLogInputs && usableAccess+usableError == 0 && !hasProcInputs {
-			r.InvestigationCoverage = "INCOMPLETE"
-			r.ExploitationAttemptStatus = "NOT_ASSESSED"
-			r.PossibleCompromiseStatus = "NOT_ASSESSED"
-			r.AddCheck("compromise_investigation", "INCOMPLETE",
-				"Investigation was requested but no usable access/error log could be parsed; statuses remain NOT_ASSESSED (incomplete evidence, not absence of matches)")
-			r.AddCheck("process_telemetry_investigation", "NOT_REQUESTED",
-				"No offline process/EDR telemetry supplied; possible-compromise stays NOT_ASSESSED")
-			r.AddWarning("Investigation coverage incomplete: supplied logs were inaccessible, oversized, or unreadable")
-			return
-		}
+	webAllFailed := hasWebrootInputs && usableWeb == 0 && unusableWeb > 0
+	if hasLogInputs && usableAccess+usableError == 0 && !hasProcInputs && !hasWebrootInputs {
+		r.InvestigationCoverage = "INCOMPLETE"
+		r.ExploitationAttemptStatus = "NOT_ASSESSED"
+		r.PossibleCompromiseStatus = "NOT_ASSESSED"
+		r.AddCheck("compromise_investigation", "INCOMPLETE",
+			"Investigation was requested but no usable access/error log could be parsed; statuses remain NOT_ASSESSED (incomplete evidence, not absence of matches)")
+		r.AddCheck("process_telemetry_investigation", "NOT_REQUESTED",
+			"No offline process/EDR telemetry supplied")
+		r.AddCheck("webroot_investigation", "NOT_REQUESTED",
+			"No --webroot filesystem investigation requested")
+		r.AddWarning("Investigation coverage incomplete: supplied logs were inaccessible, oversized, or unreadable")
+		return
 	}
-	if unusableAccess+unusableError+unusableProc > 0 {
+	_ = logsAllFailed
+	_ = procAllFailed
+	_ = webAllFailed
+	if unusableAccess+unusableError+unusableProc+unusableWeb > 0 {
 		coverage = "INCOMPLETE"
-		coverageDetail = "At least one requested log or telemetry file was unavailable, unsupported, or incompletely parsed. " +
+		coverageDetail = "At least one requested log, telemetry, or webroot input was unavailable, unsupported, truncated, or incompletely parsed. " +
 			"Do not treat missing matches as proof of safety; gaps cannot be ruled out from first/last timestamps alone."
 	}
 
@@ -305,6 +317,34 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		})
 	}
 
+	// Webroot filesystem leads (metadata-only; never content/webshell scanning).
+	// Leads are window-gated at detection; all confidence=unconfirmed.
+	var inScopeWeb []WebrootLead
+	for _, lead := range webrootLeads {
+		inScopeWeb = append(inScopeWeb, lead)
+		ts := preferTS(lead.BirthUTC, lead.BirthAvailable, lead.MtimeUTC)
+		tsStr := ""
+		if !ts.IsZero() {
+			tsStr = ts.UTC().Format(time.RFC3339)
+		}
+		conf := lead.Confidence
+		if conf == "" || conf == "suspected" {
+			conf = "unconfirmed" // never present metadata-only as EDR-strength
+		}
+		appendInvestigationFinding(r, InvestigationFinding{
+			ID:           "fs-" + lead.DedupKey,
+			Class:        "heuristic",
+			Kind:         lead.Kind,
+			Confidence:   conf,
+			Source:       "authorized --webroot filesystem metadata (contents not read; weaker than EDR)",
+			Location:     lead.Path,
+			TimestampUTC: tsStr,
+			Detail:       lead.Detail,
+		})
+	}
+
+	webCorr := correlateWebroot(r, inScopeWeb, inScopeError, inScopeAccess, inScopeProc)
+
 	r.InvestigationCoverage = coverage
 
 	// Exploitation attempts: only when access/error logs were part of the assessment.
@@ -324,39 +364,180 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		r.ExploitationAttemptStatus = "NOT_ASSESSED"
 	}
 
-	// Possible compromise: only when process telemetry was supplied.
+	// Process telemetry coverage check (independent of webroot).
 	if !hasProcInputs {
-		r.PossibleCompromiseStatus = "NOT_ASSESSED"
 		r.AddCheck("process_telemetry_investigation", "NOT_REQUESTED",
-			"No offline process/EDR telemetry supplied; possible-compromise stays NOT_ASSESSED (not cleared)")
+			"No offline process/EDR telemetry supplied")
 	} else if usableProc == 0 {
-		r.PossibleCompromiseStatus = "NOT_ASSESSED"
 		r.AddCheck("process_telemetry_investigation", "INCOMPLETE",
-			"Process telemetry was requested but no usable events were parsed; possible-compromise remains NOT_ASSESSED (incomplete evidence, not absence of matches)")
+			"Process telemetry was requested but no usable events were parsed (incomplete evidence, not absence of matches)")
 		r.AddWarning("Process telemetry incomplete or unsupported; do not treat as a negative compromise finding")
 	} else if len(inScopeProc) > 0 {
-		r.PossibleCompromiseStatus = "POSSIBLE_COMPROMISE_REVIEW"
 		r.AddCheck("process_telemetry_investigation", coverage,
 			fmt.Sprintf("Parsed process telemetry with %d suspicious parent→child lead(s) in window (behavioral convergent; not confirmed compromise). Command lines redacted to classification tokens.", len(inScopeProc)))
-		r.AddWarning("Possible compromise leads require analyst validation against host baselines; normal apps may launch shells/interpreters")
+		r.AddWarning("Possible compromise process leads require analyst validation against host baselines; normal apps may launch shells/interpreters")
 		r.AddAction("Validate suspicious web/PHP worker child processes with original EDR/Sysmon/audit records; do not treat POSSIBLE_COMPROMISE_REVIEW as confirmed compromise")
 	} else {
-		r.PossibleCompromiseStatus = "NO_MATCHES_IN_SCOPE"
 		r.AddCheck("process_telemetry_investigation", coverage,
 			"Process telemetry reviewed in scope with no web/PHP→suspicious-child leads; not a host clearance (coverage limited; missed parents/PID reuse possible)")
-		r.AddAction("No suspicious process relationships matched in assessed telemetry scope; this is not a clearance — expand retention and correlate with access/error evidence")
 	}
 
-	if procCorr > 0 {
-		r.AddAction("Review temporally proximate process and log leads together; proximity is not causation")
+	// Webroot investigation coverage check.
+	if !hasWebrootInputs {
+		r.AddCheck("webroot_investigation", "NOT_REQUESTED",
+			"No --webroot filesystem investigation requested")
+	} else if usableWeb == 0 {
+		r.AddCheck("webroot_investigation", "INCOMPLETE",
+			"Webroot investigation was requested but the directory was unavailable or unusable; incomplete evidence, not absence of matches")
+		r.AddWarning("Webroot investigation incomplete; do not treat as a negative compromise finding")
+	} else if len(inScopeWeb) > 0 {
+		r.AddCheck("webroot_investigation", coverage,
+			fmt.Sprintf("Authorized webroot metadata review found %d unconfirmed filesystem lead(s). "+
+				"WEAK METADATA-ONLY evidence (weaker than EDR process leads). Not a webshell scanner; mtime is not creation or execution; file contents were not read.",
+				len(inScopeWeb)))
+		r.AddWarning("Webroot filesystem leads are low-confidence investigative heuristics; ordinary CMS uploads and deployments can match")
+		r.AddAction("Validate webroot filesystem leads against deployment baselines; do not treat as confirmed webshell or successful exploitation")
+	} else {
+		r.AddCheck("webroot_investigation", coverage,
+			"Authorized webroot metadata reviewed with no upload/unusual-extension leads in scope; not a host clearance (mtime≠creation; truncated walks possible)")
+	}
+
+	// Possible compromise: process telemetry and/or webroot investigation.
+	hasCompromiseInputs := hasProcInputs || hasWebrootInputs
+	usableCompromise := usableProc + usableWeb
+	compromiseLeads := len(inScopeProc) + len(inScopeWeb)
+	if !hasCompromiseInputs {
+		r.PossibleCompromiseStatus = "NOT_ASSESSED"
+	} else if usableCompromise == 0 {
+		r.PossibleCompromiseStatus = "NOT_ASSESSED"
+		r.AddWarning("Possible-compromise inputs were requested but none were usable; status remains NOT_ASSESSED (incomplete, not negative)")
+	} else if compromiseLeads > 0 {
+		r.PossibleCompromiseStatus = "POSSIBLE_COMPROMISE_REVIEW"
+		if len(inScopeProc) == 0 && len(inScopeWeb) > 0 {
+			r.AddWarning("POSSIBLE_COMPROMISE_REVIEW rests on low-confidence webroot metadata only (not EDR-strength evidence). " +
+				"This is an investigative lead, not confirmed webshell activity or successful exploitation.")
+			r.AddAction("Treat webroot-only POSSIBLE_COMPROMISE_REVIEW as a weak investigative lead; validate against deployment baselines before escalating as compromise")
+		}
+	} else {
+		r.PossibleCompromiseStatus = "NO_MATCHES_IN_SCOPE"
+		r.AddAction("No process or webroot compromise patterns matched in assessed scope; this is not a clearance — expand retention and correlate evidence sources")
+	}
+
+	if procCorr > 0 || webCorr > 0 {
+		r.AddAction("Review temporally proximate process, webroot, and log leads together; proximity is not causation")
 	}
 
 	r.AddCheck("compromise_investigation", coverage, fmt.Sprintf(
 		"%s Findings: %d investigation lead(s). ExploitationAttempt=%s PossibleCompromise=%s (independent). "+
-			"A single memory error, crash, long request-target, or child process never implies confirmed compromise. Correlation is temporal proximity only.",
+			"A single memory error, crash, long request-target, child process, or PHP-like file never implies confirmed compromise. "+
+			"Correlation is temporal proximity only. Filesystem mtime is not creation evidence.",
 		coverageDetail, len(r.InvestigationFindings),
 		r.ExploitationAttemptStatus, r.PossibleCompromiseStatus,
 	))
+}
+
+// correlateWebroot emits unconfirmed temporal links only when an OS birth/creation
+// timestamp is available. mtime proximity alone never creates correlation and never
+// elevates confidence — mtime is not creation or execution time.
+func correlateWebroot(r *Report, webs []WebrootLead, errors, access []InvestigationEvent, procs []ProcessLead) int {
+	corr := 0
+	for _, w := range webs {
+		if !w.BirthAvailable || w.BirthUTC.IsZero() {
+			continue // refuse mtime-only temporal correlation
+		}
+		wt := w.BirthUTC.UTC()
+		for _, ev := range errors {
+			if ev.Time.IsZero() || (ev.Kind != "php_oom_unknown_line0" && ev.Kind != "apache_child_segfault") {
+				continue
+			}
+			delta := wt.Sub(ev.Time)
+			if delta < 0 {
+				delta = -delta
+			}
+			if delta <= correlationWindow {
+				corr++
+				appendInvestigationFinding(r, InvestigationFinding{
+					ID:           fmt.Sprintf("corr-fs-err-%s-%d", w.DedupKey, ev.Line),
+					Class:        "correlation",
+					Kind:         "correlated_webroot_and_error",
+					Confidence:   "unconfirmed",
+					Source:       "php2shell birth-timestamp proximity (±15m); not causality; mtime unused",
+					Location:     w.Path + " + " + ev.Location,
+					TimestampUTC: wt.Format(time.RFC3339),
+					Detail: fmt.Sprintf(
+						"Birth-timestamp proximity only (Δ=%s ≤ 15m), not causality. mtime was not used for correlation. "+
+							"Contributing evidence: webroot lead %s (birth=%s) and error-log %s line %d. "+
+							"Does not confirm successful exploitation or webshell; confidence remains unconfirmed.",
+						delta.Round(time.Second), w.Kind, wt.Format(time.RFC3339), ev.Kind, ev.Line,
+					),
+				})
+				if corr >= 20 {
+					return corr
+				}
+			}
+		}
+		for _, ev := range access {
+			if ev.Time.IsZero() || ev.Kind != "access_long_post_target" {
+				continue
+			}
+			delta := wt.Sub(ev.Time)
+			if delta < 0 {
+				delta = -delta
+			}
+			if delta <= correlationWindow {
+				corr++
+				appendInvestigationFinding(r, InvestigationFinding{
+					ID:           fmt.Sprintf("corr-fs-acc-%s-%d", w.DedupKey, ev.Line),
+					Class:        "correlation",
+					Kind:         "correlated_webroot_and_access",
+					Confidence:   "unconfirmed",
+					Source:       "php2shell birth-timestamp proximity (±15m); not causality; mtime unused",
+					Location:     w.Path + " + " + ev.Location,
+					TimestampUTC: wt.Format(time.RFC3339),
+					Detail: fmt.Sprintf(
+						"Birth-timestamp proximity only (Δ=%s ≤ 15m), not causality. mtime was not used for correlation. "+
+							"Contributing evidence: webroot lead %s and access-log %s line %d. "+
+							"Does not confirm successful exploitation or webshell; confidence remains unconfirmed.",
+						delta.Round(time.Second), w.Kind, ev.Kind, ev.Line,
+					),
+				})
+				if corr >= 20 {
+					return corr
+				}
+			}
+		}
+		for _, p := range procs {
+			if p.Event.TimeUTC.IsZero() {
+				continue
+			}
+			delta := wt.Sub(p.Event.TimeUTC)
+			if delta < 0 {
+				delta = -delta
+			}
+			if delta <= correlationWindow {
+				corr++
+				appendInvestigationFinding(r, InvestigationFinding{
+					ID:           fmt.Sprintf("corr-fs-proc-%s-%s", w.DedupKey, p.DedupKey),
+					Class:        "correlation",
+					Kind:         "correlated_webroot_and_process",
+					Confidence:   "unconfirmed",
+					Source:       "php2shell birth-timestamp proximity (±15m); not causality; mtime unused",
+					Location:     w.Path + " + " + p.Event.SourceFile,
+					TimestampUTC: wt.Format(time.RFC3339),
+					Detail: fmt.Sprintf(
+						"Birth-timestamp proximity only (Δ=%s ≤ 15m), not causality. mtime was not used for correlation. "+
+							"Contributing evidence: webroot lead %s and process lead %s (entity=%s). "+
+							"Does not confirm successful exploitation or webshell; confidence remains unconfirmed.",
+						delta.Round(time.Second), w.Kind, p.Kind, nullDash(p.Event.ProcessEntityID),
+					),
+				})
+				if corr >= 20 {
+					return corr
+				}
+			}
+		}
+	}
+	return corr
 }
 
 func findingFromLogEvent(prefix string, ev InvestigationEvent) InvestigationFinding {
@@ -492,6 +673,16 @@ func humanPossibleCompromise(status string) string {
 		}
 		return status
 	}
+}
+
+// humanPossibleCompromiseDetail clarifies evidence strength for the HTML card.
+func humanPossibleCompromiseDetail(r *Report) string {
+	if possibleCompromiseIsWebrootMetadataOnly(r) {
+		return "LOW-CONFIDENCE investigative lead from webroot metadata only (not EDR-strength evidence). " +
+			"Not confirmed webshell activity or successful exploitation — analyst validation required. " +
+			"mtime is never treated as creation or execution time."
+	}
+	return "Independent of attempt status. Assessed from offline process/EDR telemetry and/or authorized webroot metadata; never auto-confirmed."
 }
 
 func humanInvestigationCoverage(status string) string {

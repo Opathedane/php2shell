@@ -20,7 +20,7 @@ func writeTemp(t *testing.T, dir, name, body string) string {
 
 func TestInvestigationNotRequestedWithoutLogs(t *testing.T) {
 	r := NewReport("host", "linux", "amd64")
-	FinalizeInvestigation(r, InvestigationOptions{}, nil, nil, nil)
+	FinalizeInvestigation(r, InvestigationOptions{}, nil, nil, nil, nil)
 	FinalizeSummary(r)
 	if r.ExploitationAttemptStatus != "NOT_ASSESSED" || r.PossibleCompromiseStatus != "NOT_ASSESSED" {
 		t.Fatalf("statuses want NOT_ASSESSED, got attempt=%s possible=%s", r.ExploitationAttemptStatus, r.PossibleCompromiseStatus)
@@ -50,7 +50,7 @@ func TestInvestigationNegativeNoMatchesInScope(t *testing.T) {
 	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
 	acc := mustCollectAccess(t, r, access)
 	errEv := ScanErrorLog(r, errlog)
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, acc, errEv, nil)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, acc, errEv, nil, nil)
 	FinalizeSummary(r)
 
 	if r.ExploitationAttemptStatus != "NO_MATCHES_IN_SCOPE" {
@@ -76,7 +76,7 @@ func TestInvestigationPositiveErrorPatternsIndependentOfCompromise(t *testing.T)
 	r := NewReport("host", "linux", "amd64")
 	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
 	errEv := ScanErrorLog(r, errlog)
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, nil, errEv, nil)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, nil, errEv, nil, nil)
 	FinalizeSummary(r)
 
 	if r.ExploitationAttemptStatus != "SUSPECTED_ATTEMPTS_REVIEW" {
@@ -112,7 +112,7 @@ func TestInvestigationFalsePositiveBenignOOMNotOnLine0(t *testing.T) {
 	r := NewReport("host", "linux", "amd64")
 	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
 	errEv := ScanErrorLog(r, errlog)
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, nil, errEv, nil)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, nil, errEv, nil, nil)
 	if r.ExploitationAttemptStatus != "NO_MATCHES_IN_SCOPE" {
 		t.Fatalf("benign OOM in app.php must not match Unknown on line 0 pattern, got %s events=%d", r.ExploitationAttemptStatus, len(errEv))
 	}
@@ -122,7 +122,7 @@ func TestInvestigationIncompleteUnusableLogs(t *testing.T) {
 	r := NewReport("host", "linux", "amd64")
 	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
 	r.ErrorLogs = []ErrorLogCoverage{{File: "/missing", Status: "UNAVAILABLE", Detail: "missing"}}
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, nil, nil, nil)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, nil, nil, nil, nil)
 	if r.InvestigationCoverage != "INCOMPLETE" {
 		t.Fatalf("coverage: %s", r.InvestigationCoverage)
 	}
@@ -146,7 +146,7 @@ func TestInvestigationCorrelationLongPOSTAndOOM(t *testing.T) {
 		t.Fatalf("expected long POST anomaly; target runes=%d lineLen=%d", utf8.RuneCountInString(longTarget), len(accessLine))
 	}
 	errEv := ScanErrorLog(r, errlog)
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, acc, errEv, nil)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, acc, errEv, nil, nil)
 	foundCorr := false
 	for _, f := range r.InvestigationFindings {
 		if f.Kind == "correlated_attempt_signals" {
@@ -187,7 +187,7 @@ func TestInvestigationCorrelationRequiresTimestamps(t *testing.T) {
 		Kind: "php_oom_unknown_line0", Class: "verified_public_pattern", Confidence: "suspected",
 		Location: "error.log", Line: 2, Time: time.Date(2026, 10, 18, 14, 5, 30, 0, time.UTC),
 	}}
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, access, errors, nil)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, access, errors, nil, nil)
 	for _, f := range r.InvestigationFindings {
 		if f.Kind == "correlated_attempt_signals" {
 			t.Fatal("untimed access anomaly must not create correlation")
@@ -206,7 +206,7 @@ func TestInvestigationWindowExcludesOutsideEvents(t *testing.T) {
 	FinalizeInvestigation(r, InvestigationOptions{
 		Assessing: true,
 		From:      SuggestedInvestigateFromUTC,
-	}, nil, errEv, nil)
+	}, nil, errEv, nil, nil)
 	if r.ExploitationAttemptStatus != "NO_MATCHES_IN_SCOPE" {
 		t.Fatalf("events before window must be excluded, got %s findings=%d", r.ExploitationAttemptStatus, len(r.InvestigationFindings))
 	}

@@ -69,7 +69,7 @@ func TestGenerateProcessTelemetryDemos(t *testing.T) {
 		FinalizeInvestigation(r, InvestigationOptions{
 			Assessing: true, HasProcessTelemetry: true,
 			From: SuggestedInvestigateFromUTC,
-		}, nil, errEv, leads)
+		}, nil, errEv, leads, nil)
 		EvaluatePatchPosture(r)
 		FinalizeSummary(r)
 

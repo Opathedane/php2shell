@@ -8,7 +8,7 @@ import (
 
 func TestProcessTelemetryAbsentKeepsPossibleNotAssessed(t *testing.T) {
 	r := NewReport("host", "linux", "amd64")
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, nil, nil, nil)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, nil, nil, nil, nil)
 	if r.PossibleCompromiseStatus != "NOT_ASSESSED" {
 		t.Fatalf("got %s", r.PossibleCompromiseStatus)
 	}
@@ -25,7 +25,7 @@ func TestProcessTelemetryMDEPHPToCmd(t *testing.T) {
 	if len(leads) == 0 {
 		t.Fatalf("expected lead, coverage=%+v", r.ProcessTelemetry)
 	}
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads, nil)
 	if r.PossibleCompromiseStatus != "POSSIBLE_COMPROMISE_REVIEW" {
 		t.Fatalf("got %s findings=%+v", r.PossibleCompromiseStatus, r.InvestigationFindings)
 	}
@@ -64,7 +64,7 @@ func TestProcessTelemetryLinuxPHPFPMToSh(t *testing.T) {
 	FinalizeInvestigation(r, InvestigationOptions{
 		Assessing: true, HasProcessTelemetry: true,
 		From: time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC),
-	}, nil, nil, leads)
+	}, nil, nil, leads, nil)
 	if r.PossibleCompromiseStatus != "POSSIBLE_COMPROMISE_REVIEW" {
 		t.Fatalf("got %s leads=%+v", r.PossibleCompromiseStatus, leads)
 	}
@@ -81,7 +81,7 @@ func TestProcessTelemetryIISW3WPUnusualChild(t *testing.T) {
 	if len(leads) == 0 {
 		t.Fatal("expected w3wp→powershell lead")
 	}
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads, nil)
 	if r.PossibleCompromiseStatus != "POSSIBLE_COMPROMISE_REVIEW" {
 		t.Fatalf("got %s", r.PossibleCompromiseStatus)
 	}
@@ -101,7 +101,7 @@ func TestProcessTelemetryLegitimateAdminNegative(t *testing.T) {
 	r := NewReport("host", "windows", "amd64")
 	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
 	_, leads := ScanProcessTelemetry(r, path)
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads, nil)
 	if r.PossibleCompromiseStatus != "NO_MATCHES_IN_SCOPE" {
 		t.Fatalf("explorer→cmd must not be web compromise lead, got %s leads=%d", r.PossibleCompromiseStatus, len(leads))
 	}
@@ -130,7 +130,7 @@ func TestProcessTelemetryOutsideWindow(t *testing.T) {
 	FinalizeInvestigation(r, InvestigationOptions{
 		Assessing: true, HasProcessTelemetry: true,
 		From: SuggestedInvestigateFromUTC,
-	}, nil, nil, leads)
+	}, nil, nil, leads, nil)
 	if r.PossibleCompromiseStatus != "NO_MATCHES_IN_SCOPE" {
 		t.Fatalf("outside-window lead must be excluded, got %s", r.PossibleCompromiseStatus)
 	}
@@ -144,7 +144,7 @@ func TestProcessTelemetryUnsupportedAndMalformed(t *testing.T) {
 	if len(leads) != 0 || r.ProcessTelemetry[0].Status != "UNSUPPORTED_FORMAT" {
 		t.Fatalf("want UNSUPPORTED_FORMAT, got %+v leads=%d", r.ProcessTelemetry, len(leads))
 	}
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads, nil)
 	if r.PossibleCompromiseStatus != "NOT_ASSESSED" {
 		t.Fatalf("unsupported telemetry must not become negative match, got %s", r.PossibleCompromiseStatus)
 	}
@@ -160,7 +160,7 @@ func TestProcessTelemetryElasticECSAndCorrelation(t *testing.T) {
 	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
 	_, leads := ScanProcessTelemetry(r, procPath)
 	errEv := ScanErrorLog(r, errlog)
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, errEv, leads)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, errEv, leads, nil)
 	if r.PossibleCompromiseStatus != "POSSIBLE_COMPROMISE_REVIEW" {
 		t.Fatalf("possible=%s", r.PossibleCompromiseStatus)
 	}
@@ -239,7 +239,7 @@ func TestProcessTelemetryTruncatedCSV(t *testing.T) {
 	if r.ProcessTelemetry[0].EventsParsed != 0 {
 		t.Fatalf("events=%d", r.ProcessTelemetry[0].EventsParsed)
 	}
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads, nil)
 	if r.PossibleCompromiseStatus != "NOT_ASSESSED" {
 		t.Fatalf("empty usable events → NOT_ASSESSED, got %s status=%s", r.PossibleCompromiseStatus, r.ProcessTelemetry[0].Status)
 	}
@@ -253,7 +253,7 @@ func TestProcessTelemetryHTMLCSVConsistency(t *testing.T) {
 	r := NewReport("demo-host", "windows", "amd64")
 	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
 	_, leads := ScanProcessTelemetry(r, path)
-	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads)
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads, nil)
 	FinalizeSummary(r)
 	html := string(EncodeHTML(r))
 	fleet, err := EncodeFleetCSV(r)
