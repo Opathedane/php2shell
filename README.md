@@ -4,7 +4,7 @@ Standalone Windows and Linux scanner for **PHP discovery, upstream patch review,
 
 PHP2Shell writes a matching **HTML + CSV** report pair from one read-only scan. It does **not** prove that a host is fully patched or uncompromised.
 
-**Version in this tree:** 2.7.1 (unreleased). Latest public release: [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0). Prior: [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0), [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1), [v2.5.0](https://github.com/Opathedane/php2shell/releases/tag/v2.5.0), [v2.4.0](https://github.com/Opathedane/php2shell/releases/tag/v2.4.0). Draft notes: [docs/releases/v2.7.1.md](docs/releases/v2.7.1.md). Field validation: [docs/FIELD-VALIDATION-2.7.0.md](docs/FIELD-VALIDATION-2.7.0.md).
+**Latest public release:** [v2.7.1](https://github.com/Opathedane/php2shell/releases/tag/v2.7.1). Prior: [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0), [v2.6.0](https://github.com/Opathedane/php2shell/releases/tag/v2.6.0), [v2.5.1](https://github.com/Opathedane/php2shell/releases/tag/v2.5.1), [v2.5.0](https://github.com/Opathedane/php2shell/releases/tag/v2.5.0), [v2.4.0](https://github.com/Opathedane/php2shell/releases/tag/v2.4.0). Notes: [docs/releases/v2.7.1.md](docs/releases/v2.7.1.md). Deployment: [docs/EXIT-CODES-AND-DEPLOYMENT.md](docs/EXIT-CODES-AND-DEPLOYMENT.md). Field validation (2.7.0 baseline): [docs/FIELD-VALIDATION-2.7.0.md](docs/FIELD-VALIDATION-2.7.0.md).
 
 ## 1. What PHP2Shell does
 
@@ -18,7 +18,7 @@ PHP2Shell writes a matching **HTML + CSV** report pair from one read-only scan. 
 
 ## 2. Download the latest release
 
-[**GitHub Releases**](https://github.com/Opathedane/php2shell/releases/latest) (**v2.7.0**)
+[**GitHub Releases**](https://github.com/Opathedane/php2shell/releases/latest) (**v2.7.1**)
 
 Choose `php2shell-windows-amd64.zip`, `php2shell-linux-amd64.tar.gz`, or `php2shell-linux-arm64.tar.gz`. Verify `SHA256SUMS`. Builds are **not code-signed**.
 

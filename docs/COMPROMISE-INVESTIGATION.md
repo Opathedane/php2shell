@@ -2,7 +2,7 @@
 
 Evidence-based **investigation assist** for CVE-2026-109618 / CVE-2026-109619. This extends PHP2Shell beyond patch inventory. It is **not** a clearance tool and never claims a host is clean or confirmed compromised.
 
-**Shipped in [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0).** Unreleased **2.7.1** adds Calif-aligned IR accuracy and offline Cloudflare WAF `firewall_events` ingestion (attempt axis only). Field validation: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md). Draft notes: [releases/v2.7.1.md](releases/v2.7.1.md).
+**Shipped from [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0); latest [v2.7.1](https://github.com/Opathedane/php2shell/releases/tag/v2.7.1)** adds Calif-aligned IR accuracy, offline Cloudflare WAF `firewall_events` ingestion (attempt axis only), and deployment status JSON. Field validation baseline: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md). Notes: [releases/v2.7.1.md](releases/v2.7.1.md).
 
 ## Independent statuses
 
@@ -129,4 +129,5 @@ PHP2SHELL_WRITE_DEMOS=1 go test ./internal/audit -run 'TestGenerateProcessTeleme
 - [THREAT-INTELLIGENCE.md](THREAT-INTELLIGENCE.md)
 - [CSV-SCHEMA.md](CSV-SCHEMA.md)
 - [ADVANCED-USAGE.md](ADVANCED-USAGE.md)
-- [releases/v2.7.0.md](releases/v2.7.0.md)
+- [releases/v2.7.1.md](releases/v2.7.1.md) · [releases/v2.7.0.md](releases/v2.7.0.md)
+- [EXIT-CODES-AND-DEPLOYMENT.md](EXIT-CODES-AND-DEPLOYMENT.md)
