@@ -1,6 +1,15 @@
 # Release checklist
 
-Do not overwrite assets for an existing tag (`v2.3.0`–`v2.7.0`, …). Ship fixes under a new tag only.
+Do not overwrite assets for an existing tag (`v2.3.0`–`v2.7.1`, …). Ship fixes under a new tag only.
+
+## v2.7.1 publish prep
+
+- [x] Embedded `Version` = `2.7.1`
+- [x] Finalize `docs/releases/v2.7.1.md` (Published; no draft language; 2012 R2 marked field-unverified)
+- [x] README / CHANGELOG / IR / deployment docs flipped to latest public **v2.7.1**
+- [ ] Real Server 2012 R2 runtime field checklist signed off (legacy EXE shipped for testing only)
+- [x] `scripts/check-release-docs.sh --for-tag v2.7.1` (on publish branch)
+- [ ] GitHub Release `v2.7.1` via release workflow
 
 ## v2.7.0 publish prep
 
@@ -10,7 +19,7 @@ Do not overwrite assets for an existing tag (`v2.3.0`–`v2.7.0`, …). Ship fix
 - [x] Field validation guide: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md)
 - [ ] Real-host field validation completed and recorded (not synthetic-only)
 - [x] `scripts/check-release-docs.sh --for-tag v2.7.0` passes (on publish branch)
-- [ ] GitHub Release `v2.7.0` via release workflow (only after final GO)
+- [x] GitHub Release `v2.7.0` published
 
 ## Achieved in v2.6.0 (published)
 

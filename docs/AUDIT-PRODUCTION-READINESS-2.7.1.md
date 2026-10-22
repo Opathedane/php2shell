@@ -1,7 +1,7 @@
 # PHP2Shell production-readiness audit (toward v2.7.1)
 
 **Branch:** `feat/enterprise-production-readiness` (includes `feat/windows-2012r2-legacy`)  
-**Version left at:** `2.7.1` (unreleased; no tag/publish)  
+**Version:** `2.7.1` (publish prep; 2012 R2 runtime remains field-unverified)  
 **Date:** 2026-10-22  
 
 ## A. Functionality status
@@ -77,7 +77,7 @@ Manual: scan --quiet --out …/SERVER.csv → exit 0, HTML+CSV+status.json, stde
 2. One Intune/PSADT pilot confirming upload on exit 0 and 2.  
 3. Human review of this PR.
 
-**NO-GO** for tagging/publishing until (1) and draft language removed from `docs/releases/v2.7.1.md`.
+**CONDITIONAL GO** for tagging/publishing with explicit disclosure that 2012 R2 runtime is unverified; draft language removed from `docs/releases/v2.7.1.md`.
 
 ## H. Backlog
 

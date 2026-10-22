@@ -1,12 +1,12 @@
 # PHP2Shell release notes
 
-**Latest public release: [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0)** (22 October 2026).
+**Latest public release: [v2.7.1](https://github.com/Opathedane/php2shell/releases/tag/v2.7.1)** (22 October 2026).
 
 Version-specific GitHub Release bodies live under [`docs/releases/`](releases/). The publish workflow uses **only** the matching `docs/releases/vX.Y.Z.md` file — never this index.
 
 | Version | Notes |
 | --- | --- |
-| [v2.7.1](releases/v2.7.1.md) | In-tree candidate — IR accuracy + Cloudflare WAF + Windows 2012 R2 legacy build |
+| [v2.7.1](releases/v2.7.1.md) | IR accuracy + Cloudflare WAF + Win2012 R2 legacy artifact + deployment diagnostics |
 | [v2.7.0](releases/v2.7.0.md) | Compromise investigation assist; fleet CSV v3 |
 | [v2.6.0](releases/v2.6.0.md) | Optional `--deep-root` Deep Discovery; expanded well-known install paths |
 | [v2.5.1](releases/v2.5.1.md) | PATH/junction discovery; multi-install; `--php-ini` / `--config-root` |

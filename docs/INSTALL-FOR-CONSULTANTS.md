@@ -1,6 +1,6 @@
 # PHP2Shell – consultant quick start
 
-**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory, evidence-qualified patch review, and offline compromise investigation assist. Latest public release: **v2.7.0**. Confirm `php2shell version` on the binary you run matches the release you downloaded.
+**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory, evidence-qualified patch review, and offline compromise investigation assist. Latest public release: **v2.7.1**. Confirm `php2shell version` on the binary you run matches the release you downloaded.
 
 Download the build matching the destination server from GitHub **Releases**. No Python, Go, PHP, installer, or network access is required for the basic local inventory. The optional IOC update requires an independently authenticated rule signing key and a reviewed signed ruleset; the repository does **not** include a validated PHP2Shell-specific rulepack yet.
 
@@ -81,9 +81,9 @@ Windows executables are **not Authenticode signed** and may generate SmartScreen
 
 Do **not** pass volume roots or UNC shares. Truncated deep scans exit `2` and must be treated as incomplete.
 
-### Compromise investigation (v2.7.0)
+### Compromise investigation (v2.7.0+)
 
-Requires a **v2.7.0** binary (`php2shell version` → `2.7.0`). Keep raw logs, EDR exports, and HTML/CSV reports inside the engagement boundary.
+Requires a **v2.7.1** (or later) binary for WAF + status JSON; core IR ships from **v2.7.0**. Keep raw logs, EDR exports, and HTML/CSV/status reports inside the engagement boundary.
 
 ```powershell
 .\php2shell-windows-amd64.exe scan `

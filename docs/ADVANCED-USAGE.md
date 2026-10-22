@@ -2,13 +2,13 @@
 
 # Advanced usage — PHP2Shell Assessment
 
-Latest public release: **v2.7.0** (compromise investigation assist; fleet CSV v3). Confirm `php2shell version`.
+Latest public release: **v2.7.1** (IR accuracy, Cloudflare WAF ingest, deployment diagnostics, Windows legacy artifact). Confirm `php2shell version`.
 
 PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory, evidence-qualified patch review, and offline compromise investigation assist for CVE-2026-109618 / CVE-2026-109619.
 
 ## Download
 
-Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.7.0**, and download the archive for the destination OS/CPU. Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.7.0`, …).
+Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.7.1**, and download the archive for the destination OS/CPU (use `php2shell-windows-legacy-amd64` only for Server 2012 R2 testing). Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.7.1`, …).
 
 ## Scan output pair
 
@@ -94,9 +94,9 @@ On Linux and Windows, when a well-known Apache config root is accessible (`/etc/
 - **Inaccessible handler binaries** (missing path, wrong host, permission denied) produce `windows_iis_configuration` **INCOMPLETE** coverage and version-unknown evidence. That must not be read as “the site is patched/safe.”
 - **Active HTTP serving runtime** remains unverified even when site, handler, and binary version evidence align.
 
-## Compromise investigation (v2.7.0)
+## Compromise investigation (v2.7.0+)
 
-Offline review of consultant-supplied **access logs**, **error logs**, **process/EDR exports**, and authorized **`--webroot` filesystem metadata**. Full detail: [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md). Field checklist: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md).
+Offline review of consultant-supplied **access logs**, **error logs**, **process/EDR exports**, optional **`--waf-log`** (Cloudflare `firewall_events`), and authorized **`--webroot` filesystem metadata**. Full detail: [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md). Exit codes / PSADT: [EXIT-CODES-AND-DEPLOYMENT.md](EXIT-CODES-AND-DEPLOYMENT.md). Field checklist: [FIELD-VALIDATION-2.7.0.md](FIELD-VALIDATION-2.7.0.md).
 
 ```bash
 ./php2shell-linux-amd64 scan \
