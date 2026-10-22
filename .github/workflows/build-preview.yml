@@ -22,13 +22,18 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
+          MODULE="github.com/Opathedane/php2shell/internal/audit"
           for platform in linux/amd64 linux/arm64 windows/amd64 darwin/amd64 darwin/arm64; do
             os="${platform%/*}"
             arch="${platform#*/}"
             filename="php2shell-${os}-${arch}"
             if [ "${os}" = windows ]; then filename="${filename}.exe"; fi
-            GOOS="${os}" GOARCH="${arch}" CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o "dist/${filename}" ./cmd/php2shell
+            GOOS="${os}" GOARCH="${arch}" CGO_ENABLED=0 go build -trimpath \
+              -ldflags="-s -w -X ${MODULE}.BuildFlavor=standard" \
+              -o "dist/${filename}" ./cmd/php2shell
           done
+          sudo apt-get update -qq && sudo apt-get install -y -qq zip >/dev/null
+          bash scripts/build-windows-legacy.sh
           (cd dist && sha256sum php2shell-* > SHA256SUMS)
       - name: Upload preview artifact – unsigned and not production approved
         uses: actions/upload-artifact@v5

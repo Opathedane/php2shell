@@ -100,7 +100,17 @@ func run(args []string) int {
 		fmt.Print(help)
 		return audit.ExitOK
 	}
-	switch args[0] {
+	// help/version skip the OS gate so operators can identify the artifact offline;
+	// all other commands refuse incompatible Windows hosts with an actionable message.
+	cmd := args[0]
+	gateExempt := cmd == "help" || cmd == "--help" || cmd == "-h" || cmd == "version"
+	if !gateExempt {
+		if ok, msg := audit.CheckHostCompatibility(); !ok {
+			fmt.Fprintln(os.Stderr, msg)
+			return audit.ExitFatal
+		}
+	}
+	switch cmd {
 	case "help", "--help", "-h":
 		fmt.Print(help)
 		return audit.ExitOK
@@ -111,16 +121,29 @@ func run(args []string) int {
 		}
 		return audit.ExitOK
 	case "version":
-		fmt.Printf("php2shell %s %s/%s\n", audit.Version, runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("php2shell %s %s/%s (%s)\n", audit.Version, runtime.GOOS, runtime.GOARCH, audit.BuildFlavorLabel())
 		return audit.ExitOK
 	case "doctor":
-		fmt.Printf("PHP2Shell %s (%s/%s)\nNo Python or PHP required. No external modules.\n", audit.Version, runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("PHP2Shell %s (%s/%s, build=%s)\nNo Python or PHP required. No external modules.\n", audit.Version, runtime.GOOS, runtime.GOARCH, audit.BuildFlavorLabel())
 		fmt.Println("Host metadata: best-effort; Linux dpkg/apk and /proc; macOS/Windows partial.")
 		fmt.Println("Official upstream PHP2Shell fix thresholds: AVAILABLE. Web-runtime patch attestation: NOT IMPLEMENTED.")
 		fmt.Println("Signed indicator packs: manually trusted Ed25519 key; no automatic internet access.")
 		fmt.Println("Default: offline, no code execution, HTML+CSV report pair, no automatic browser or upload.")
 		fmt.Println("Exit codes: 0=report pair written, 1=fatal error, 2=report pair written but incomplete.")
 		fmt.Println("Not a clearance: missing findings do not prove a host is patched or uncompromised.")
+		if audit.IsLegacyWindowsBuild() {
+			fmt.Println("Windows legacy build: compiled with Go 1.20 for Server 2012 R2; prefer standard amd64 on Win10/Server 2016+.")
+			fmt.Println("Security: Go 1.20 is end-of-support — see docs/WINDOWS-LEGACY-2012R2.md.")
+		} else if runtime.GOOS == "windows" {
+			fmt.Println("Windows standard build: requires Windows 10 / Server 2016+; use php2shell-windows-legacy-amd64.exe on Server 2012 R2.")
+		}
+		if runtime.GOOS == "windows" {
+			if info, err := audit.ReadWindowsHostInfo(); err == nil {
+				if note := audit.WindowsCompatAdvisory(runtime.GOOS, audit.BuildFlavor, info); note != "" {
+					fmt.Println(note)
+				}
+			}
+		}
 		return audit.ExitOK
 	case "scan":
 		return runScan(args[1:])

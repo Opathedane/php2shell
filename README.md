@@ -104,7 +104,8 @@ HTML remains the human-readable single-server report; the consolidated CSV is th
 
 | Platform | Artifact | Notes |
 | --- | --- | --- |
-| Windows x64 | `php2shell-windows-amd64.zip` | CI + field-tested (incl. AppData PHP layouts) |
+| Windows x64 (Win10 / Server 2016+) | `php2shell-windows-amd64.zip` | Primary build (current Go); CI + field-tested |
+| Windows Server 2012 R2 x64 | `php2shell-windows-legacy-amd64.zip` | Go **1.20.14** legacy runtime; see [docs/WINDOWS-LEGACY-2012R2.md](docs/WINDOWS-LEGACY-2012R2.md) |
 | Linux x86-64 / ARM64 | `.tar.gz` | CI on ubuntu-24.04; ARM64 cross-built |
 | macOS | darwin amd64/arm64 | Convenience / CI Intel |
 
