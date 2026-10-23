@@ -90,6 +90,19 @@ func TestCVE115560MissingSettings(t *testing.T) {
 	}
 }
 
+func TestCVE115560BareInventoryNoAdvisoryNoise(t *testing.T) {
+	r := NewReport("bare", "linux", "amd64")
+	r.GeneratedUTC = time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC)
+	EvaluatePatchPosture(r)
+	if len(r.AdditionalAdvisories) != 0 {
+		t.Fatalf("bare inventory without php.ini candidates must not emit CVE-2026-115560 noise: %+v", r.AdditionalAdvisories)
+	}
+	html := string(EncodeHTML(r))
+	if strings.Contains(html, "Additional PHP security advisories") {
+		t.Fatal("HTML must not show Additional advisories section without evidence")
+	}
+}
+
 func TestCVE115560ConflictingCandidates(t *testing.T) {
 	dir := t.TempDir()
 	aPath := writeIni(t, dir, "a.php.ini", "session.serialize_handler = php_binary\nsession.upload_progress.enabled = On\n")

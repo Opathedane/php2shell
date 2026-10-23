@@ -38,11 +38,16 @@ type iniObs struct {
 
 // EvaluateSessionUploadProgressAdvisory assesses CVE-2026-115560 from observed php.ini text only.
 // Does not change VulnerabilityStatus / PatchAssessments for 109618/109619, and never flips ScanIncomplete.
+// Ordinary inventories with no inspected PHP configuration candidates emit no advisory row
+// (avoids a misleading UNDETERMINED banner on every bare scan).
 func EvaluateSessionUploadProgressAdvisory(r *Report) {
 	if r == nil {
 		return
 	}
 	handlers, uploads := collectSessionIniObservations(r)
+	if len(handlers) == 0 && len(uploads) == 0 && !hasInspectedPHPIniCandidate(r) {
+		return
+	}
 	adv := assessSessionUpload115560(handlers, uploads)
 	if adv.Status == "" {
 		return
@@ -59,6 +64,15 @@ func EvaluateSessionUploadProgressAdvisory(r *Report) {
 			r.AddAction("CVE-2026-115560: resolve conflicting php.ini observations for session.serialize_handler / session.upload_progress.enabled, then re-scan: " + AdvisoryURL115560)
 		}
 	}
+}
+
+func hasInspectedPHPIniCandidate(r *Report) bool {
+	for _, e := range r.Evidence {
+		if e.Type == "php_ini_candidate" {
+			return true
+		}
+	}
+	return false
 }
 
 func collectSessionIniObservations(r *Report) (handlers, uploads []iniObs) {

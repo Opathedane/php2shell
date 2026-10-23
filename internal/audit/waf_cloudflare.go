@@ -90,6 +90,15 @@ func ScanWAFLog(r *Report, path string) []InvestigationEvent {
 	if events == 0 {
 		item.Status = "INCOMPLETE"
 		item.Detail = "Cloudflare firewall_events JSONL detected but no parseable events. " + parseNotes
+	} else if strings.Contains(parseNotes, "Truncated at") {
+		// Truncation/oversized event caps are incomplete coverage — not a completed limited parse.
+		item.Status = "TRUNCATED"
+		item.Detail = fmt.Sprintf(
+			"Parsed %d Cloudflare firewall_events as %s before a safety cap (leads=%d). "+
+				"Coverage is TRUNCATED — do not treat as complete WAF review. "+
+				"Documented schema fields only; Content-Length/multipart nesting are NOT inferred. %s",
+			events, format, len(leads), parseNotes,
+		)
 	} else {
 		item.Status = "PARSED_COVERAGE_LIMITED"
 		item.Detail = fmt.Sprintf(
@@ -154,42 +163,14 @@ func parseCloudflareFirewallEventsJSONL(path string, b []byte) (parsed int, lead
 		}
 		var ev cloudflareFirewallEvent
 		if err := json.Unmarshal([]byte(line), &ev); err != nil {
-			// Try alternate casing used by some SIEM re-exports.
-			var alt struct {
-				Action              string          `json:"action"`
-				Datetime            json.RawMessage `json:"datetime"`
-				Description         string          `json:"description"`
-				RuleID              string          `json:"ruleId"`
-				RuleIDSnake         string          `json:"rule_id"`
-				Source              string          `json:"source"`
-				RayID               string          `json:"rayId"`
-				RayIDSnake          string          `json:"ray_id"`
-				ClientRequestMethod string          `json:"clientRequestMethod"`
-				ClientRequestHost   string          `json:"clientRequestHost"`
-				ClientRequestPath   string          `json:"clientRequestPath"`
-				ClientRequestQuery  string          `json:"clientRequestQuery"`
-				EdgeResponseStatus  json.RawMessage `json:"edgeResponseStatus"`
-			}
-			if json.Unmarshal([]byte(line), &alt) != nil {
+			// Completely non-JSON / wrong shape — try alternate casing as a full substitute.
+			if !fillCloudflareEventAltCasing([]byte(line), &ev) {
 				continue
 			}
-			ev.Action = alt.Action
-			ev.Datetime = alt.Datetime
-			ev.Description = alt.Description
-			ev.RuleID = alt.RuleID
-			if ev.RuleID == "" {
-				ev.RuleID = alt.RuleIDSnake
-			}
-			ev.Source = alt.Source
-			ev.RayID = alt.RayID
-			if ev.RayID == "" {
-				ev.RayID = alt.RayIDSnake
-			}
-			ev.ClientRequestMethod = alt.ClientRequestMethod
-			ev.ClientRequestHost = alt.ClientRequestHost
-			ev.ClientRequestPath = alt.ClientRequestPath
-			ev.ClientRequestQuery = alt.ClientRequestQuery
-			ev.EdgeResponseStatus = alt.EdgeResponseStatus
+		} else if strings.TrimSpace(ev.RuleID) == "" || strings.TrimSpace(ev.Action) == "" {
+			// Primary unmarshal often "succeeds" with empty RuleID when exporters use rule_id/ruleId.
+			// Always merge alternate keys so allowlisted IDs are not silently dropped.
+			_ = fillCloudflareEventAltCasing([]byte(line), &ev)
 		}
 		if strings.TrimSpace(ev.RuleID) == "" && strings.TrimSpace(ev.Action) == "" {
 			continue
@@ -280,6 +261,69 @@ func parseCloudflareFirewallEventsJSONL(path string, b []byte) (parsed int, lead
 		notes = "First/last timestamps do not prove continuous WAF coverage."
 	}
 	return parsed, leads, first, last, notes
+}
+
+// fillCloudflareEventAltCasing merges camelCase / snake_case exporter fields into ev.
+// Returns false only when the line cannot be decoded as JSON object with those keys.
+func fillCloudflareEventAltCasing(line []byte, ev *cloudflareFirewallEvent) bool {
+	var alt struct {
+		Action              string          `json:"action"`
+		Datetime            json.RawMessage `json:"datetime"`
+		Description         string          `json:"description"`
+		RuleID              string          `json:"ruleId"`
+		RuleIDSnake         string          `json:"rule_id"`
+		Source              string          `json:"source"`
+		RayID               string          `json:"rayId"`
+		RayIDSnake          string          `json:"ray_id"`
+		ClientRequestMethod string          `json:"clientRequestMethod"`
+		ClientRequestHost   string          `json:"clientRequestHost"`
+		ClientRequestPath   string          `json:"clientRequestPath"`
+		ClientRequestQuery  string          `json:"clientRequestQuery"`
+		EdgeResponseStatus  json.RawMessage `json:"edgeResponseStatus"`
+	}
+	if json.Unmarshal(line, &alt) != nil {
+		return false
+	}
+	if strings.TrimSpace(ev.Action) == "" {
+		ev.Action = alt.Action
+	}
+	if len(ev.Datetime) == 0 {
+		ev.Datetime = alt.Datetime
+	}
+	if strings.TrimSpace(ev.Description) == "" {
+		ev.Description = alt.Description
+	}
+	if strings.TrimSpace(ev.RuleID) == "" {
+		ev.RuleID = alt.RuleID
+		if ev.RuleID == "" {
+			ev.RuleID = alt.RuleIDSnake
+		}
+	}
+	if strings.TrimSpace(ev.Source) == "" {
+		ev.Source = alt.Source
+	}
+	if strings.TrimSpace(ev.RayID) == "" {
+		ev.RayID = alt.RayID
+		if ev.RayID == "" {
+			ev.RayID = alt.RayIDSnake
+		}
+	}
+	if strings.TrimSpace(ev.ClientRequestMethod) == "" {
+		ev.ClientRequestMethod = alt.ClientRequestMethod
+	}
+	if strings.TrimSpace(ev.ClientRequestHost) == "" {
+		ev.ClientRequestHost = alt.ClientRequestHost
+	}
+	if strings.TrimSpace(ev.ClientRequestPath) == "" {
+		ev.ClientRequestPath = alt.ClientRequestPath
+	}
+	if strings.TrimSpace(ev.ClientRequestQuery) == "" {
+		ev.ClientRequestQuery = alt.ClientRequestQuery
+	}
+	if len(ev.EdgeResponseStatus) == 0 {
+		ev.EdgeResponseStatus = alt.EdgeResponseStatus
+	}
+	return true
 }
 
 func queryHasUploadProgressToken(q string) bool {
