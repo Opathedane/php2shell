@@ -1,4 +1,6 @@
-## Unreleased
+## Unreleased (toward v2.7.2)
+
+- Feature: CVE-2026-115560 informational advisory assessment from observed `session.serialize_handler` + `session.upload_progress.enabled` (static config only; no invented fixed versions; separate from CVE-2026-109618/109619 patch thresholds).
 
 ## v2.7.1 — 2026-10-22
 

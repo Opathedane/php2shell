@@ -6,7 +6,7 @@ import (
 )
 
 const Schema = "php2shell-assessment/v1"
-const Version = "2.7.1"
+const Version = "2.7.2"
 
 type Evidence struct {
 	Type           string `json:"type"`
@@ -105,26 +105,29 @@ type Report struct {
 	CompromiseStatus    string    `json:"compromise_status"` // legacy signed-IOC rollup only; not host clearance
 	EffectiveWebRuntime string    `json:"effective_web_runtime"`
 	// Independent investigation axes (Phases A/B). Never emit CLEAN or CONFIRMED_COMPROMISE.
-	ExploitationAttemptStatus string                         `json:"exploitation_attempt_status"`
-	PossibleCompromiseStatus  string                         `json:"possible_compromise_status"`
-	InvestigationCoverage     string                         `json:"investigation_coverage"`
-	InvestigationWindow       *InvestigationWindow           `json:"investigation_window,omitempty"`
-	Evidence                  []Evidence                     `json:"evidence"`
-	Summary                   ReviewSummary                  `json:"summary"`
-	PatchAssessments          []PatchAssessment              `json:"patch_assessments"`
-	Coverage                  []Check                        `json:"coverage"`
-	Repositories              []RepoCoverage                 `json:"repositories,omitempty"`
-	Logs                      []LogCoverage                  `json:"logs,omitempty"`
-	ErrorLogs                 []ErrorLogCoverage             `json:"error_logs,omitempty"`
-	ProcessTelemetry          []ProcessTelemetryCoverage     `json:"process_telemetry,omitempty"`
-	WebrootInvestigation      []WebrootInvestigationCoverage `json:"webroot_investigation,omitempty"`
-	WAFLogs                   []WAFLogCoverage               `json:"waf_logs,omitempty"`
-	InvestigationFindings     []InvestigationFinding         `json:"investigation_findings,omitempty"`
-	RuleSequence              uint64                         `json:"rule_sequence,omitempty"`
-	RuleCount                 int                            `json:"rule_count,omitempty"`
-	Findings                  []IndicatorFinding             `json:"indicator_findings,omitempty"`
-	Warnings                  []string                       `json:"warnings"`
-	RecommendedActions        []string                       `json:"recommended_actions"`
+	ExploitationAttemptStatus string               `json:"exploitation_attempt_status"`
+	PossibleCompromiseStatus  string               `json:"possible_compromise_status"`
+	InvestigationCoverage     string               `json:"investigation_coverage"`
+	InvestigationWindow       *InvestigationWindow `json:"investigation_window,omitempty"`
+	Evidence                  []Evidence           `json:"evidence"`
+	Summary                   ReviewSummary        `json:"summary"`
+	PatchAssessments          []PatchAssessment    `json:"patch_assessments"`
+	// AdditionalAdvisories holds conservative config-based reviews (e.g. CVE-2026-115560)
+	// that must not invent fixed versions or override primary patch assessments.
+	AdditionalAdvisories  []AdditionalAdvisory           `json:"additional_advisories,omitempty"`
+	Coverage              []Check                        `json:"coverage"`
+	Repositories          []RepoCoverage                 `json:"repositories,omitempty"`
+	Logs                  []LogCoverage                  `json:"logs,omitempty"`
+	ErrorLogs             []ErrorLogCoverage             `json:"error_logs,omitempty"`
+	ProcessTelemetry      []ProcessTelemetryCoverage     `json:"process_telemetry,omitempty"`
+	WebrootInvestigation  []WebrootInvestigationCoverage `json:"webroot_investigation,omitempty"`
+	WAFLogs               []WAFLogCoverage               `json:"waf_logs,omitempty"`
+	InvestigationFindings []InvestigationFinding         `json:"investigation_findings,omitempty"`
+	RuleSequence          uint64                         `json:"rule_sequence,omitempty"`
+	RuleCount             int                            `json:"rule_count,omitempty"`
+	Findings              []IndicatorFinding             `json:"indicator_findings,omitempty"`
+	Warnings              []string                       `json:"warnings"`
+	RecommendedActions    []string                       `json:"recommended_actions"`
 
 	// aliasDirs maps a corroborated alias install directory (e.g. ...\PHP\current)
 	// to a canonical versioned directory. Not serialized; used only while building

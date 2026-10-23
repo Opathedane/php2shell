@@ -20,7 +20,7 @@ import (
 var phpBin = regexp.MustCompile(`(?i)^(?:php(?:-cgi|-fpm)?[0-9]*(?:\.[0-9]+)?|php[0-9]+(?:\.[0-9]+)?(?:-fpm|-cgi)|lsphp[0-9]*)(?:\.exe)?$`)
 var pkgPHP = regexp.MustCompile(`(?i)^(?:php[0-9.]*(?:-(?:cli|fpm|cgi|common|apache2|mysql|opcache))?|libapache2-mod-php[0-9.]*|php[0-9]{2}(?:-(?:cli|fpm|cgi|apache2|common))?|ea-php[0-9]+(?:-php(?:-fpm|-cgi|-cli)?)?|lsphp[0-9]+(?:-common)?)$`)
 var versionNumber = regexp.MustCompile(`\d+\.\d+(?:\.\d+)?`)
-var iniSetting = regexp.MustCompile(`(?i)^\s*(session\.upload_progress\.enabled|expose_php|memory_limit|post_max_size|upload_max_filesize|fatal_error_backtraces)\s*=\s*([^\r\n;#]+)`)
+var iniSetting = regexp.MustCompile(`(?i)^\s*(session\.upload_progress\.enabled|session\.serialize_handler|expose_php|memory_limit|post_max_size|upload_max_filesize|fatal_error_backtraces)\s*=\s*([^\r\n;#]+)`)
 
 func ScanHost(r *Report, opts HostScanOptions) {
 	deepOutcomes := scanBinaries(r, opts)
