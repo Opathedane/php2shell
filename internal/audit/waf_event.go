@@ -8,11 +8,13 @@ import (
 
 // Offline WAF export bounds (read-only).
 const (
-	wafLogMaxBytes  = 32 << 20 // 32 MiB per file
 	wafLogMaxFiles  = 8
 	wafLogMaxEvents = 50000
 	wafLogMaxLeads  = 100
 )
+
+// wafLogMaxBytes caps a single --waf-log file read (32 MiB). Tests may lower this.
+var wafLogMaxBytes int64 = 32 << 20
 
 // WAFFormat identifies a verified offline export schema.
 type WAFFormat string

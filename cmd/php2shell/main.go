@@ -551,41 +551,34 @@ func runScan(args []string) int {
 	})
 }
 
-// finishScan writes execution-status JSON (best effort), prints quiet stderr summary, returns exit code.
+// finishScan writes execution-status JSON (best effort with HTML-sibling fallbacks),
+// prints quiet stderr summary, returns exit code.
 func finishScan(con *console.Printer, quiet bool, opts audit.ExecutionStatusOptions) int {
 	st := audit.BuildExecutionStatus(opts)
-	if path := strings.TrimSpace(opts.StatusJSONPath); path != "" {
-		writePath := path
-		if err := audit.WriteExecutionStatusJSON(writePath, st); err != nil {
-			// Prior successful run may own the sibling .status.json; use an execution-scoped name.
-			alt := audit.FailedStatusJSONPath(path, opts.ExecutionID)
-			if alt != "" && alt != writePath {
-				if err2 := audit.WriteExecutionStatusJSON(alt, st); err2 == nil {
-					writePath = alt
-					st.StatusJSONPath = alt
-					err = nil
-				} else {
-					err = err2
-				}
-			}
-			if err != nil {
-				con.Error(fmt.Sprintf("[%s] cannot write status JSON %s: %v", audit.DiagOutputWriteFailed, writePath, err))
-				// Reflect diagnostic failure in the stderr status line without concealing a successful HTML+CSV pair
-				// (exit code stays as computed for reports — status JSON is supplementary).
+	primary := strings.TrimSpace(opts.StatusJSONPath)
+	if primary != "" || strings.TrimSpace(opts.HTMLPath) != "" {
+		if primary == "" {
+			primary = audit.ResolveStatusJSONPath("", opts.HTMLPath)
+		}
+		_, usedFallback, err := audit.PersistExecutionStatusJSON(st, primary, opts.HTMLPath, opts.ExecutionID)
+		if err != nil {
+			con.Error(fmt.Sprintf("[%s] cannot write status JSON (tried primary and HTML-sibling fallbacks): %v", audit.DiagOutputWriteFailed, err))
+			if !containsDiag(st.ErrorIDs, audit.DiagOutputWriteFailed) {
 				st.ErrorIDs = append(st.ErrorIDs, audit.DiagOutputWriteFailed)
-				if st.ErrorDetail == "" {
-					st.ErrorDetail = err.Error()
-				}
-				if opts.ReportsWritten {
-					st.Remediation = "HTML+CSV were written but status JSON could not be saved; collect HTML/CSV and fix status path permissions/overwrite. Exit code still reflects report-pair / coverage outcome."
-				} else if opts.ExitCode == audit.ExitOK {
-					opts.ExitCode = audit.ExitFatal
-					st.ExitCode = audit.ExitFatal
-					st.ExecutionStatus = "FAILED"
-				}
 			}
-		} else {
-			st.StatusJSONPath = writePath
+			if st.ErrorDetail == "" {
+				st.ErrorDetail = err.Error()
+			}
+			st.StatusJSONWritten = false
+			if opts.ReportsWritten {
+				st.Remediation = "HTML+CSV were written but status JSON could not be saved on any fallback path; collect HTML/CSV and fix status/output permissions. Exit code still reflects report-pair / coverage outcome. Automation: treat status_json_written=false / missing status file as packaging defect."
+			} else if opts.ExitCode == audit.ExitOK {
+				opts.ExitCode = audit.ExitFatal
+				st.ExitCode = audit.ExitFatal
+				st.ExecutionStatus = "FAILED"
+			}
+		} else if usedFallback {
+			con.Warn(fmt.Sprintf("[%s] status JSON written via fallback path %s", audit.DiagOutputWriteFailed, st.StatusJSONPath))
 		}
 	}
 	// Always emit a concise status on stderr (including --quiet) so Intune/PSADT logs capture outcome.
@@ -594,6 +587,15 @@ func finishScan(con *console.Printer, quiet bool, opts audit.ExecutionStatusOpti
 		con.Warn(fmt.Sprintf("[%s] reports written but coverage incomplete (exit 2); see status JSON and docs/EXIT-CODES-AND-DEPLOYMENT.md", audit.DiagScanIncomplete))
 	}
 	return opts.ExitCode
+}
+
+func containsDiag(ids []string, id string) bool {
+	for _, x := range ids {
+		if x == id {
+			return true
+		}
+	}
+	return false
 }
 
 func runRollup(args []string) int {

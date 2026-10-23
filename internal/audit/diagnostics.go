@@ -48,6 +48,7 @@ type ExecutionStatus struct {
 	HTMLReportPath     string   `json:"html_report_path,omitempty"`
 	CSVReportPath      string   `json:"csv_report_path,omitempty"`
 	StatusJSONPath     string   `json:"status_json_path,omitempty"`
+	StatusJSONWritten  bool     `json:"status_json_written"`
 	ScanIncomplete     bool     `json:"scan_incomplete"`
 	AcceptIncomplete   bool     `json:"accept_incomplete,omitempty"`
 	EvidenceNotes      []string `json:"evidence_notes,omitempty"`
@@ -254,6 +255,85 @@ func WriteExecutionStatusJSON(path string, st *ExecutionStatus) error {
 	return writeExclusiveFile(path, data)
 }
 
+// PersistExecutionStatusJSON tries primary, then execution-scoped alternate names,
+// then (when HTML was written) siblings next to the HTML report so Intune/PSADT
+// can always read a machine-readable status when reports exist.
+// If the primary path fails and a fallback succeeds, st includes OUTPUT_WRITE_FAILED
+// before the successful write so automation can detect the degraded path on disk.
+// On success sets st.StatusJSONWritten and st.StatusJSONPath to the path used.
+// Returns the path written, whether a fallback was used, and any final error.
+func PersistExecutionStatusJSON(st *ExecutionStatus, primary, htmlPath, executionID string) (written string, usedFallback bool, err error) {
+	if st == nil {
+		return "", false, fmt.Errorf("execution status required")
+	}
+	candidates := statusJSONWriteCandidates(primary, htmlPath, executionID)
+	if len(candidates) == 0 {
+		st.StatusJSONWritten = false
+		return "", false, fmt.Errorf("no status JSON path available")
+	}
+	primaryClean := ""
+	if len(candidates) > 0 {
+		primaryClean = candidates[0]
+	}
+	var lastErr error
+	for i, path := range candidates {
+		if path == "" {
+			continue
+		}
+		// Set before marshal so on-disk JSON reports status_json_written=true for automation.
+		st.StatusJSONWritten = true
+		st.StatusJSONPath = path
+		if e := WriteExecutionStatusJSON(path, st); e != nil {
+			st.StatusJSONWritten = false
+			lastErr = e
+			// After primary failure, mark diagnostic before attempting fallbacks so
+			// the on-disk JSON carries OUTPUT_WRITE_FAILED for deployment automation.
+			if i == 0 && path == primaryClean {
+				if !containsID(st.ErrorIDs, DiagOutputWriteFailed) {
+					st.ErrorIDs = append(st.ErrorIDs, DiagOutputWriteFailed)
+				}
+				if st.ErrorDetail == "" {
+					st.ErrorDetail = e.Error()
+				}
+				st.Remediation = "Primary status JSON path was unavailable; wrote execution-scoped or HTML-sibling fallback when possible. Collect HTML/CSV and status_json_path. Prefer unique --out names."
+			}
+			continue
+		}
+		return path, i > 0, nil
+	}
+	st.StatusJSONWritten = false
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no status JSON path available")
+	}
+	return "", false, lastErr
+}
+
+func statusJSONWriteCandidates(primary, htmlPath, executionID string) []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(p string) {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			return
+		}
+		p = filepath.Clean(p)
+		key := strings.ToLower(p)
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		out = append(out, p)
+	}
+	add(primary)
+	add(FailedStatusJSONPath(primary, executionID))
+	if html := strings.TrimSpace(htmlPath); html != "" {
+		sib := MatchingStatusJSONPath(html)
+		add(sib)
+		add(FailedStatusJSONPath(sib, executionID))
+	}
+	return out
+}
+
 // FormatQuietStatusLine is a single stderr line for --quiet end-of-scan visibility.
 func FormatQuietStatusLine(st *ExecutionStatus) string {
 	if st == nil {
@@ -264,8 +344,8 @@ func FormatQuietStatusLine(st *ExecutionStatus) string {
 		ids = DiagOK
 	}
 	return fmt.Sprintf(
-		"PHP2Shell status=%s exit=%d errors=%s reports_written=%t incomplete=%t html=%s csv=%s status_json=%s remediation=%s",
-		st.ExecutionStatus, st.ExitCode, ids, st.ReportsWritten, st.ScanIncomplete,
+		"PHP2Shell status=%s exit=%d errors=%s reports_written=%t status_json_written=%t incomplete=%t html=%s csv=%s status_json=%s remediation=%s",
+		st.ExecutionStatus, st.ExitCode, ids, st.ReportsWritten, st.StatusJSONWritten, st.ScanIncomplete,
 		st.HTMLReportPath, st.CSVReportPath, st.StatusJSONPath, compactRemediation(st.Remediation),
 	)
 }

@@ -97,3 +97,47 @@ func TestClassifySaveError(t *testing.T) {
 		t.Fatal(id)
 	}
 }
+
+func TestPersistExecutionStatusJSONFallbackMachineDetectable(t *testing.T) {
+	dir := t.TempDir()
+	html := filepath.Join(dir, "rep.html")
+	if err := os.WriteFile(html, []byte("<html/>"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// Primary path is an existing directory named *.status.json — write fails.
+	primary := filepath.Join(dir, "locked.status.json")
+	if err := os.Mkdir(primary, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	st := BuildExecutionStatus(ExecutionStatusOptions{
+		ExecutionID: "exec1", Started: time.Now().Add(-time.Second), Ended: time.Now(),
+		GOOS: "linux", GOARCH: "amd64", Hostname: "h",
+		ExitCode: ExitOK, ReportsWritten: true,
+		HTMLPath: html, CSVPath: MatchingCSVPath(html), StatusJSONPath: primary,
+	})
+	written, usedFallback, err := PersistExecutionStatusJSON(st, primary, html, "exec1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !usedFallback || !st.StatusJSONWritten {
+		t.Fatalf("want fallback write, written=%s fallback=%v status=%+v", written, usedFallback, st)
+	}
+	if !containsID(st.ErrorIDs, DiagOutputWriteFailed) {
+		t.Fatalf("fallback must record OUTPUT_WRITE_FAILED for automation, got %v", st.ErrorIDs)
+	}
+	b, err := os.ReadFile(written)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got ExecutionStatus
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	if !got.StatusJSONWritten || !containsID(got.ErrorIDs, DiagOutputWriteFailed) {
+		t.Fatalf("on-disk status must be machine-detectable: %+v", got)
+	}
+	line := FormatQuietStatusLine(st)
+	if !strings.Contains(line, "status_json_written=true") || !strings.Contains(line, DiagOutputWriteFailed) {
+		t.Fatal(line)
+	}
+}
