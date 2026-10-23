@@ -19,6 +19,9 @@ func writeIni(t *testing.T, dir, name, body string) string {
 
 func scanIniReport(t *testing.T, iniPath string) *Report {
 	t.Helper()
+	// Hermetic: Ubuntu/Windows CI images often ship /etc/php or Program Files
+	// trees that would otherwise merge into conflicting serialize_handler observations.
+	isolatePHPIniHostDiscovery(t)
 	r := NewReport("t", "linux", "amd64")
 	r.GeneratedUTC = time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC)
 	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{iniPath}}, nil)
@@ -104,6 +107,7 @@ func TestCVE115560BareInventoryNoAdvisoryNoise(t *testing.T) {
 }
 
 func TestCVE115560ConflictingCandidates(t *testing.T) {
+	isolatePHPIniHostDiscovery(t)
 	dir := t.TempDir()
 	aPath := writeIni(t, dir, "a.php.ini", "session.serialize_handler = php_binary\nsession.upload_progress.enabled = On\n")
 	bPath := writeIni(t, dir, "b.php.ini", "session.serialize_handler = php\nsession.upload_progress.enabled = Off\n")
@@ -143,6 +147,7 @@ func TestCVE115560SampleTemplateOnly(t *testing.T) {
 }
 
 func TestCVE115560DoesNotChangePrimaryPatchThresholds(t *testing.T) {
+	isolatePHPIniHostDiscovery(t)
 	dir := t.TempDir()
 	ini := writeIni(t, dir, "php.ini", "session.serialize_handler = php_binary\nsession.upload_progress.enabled = On\n")
 	r := NewReport("t", "linux", "amd64")
