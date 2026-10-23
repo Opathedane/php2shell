@@ -515,6 +515,8 @@ func (st *phpIniScanState) observePHPIniFile(r *Report, path, source, class stri
 		switch settingName {
 		case "session.upload_progress.enabled", "memory_limit", "post_max_size", "fatal_error_backtraces":
 			settingDetail += "; temporary_mitigation_unverified=patch_required; do_not_treat_as_validated_hardening"
+		case "session.serialize_handler":
+			settingDetail += "; observed_initial_handler_text_only=not_runtime_ini_set_attestation"
 		}
 		r.AddEvidence(Evidence{
 			Type:           "configuration_observation",

@@ -570,6 +570,19 @@ func finishScan(con *console.Printer, quiet bool, opts audit.ExecutionStatusOpti
 			}
 			if err != nil {
 				con.Error(fmt.Sprintf("[%s] cannot write status JSON %s: %v", audit.DiagOutputWriteFailed, writePath, err))
+				// Reflect diagnostic failure in the stderr status line without concealing a successful HTML+CSV pair
+				// (exit code stays as computed for reports — status JSON is supplementary).
+				st.ErrorIDs = append(st.ErrorIDs, audit.DiagOutputWriteFailed)
+				if st.ErrorDetail == "" {
+					st.ErrorDetail = err.Error()
+				}
+				if opts.ReportsWritten {
+					st.Remediation = "HTML+CSV were written but status JSON could not be saved; collect HTML/CSV and fix status path permissions/overwrite. Exit code still reflects report-pair / coverage outcome."
+				} else if opts.ExitCode == audit.ExitOK {
+					opts.ExitCode = audit.ExitFatal
+					st.ExitCode = audit.ExitFatal
+					st.ExecutionStatus = "FAILED"
+				}
 			}
 		} else {
 			st.StatusJSONPath = writePath

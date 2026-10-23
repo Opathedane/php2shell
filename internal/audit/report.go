@@ -224,6 +224,20 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 
 	b.WriteString(`<p>Update sources: OS/LTS vendor security packages; <a href="https://windows.php.net/download/">PHP for Windows</a>; <a href="https://www.php.net/downloads.php">official source downloads</a>. Advisory: <a href="` + h(AdvisoryURL) + `">` + h(AdvisoryURL) + `</a>.</p>`)
 
+	if len(r.AdditionalAdvisories) > 0 {
+		b.WriteString(`<h2>Additional PHP security advisories</h2>`)
+		b.WriteString(`<p>These reviews use observed configuration text only. They do <strong>not</strong> replace the primary CVE-2026-109618 / CVE-2026-109619 patch assessment above, and they never prove a host is vulnerable or safe.</p>`)
+		b.WriteString(`<table><thead><tr><th>CVE</th><th>Status</th><th>Observed configuration</th><th>Missing evidence</th><th>Recommended action</th></tr></thead><tbody>`)
+		for _, a := range r.AdditionalAdvisories {
+			b.WriteString(`<tr><td>` + h(a.CVE) + `<br><small>` + h(a.Title) + `</small><br><a href="` + h(a.AdvisoryURL) + `">PHP.net advisory</a></td>`)
+			b.WriteString(`<td>` + h(a.Status) + `<br><small>priority=` + h(a.Priority) + `</small></td>`)
+			b.WriteString(`<td>` + h(a.ObservedConfig) + `<br><small>` + h(a.SourceFiles) + `</small></td>`)
+			b.WriteString(`<td>` + h(a.MissingEvidence) + `</td>`)
+			b.WriteString(`<td>` + h(a.RequiredAction) + `<br><small>` + h(a.Qualification) + `</small></td></tr>`)
+		}
+		b.WriteString(`</tbody></table>`)
+	}
+
 	// Collapsible technical sections
 	writeDetails := func(title string, body func()) {
 		b.WriteString(`<details><summary>` + h(title) + `</summary><div class="body">`)

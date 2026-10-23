@@ -6,6 +6,7 @@ Version-specific GitHub Release bodies live under [`docs/releases/`](releases/).
 
 | Version | Notes |
 | --- | --- |
+| [v2.7.2](releases/v2.7.2.md) | In-tree candidate — CVE-2026-115560 session upload-progress advisory assessment |
 | [v2.7.1](releases/v2.7.1.md) | IR accuracy + Cloudflare WAF + Win2012 R2 legacy artifact + deployment diagnostics |
 | [v2.7.0](releases/v2.7.0.md) | Compromise investigation assist; fleet CSV v3 |
 | [v2.6.0](releases/v2.6.0.md) | Optional `--deep-root` Deep Discovery; expanded well-known install paths |

@@ -74,6 +74,7 @@ func CheckPHPVersion(input string) VersionDecision {
 func EvaluatePatchPosture(r *Report) {
 	ReconcileBinaryInstallAliases(r)
 	r.PatchAssessments = []PatchAssessment{}
+	r.AdditionalAdvisories = nil
 	// Official patch actions take precedence over generic preview guidance.
 	r.RecommendedActions = []string{}
 	belowHost, belowRepo, legacy, observed := 0, 0, 0, 0
@@ -176,4 +177,6 @@ func EvaluatePatchPosture(r *Report) {
 	if r.VulnerabilityStatus == "MULTIPLE_RUNTIMES_MIXED_PATCH_LEVELS_REVIEW_REQUIRED" {
 		r.AddAction("Multiple distinct PHP installations show different patch levels. Patch every web-serving runtime; one at-threshold install does not protect other handlers.")
 	}
+	// Secondary informational advisory (CVE-2026-115560) — config observation only; no invented fixed versions.
+	EvaluateSessionUploadProgressAdvisory(r)
 }
