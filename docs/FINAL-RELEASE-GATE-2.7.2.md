@@ -2,7 +2,7 @@
 
 **Gate date:** 2026-10-24  
 **Branch:** `stab/v2.7.2-enterprise-qa`  
-**Gate tip:** `27d76d4` (includes `6fe5bae` … `e13f67f` Apache-2.0 + integrity fixes below)  
+**Gate body:** `27d76d4` integrity fixes; tip after this note may advance by docs-only commits. Tag the PR head after push. Includes `6fe5bae` … Apache-2.0 `e13f67f`.  
 **Do not merge / tag / publish** until the maintainer explicitly approves.
 
 ---
