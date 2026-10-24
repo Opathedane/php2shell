@@ -1,6 +1,8 @@
 # Release Acceptance Checklist — v2.7.2 (stabilization)
 
-**Reviewed tip:** `a63b392ec4a9d9d42f0f9d48d81afb97f5cf4714` on `stab/v2.7.2-enterprise-qa` (acceptance body `a641449`).  
+**Branch:** `stab/v2.7.2-enterprise-qa`  
+**Acceptance body commit:** `a641449` (checklist/HTML/signing docs). Subsequent tip commits only pin this document.  
+**Release rule:** build/tag only from the Draft PR **head** SHA (`git rev-parse HEAD` / `gh pr view --json headRefOid`) — never from an unreviewed commit.  
 **Feature freeze:** no new PHP discovery, WAF providers, DFIR, or advisory features.  
 **Version plan:** ship technical+docs as **v2.7.2**; reserve **v2.8.0** for public distribution after LICENSE + Authenticode + field pilots.
 
