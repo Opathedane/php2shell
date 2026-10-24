@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -18,6 +19,72 @@ type InstallGroup struct {
 	Priority        string
 	Assessments     []PatchAssessment
 	RelatedEvidence []Evidence
+}
+
+// HumanVulnerabilityLabel returns an administrator-facing patch-exposure summary.
+func HumanVulnerabilityLabel(status string) string { return humanVulnerability(status) }
+
+// HumanPatchStatusLabel returns an administrator-facing per-assessment status.
+func HumanPatchStatusLabel(status string) string { return humanPatchStatus(status) }
+
+// HumanCompromiseLabel returns an administrator-facing signed-IOC rollup label.
+func HumanCompromiseLabel(status string) string { return humanCompromise(status) }
+
+// HumanPHPDetected returns the discovery label and distinct observed versions.
+func HumanPHPDetected(r *Report) (label string, versions []string) { return humanPHPDetected(r) }
+
+// HumanRuntime returns serving-runtime label and detail (never claims verified HTTP SAPI from inventory alone).
+func HumanRuntime(r *Report) (label, detail string) { return humanRuntime(r) }
+
+// HumanAdvisoryStatusLabel returns an administrator-facing CVE-2026-115560 status.
+func HumanAdvisoryStatusLabel(status string) string {
+	switch status {
+	case "MANUAL_VERIFICATION_REQUIRED":
+		return "Manual verification required"
+	case "MITIGATION_CONFIGURED_NOT_RUNTIME_VERIFIED":
+		return "Mitigation configured (runtime not verified)"
+	case "NO_RISKY_INITIAL_HANDLER_OBSERVED":
+		return "No risky initial serialize_handler observed"
+	case "UNDETERMINED":
+		return "Undetermined — more configuration evidence needed"
+	default:
+		if status == "" {
+			return "Undetermined"
+		}
+		return status
+	}
+}
+
+// OfficialFixThresholdsSummary lists embedded upstream fix thresholds for display.
+func OfficialFixThresholdsSummary() string {
+	return "8.5.12 / 8.4.27 / 8.3.36 / 8.2.35 (upstream; vendor backports require separate verification)"
+}
+
+// PHPLifecycleNote returns a short lifecycle note for a major.minor branch (informational only).
+func PHPLifecycleNote(version string) string {
+	v := strings.TrimSpace(version)
+	match := cleanPHPVersion.FindStringSubmatch(v)
+	if match == nil {
+		return ""
+	}
+	branch := match[1] + "." + match[2]
+	switch branch {
+	case "8.5":
+		return "PHP 8.5: active support until 31 Dec 2027; security until 31 Dec 2029 (php.net)"
+	case "8.4":
+		return "PHP 8.4: active support until 31 Dec 2026; security until 31 Dec 2028 (php.net)"
+	case "8.3":
+		return "PHP 8.3: security-only until 31 Dec 2027 (php.net)"
+	case "8.2":
+		return "PHP 8.2: security-only until 31 Dec 2026 (php.net) — plan upgrade"
+	default:
+		maj, _ := strconv.Atoi(match[1])
+		min, _ := strconv.Atoi(match[2])
+		if maj < 8 || (maj == 8 && min <= 1) {
+			return "PHP " + branch + ": end of upstream life — upgrade or verify vendor LTS backports"
+		}
+		return "PHP " + branch + ": confirm support status on php.net/supported-versions.php"
+	}
 }
 
 func humanPatchStatus(status string) string {

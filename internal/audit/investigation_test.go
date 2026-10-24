@@ -29,8 +29,12 @@ func TestInvestigationNotRequestedWithoutLogs(t *testing.T) {
 		t.Fatalf("coverage want NOT_REQUESTED, got %s", r.InvestigationCoverage)
 	}
 	html := string(EncodeHTML(r))
-	if !strings.Contains(html, "Not assessed") {
-		t.Fatal("HTML should show not assessed for investigation axes")
+	// Inventory-only scans omit the optional investigation executive card strip.
+	if strings.Contains(html, `aria-label="Optional investigation"`) {
+		t.Fatal("HTML must not show optional investigation executive cards when investigation was not requested")
+	}
+	if !strings.Contains(html, "not a clearance") {
+		t.Fatal("HTML must retain clearance disclaimer")
 	}
 	lower := strings.ToLower(html)
 	if strings.Contains(lower, "confirmed compromised") && !strings.Contains(lower, "never claims") && !strings.Contains(lower, "never claim") {

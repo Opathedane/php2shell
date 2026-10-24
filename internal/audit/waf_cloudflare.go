@@ -249,6 +249,8 @@ func parseCloudflareFirewallEventsJSONL(path string, b []byte) (parsed int, lead
 		})
 	}
 	if err := scanner.Err(); err != nil {
+		// bufio size limit / read error: remaining JSONL was not assessed — not a complete parse.
+		truncated = true
 		notes = "Overlong or unreadable JSONL line; remaining content not fully assessed."
 	}
 	if truncated {

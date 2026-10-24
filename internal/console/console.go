@@ -96,10 +96,12 @@ func (p *Printer) Banner(version, goos, goarch, hostname string) {
 	fmt.Fprintln(p.out, p.paint(bold, "PHP2Shell Assessment")+" "+p.paint(dim, version))
 	fmt.Fprintf(p.out, "Host: %s  OS: %s/%s\n", hostname, goos, goarch)
 	fmt.Fprintln(p.out, p.paint(dim, "Read-only local scan. No PHP execution. No automatic remediation or data upload."))
+	fmt.Fprintf(p.out, "%s Upstream fix thresholds: %s\n", p.paint(dim, "·"), audit.OfficialFixThresholdsSummary())
+	fmt.Fprintf(p.out, "%s Advisory rules reviewed: %s (offline; not a live vulnerability feed)\n", p.paint(dim, "·"), audit.AdvisoryRulesReviewedUTC)
 	fmt.Fprintln(p.out)
 }
 
-// Phase announces the current scan phase.
+// Phase announces the current scan phase (only call for work that is actually running).
 func (p *Printer) Phase(name string) {
 	if p.opts.Quiet {
 		return
@@ -124,57 +126,101 @@ func (p *Printer) Summary(r *audit.Report, htmlPath, csvPath string, elapsed tim
 	}
 	fmt.Fprintln(p.out)
 	fmt.Fprintln(p.out, p.paint(bold, "Scan summary"))
-	fmt.Fprintf(p.out, "  PHP discovery:     %s\n", r.Summary.PHPDiscovery)
-	fmt.Fprintf(p.out, "  Patch review:      %s\n", r.Summary.PatchReview)
-	fmt.Fprintf(p.out, "  Compromise review: %s\n", r.Summary.CompromiseReview)
-	fmt.Fprintf(p.out, "  Vulnerability:     %s\n", r.VulnerabilityStatus)
-	fmt.Fprintf(p.out, "  Compromise:        %s\n", r.CompromiseStatus)
-	fmt.Fprintf(p.out, "  Serving runtime:   %s\n", r.EffectiveWebRuntime)
 
-	phpShown := 0
-	for _, e := range r.Evidence {
-		if e.Version == "" {
-			continue
+	phpLabel, versions := audit.HumanPHPDetected(r)
+	fmt.Fprintf(p.out, "  PHP discovery:     %s\n", phpLabel)
+	fmt.Fprintf(p.out, "  Patch assessment:  %s\n", audit.HumanVulnerabilityLabel(r.VulnerabilityStatus))
+	rtLabel, rtDetail := audit.HumanRuntime(r)
+	fmt.Fprintf(p.out, "  Serving runtime:   %s — %s\n", rtLabel, truncateConsole(rtDetail, 120))
+
+	if len(versions) > 0 {
+		fmt.Fprintf(p.out, "  Observed versions: %s\n", strings.Join(versions, ", "))
+		fmt.Fprintf(p.out, "  Upstream fixes:    %s\n", audit.OfficialFixThresholdsSummary())
+		shownLife := map[string]bool{}
+		for _, ver := range versions {
+			note := audit.PHPLifecycleNote(ver)
+			if note == "" || shownLife[note] {
+				continue
+			}
+			shownLife[note] = true
+			fmt.Fprintf(p.out, "  Lifecycle:         %s\n", note)
+			if len(shownLife) >= 3 {
+				break
+			}
 		}
-		if phpShown == 0 {
-			fmt.Fprintln(p.out, "  Detected versions (evidence, not attested runtime):")
-		}
-		if phpShown >= 8 {
-			fmt.Fprintln(p.out, "    ... see HTML report for full evidence list")
-			break
-		}
-		label := e.Name
-		if label == "" {
-			label = e.Type
-		}
-		fmt.Fprintf(p.out, "    - %s %s (%s)\n", label, e.Version, e.Type)
-		phpShown++
-	}
-	if phpShown == 0 {
-		fmt.Fprintln(p.out, "  Detected versions: none in this scan scope (absence is not proof)")
+	} else {
+		fmt.Fprintln(p.out, "  Observed versions: none in this scan scope (absence is not proof PHP is missing)")
 	}
 
-	critical := 0
+	// Group patch assessments by install/version for readability.
+	type grp struct {
+		ver, status, action string
+		priority            string
+	}
+	byKey := map[string]*grp{}
+	var order []string
 	for _, a := range r.PatchAssessments {
-		if a.Priority != "CRITICAL" {
-			continue
+		key := a.InstallKey
+		if key == "" {
+			key = a.ObservedVersion + "|" + a.Status
 		}
-		if critical == 0 {
-			fmt.Fprintln(p.out, p.paint(yellow, "  Immediate patch review:"))
+		if _, ok := byKey[key]; !ok {
+			byKey[key] = &grp{ver: a.ObservedVersion, status: a.Status, action: a.RequiredAction, priority: a.Priority}
+			order = append(order, key)
 		}
-		if critical >= 6 {
-			fmt.Fprintln(p.out, "    ... additional assessments in the HTML/CSV reports")
-			break
+	}
+	if len(order) > 0 {
+		fmt.Fprintln(p.out, "  Installation review:")
+		for i, key := range order {
+			if i >= 6 {
+				fmt.Fprintln(p.out, "    ... see HTML report for additional installations")
+				break
+			}
+			g := byKey[key]
+			label := g.ver
+			if label == "" {
+				label = "(version unknown)"
+			}
+			fmt.Fprintf(p.out, "    - PHP %s: %s\n", label, audit.HumanPatchStatusLabel(g.status))
+			if g.priority == "CRITICAL" || g.status == "BELOW_UPSTREAM_FIX" || g.status == "LEGACY_VENDOR_VERIFICATION_REQUIRED" {
+				fmt.Fprintf(p.out, "      Action: %s\n", truncateConsole(g.action, 140))
+			}
 		}
-		fmt.Fprintf(p.out, "    - %s %s: %s\n", a.Component, a.ObservedVersion, a.RequiredAction)
-		critical++
+	}
+
+	if len(r.AdditionalAdvisories) > 0 {
+		fmt.Fprintln(p.out, "  Additional advisories:")
+		for _, a := range r.AdditionalAdvisories {
+			fmt.Fprintf(p.out, "    - %s: %s\n", a.CVE, audit.HumanAdvisoryStatusLabel(a.Status))
+		}
+	}
+
+	invRequested := false
+	for _, c := range r.Coverage {
+		if strings.HasPrefix(c.Name, "historical_") || c.Name == "compromise_investigation" || c.Name == "waf_log_investigation" {
+			if !strings.EqualFold(c.Status, "NOT_REQUESTED") {
+				invRequested = true
+				break
+			}
+		}
+	}
+	if invRequested || (r.ExploitationAttemptStatus != "" && r.ExploitationAttemptStatus != "NOT_ASSESSED") {
+		fmt.Fprintf(p.out, "  Investigation:     attempts=%s; possible-compromise=%s (not a clearance)\n",
+			r.ExploitationAttemptStatus, r.PossibleCompromiseStatus)
 	}
 
 	incompleteCount := 0
 	for _, c := range r.Coverage {
 		switch strings.ToUpper(c.Status) {
-		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED", "TIMEOUT":
+		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED", "TIMEOUT", "ACCESS_DENIED":
 			incompleteCount++
+		}
+	}
+	// Highlight RPM / package inventory gap when relevant.
+	for _, c := range r.Coverage {
+		if c.Name == "packages" && strings.EqualFold(c.Status, "NOT_SUPPORTED") {
+			fmt.Fprintln(p.out, p.paint(yellow, "  Coverage note:    OS package DB not inventoried (no dpkg/apk). On RPM hosts, rely on binary/PATH discovery and vendor advisories."))
+			break
 		}
 	}
 	if incomplete || incompleteCount > 0 || len(r.Warnings) > 0 {
@@ -185,10 +231,10 @@ func (p *Printer) Summary(r *audit.Report, htmlPath, csvPath string, elapsed tim
 		shown := 0
 		for _, c := range r.Coverage {
 			switch strings.ToUpper(c.Status) {
-			case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED", "TIMEOUT":
-				fmt.Fprintf(p.out, "    - [%s] %s: %s\n", c.Status, c.Name, c.Detail)
+			case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED", "TIMEOUT", "ACCESS_DENIED":
+				fmt.Fprintf(p.out, "    - [%s] %s\n", c.Status, c.Name)
 				shown++
-				if shown >= 8 {
+				if shown >= 6 {
 					fmt.Fprintln(p.out, "    ... see HTML/CSV coverage details")
 					goto afterWarn
 				}
@@ -208,6 +254,14 @@ func (p *Printer) Summary(r *audit.Report, htmlPath, csvPath string, elapsed tim
 	if incomplete {
 		fmt.Fprintln(p.out, p.paint(yellow, "Scan finished with incomplete coverage (exit code 2)."))
 	}
+}
+
+func truncateConsole(s string, n int) string {
+	s = strings.TrimSpace(s)
+	if n <= 0 || len(s) <= n {
+		return s
+	}
+	return s[:n-1] + "…"
 }
 
 // ColorEnabled reports whether ANSI sequences would be emitted (for tests).

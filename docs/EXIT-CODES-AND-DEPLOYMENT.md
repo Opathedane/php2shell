@@ -14,11 +14,13 @@ Every successful path resolution writes (by default) a sibling:
 
 `report.html` → `report.csv` + `report.status.json`
 
-Schema: `php2shell-execution-status/v1`. Fields include `execution_status` (`COMPLETED` / `COMPLETED_INCOMPLETE` / `FAILED`), `exit_code`, `error_ids`, `reports_written`, paths, and remediation text. No request bodies, cookies, or tokens.
+Schema: `php2shell-execution-status/v1`. Fields include `execution_status` (`COMPLETED` / `COMPLETED_INCOMPLETE` / `FAILED`), `exit_code`, `error_ids`, `reports_written`, **`status_json_written`**, paths, and remediation text. No request bodies, cookies, or tokens.
 
-Override path with `--status-json PATH`. Refuses overwrite (same as reports).
+Override path with `--status-json PATH`. Refuses overwrite (same as reports). If the primary status path cannot be written, the tool tries an execution-scoped `*.failed-<id>.status.json` and then an HTML-sibling fallback. A successful fallback still sets `error_ids` to include `OUTPUT_WRITE_FAILED` so automation can detect the degraded path **on disk** (do not rely on stderr alone).
 
-`--quiet` still prints a one-line status summary and errors on **stderr**.
+`--quiet` still prints a one-line status summary (including `status_json_written=…`) on **stderr**.
+
+**Intune / PSADT:** Treat missing status when HTML+CSV exist as a packaging defect; still collect reports. Prefer unique `--out` names.
 
 ## Customer command pitfalls
 
@@ -40,7 +42,20 @@ Options:
 1. **Preferred:** treat exit codes **0 and 2** as success for file collection; treat **1** as failure.
 2. Or pass `--accept-incomplete` so coverage gaps still exit **0** while status JSON records `SCAN_INCOMPLETE` / `COMPLETED_INCOMPLETE`.
 
+Integration contract (uploads stay customer-specific / external):
+
+| Check | Expected |
+| --- | --- |
+| Exit 0 or 2 | Require HTML+CSV present; upload |
+| Exit 1 | Fail step; do not upload stale prior reports |
+| Status JSON | Resolve sibling or `*.failed-*.status.json`; read `status_json_written`, `error_ids`, `scan_incomplete` |
+| `OUTPUT_WRITE_FAILED` | Packaging/permissions; reports may still be valid |
+| Incomplete | Upload but do not close as cleared |
+| Stale outputs | Unique host+UTC `--out` each run |
+
 Reference: [deploy/PSADT-PHP2Shell-Reference.ps1](../deploy/PSADT-PHP2Shell-Reference.ps1).
+
+Enterprise guides: [Intune](deployment/INTUNE.md) · [GPO](deployment/GPO.md) · [Report collection](deployment/REPORT-COLLECTION.md) · [Understanding reports](UNDERSTANDING-REPORTS.md).
 
 ## Error identifiers (stable)
 

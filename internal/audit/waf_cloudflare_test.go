@@ -82,17 +82,31 @@ func TestWAFUnsupportedFormat(t *testing.T) {
 	}
 }
 
-func TestWAFRuleIDSnakeCaseAllowlistedFinding(t *testing.T) {
-	// Reproduces: exporters that use rule_id (not RuleID). Primary json.Unmarshal succeeds
-	// with an empty RuleID field — must still match allowlisted IDs.
-	dir := t.TempDir()
+func TestWAFAllowlistedRuleIDCasingFindings(t *testing.T) {
+	// Do not treat successful json.Unmarshal alone as success — exporters vary key casing.
 	rule := "4e315666e8e344cdb64119a3b5ccf32f" // free Anomalous Execution 1
-	line := `{"action":"block","datetime":"2026-10-21T12:00:00Z","rule_id":"` + rule + `","clientRequestMethod":"POST","clientRequestPath":"/index.php","ray_id":"abcd"}` + "\n"
-	p := writeTemp(t, dir, "snake.jsonl", line)
-	r := NewReport("host", "linux", "amd64")
-	leads := ScanWAFLog(r, p)
-	if len(leads) != 1 || leads[0].Kind != "waf_php2shell_rule_match" {
-		t.Fatalf("allowlisted rule_id must produce finding, got leads=%+v coverage=%+v", leads, r.WAFLogs)
+	cases := []struct {
+		name string
+		line string
+	}{
+		{"RuleID", `{"Action":"block","Datetime":"2026-10-21T12:00:00Z","RuleID":"` + rule + `","ClientRequestMethod":"POST","ClientRequestPath":"/index.php","RayID":"r1"}`},
+		{"ruleId", `{"action":"block","datetime":"2026-10-21T12:00:00Z","ruleId":"` + rule + `","clientRequestMethod":"POST","clientRequestPath":"/index.php","rayId":"r2"}`},
+		{"rule_id", `{"action":"block","datetime":"2026-10-21T12:00:00Z","rule_id":"` + rule + `","clientRequestMethod":"POST","clientRequestPath":"/index.php","ray_id":"r3"}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			p := writeTemp(t, dir, tc.name+".jsonl", tc.line+"\n")
+			r := NewReport("host", "linux", "amd64")
+			leads := ScanWAFLog(r, p)
+			if len(leads) != 1 || leads[0].Kind != "waf_php2shell_rule_match" {
+				t.Fatalf("%s: allowlisted id must produce finding (not merely decode), leads=%+v coverage=%+v",
+					tc.name, leads, r.WAFLogs)
+			}
+			if !strings.Contains(leads[0].Detail, "Anomalous Execution") {
+				t.Fatalf("%s: detail must name allowlisted rule, got %s", tc.name, leads[0].Detail)
+			}
+		})
 	}
 }
 
@@ -115,6 +129,50 @@ func TestWAFTruncationReportsTruncatedNotComplete(t *testing.T) {
 	}
 	if !ScanIncomplete(r) {
 		t.Fatal("TRUNCATED WAF coverage must mark ScanIncomplete")
+	}
+}
+
+func TestWAFOversizedFileUnavailableNotComplete(t *testing.T) {
+	prev := wafLogMaxBytes
+	wafLogMaxBytes = 64
+	t.Cleanup(func() { wafLogMaxBytes = prev })
+	dir := t.TempDir()
+	rule := "4e315666e8e344cdb64119a3b5ccf32f"
+	body := `{"Action":"block","Datetime":"2026-10-21T12:00:00Z","RuleID":"` + rule + `","ClientRequestMethod":"GET","ClientRequestPath":"/x","RayID":"r1"}` + "\n"
+	for len(body) < 128 {
+		body += body
+	}
+	p := writeTemp(t, dir, "big.jsonl", body)
+	r := NewReport("host", "linux", "amd64")
+	leads := ScanWAFLog(r, p)
+	if len(leads) != 0 {
+		t.Fatalf("oversized file must not yield leads, got %+v", leads)
+	}
+	if len(r.WAFLogs) != 1 || r.WAFLogs[0].Status != "UNAVAILABLE" {
+		t.Fatalf("oversized want UNAVAILABLE, got %+v", r.WAFLogs)
+	}
+	if !ScanIncomplete(r) {
+		t.Fatal("UNAVAILABLE WAF must mark ScanIncomplete")
+	}
+}
+
+func TestWAFPartialParseOverlongLineNotComplete(t *testing.T) {
+	dir := t.TempDir()
+	rule := "4e315666e8e344cdb64119a3b5ccf32f"
+	good := `{"Action":"block","Datetime":"2026-10-21T12:00:00Z","RuleID":"` + rule + `","ClientRequestMethod":"GET","ClientRequestPath":"/ok","RayID":"good"}` + "\n"
+	// Exceed bufio max token (1 MiB) so remaining JSONL is not assessed.
+	overlong := `{"Action":"block","Datetime":"2026-10-21T12:00:00Z","RuleID":"` + rule + `","ClientRequestPath":"` + strings.Repeat("A", 1<<20+64) + `","RayID":"bad"}` + "\n"
+	p := writeTemp(t, dir, "partial.jsonl", good+overlong)
+	r := NewReport("host", "linux", "amd64")
+	_ = ScanWAFLog(r, p)
+	if len(r.WAFLogs) != 1 {
+		t.Fatal(r.WAFLogs)
+	}
+	if r.WAFLogs[0].Status != "TRUNCATED" {
+		t.Fatalf("partial/overlong JSONL must be TRUNCATED, got %s (%s)", r.WAFLogs[0].Status, r.WAFLogs[0].Detail)
+	}
+	if !ScanIncomplete(r) {
+		t.Fatal("partial WAF parse must mark ScanIncomplete")
 	}
 }
 

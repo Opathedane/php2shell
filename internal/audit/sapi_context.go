@@ -100,9 +100,9 @@ func formatConfiguredSAPIContext(ctx ConfiguredSAPIContext) (label, detail strin
 	detail = fmt.Sprintf(
 		"Observed configured/inventory hints: %s. "+
 			"These artifacts do NOT prove which SAPI currently serves HTTP. "+
-			"Calif research: mod_php may continue into request shutdown / worker reuse after some startup fatals; "+
-			"PHP-FPM terminates the worker on php_request_startup failure (FPM_EXIT_SOFTWARE) but can still be exploited "+
-			"after successful startup (application-dependent decode + upload-progress paths). "+
+			"Research note: mod_php may continue into request shutdown / worker reuse after some startup fatals; "+
+			"PHP-FPM typically terminates the worker on request-startup failure but can still be exploited "+
+			"after successful startup (application-dependent decode and upload-progress paths). "+
 			"Do not infer that PHP-FPM cannot be exploited. Patch and verify the active serving runtime separately.",
 		strings.Join(kinds, "; "),
 	)

@@ -1,5 +1,7 @@
 # Licensing status (pending maintainer approval)
 
+**Decision worksheet for the copyright owner:** [LICENSING-DECISION.md](LICENSING-DECISION.md).
+
 ## Intent
 
 The maintainer intends PHP2Shell to be released under the **Apache License 2.0**.
@@ -8,6 +10,21 @@ The maintainer intends PHP2Shell to be released under the **Apache License 2.0**
 
 - `LICENSE.proposed` remains a **placeholder**, not an approved open-source license.
 - No SPDX license assertion should be added to `README` or GitHub “License” metadata until ownership and contributor rights are confirmed.
+
+## Maintainer decision required (do not auto-apply)
+
+Unrestricted public distribution is **blocked** until a human copyright owner confirms:
+
+| Question | Why it matters |
+| --- | --- |
+| Who owns the copyright (individual vs employer such as ITM8)? | Wrong licensor invalidates the grant |
+| Does the employer authorize Apache-2.0 publication of **all** tree contents? | Employment / work-for-hire |
+| Are all contributors covered (CLA/DCO or explicit agreement)? | PR history |
+| Is any third-party code present with an incompatible license? | Clean-room / attribution |
+| May the name “PHP2Shell” be used under trademark policy once Apache-2.0 is declared? | Branding |
+| Are signing keys / customer artifacts excluded from the licensed public tree? | Secrets |
+
+**Agents and automation must not create `LICENSE` or change GitHub license metadata without explicit written approval answering the table above.**
 
 ## Before committing `LICENSE`
 

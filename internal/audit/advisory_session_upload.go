@@ -193,13 +193,13 @@ func assessSessionUpload115560(handlers, uploads []iniObs) AdditionalAdvisory {
 
 	hChosen, hSampleOnly := preferNonSample(handlers)
 	uChosen, uSampleOnly := preferNonSample(uploads)
-	base.SampleOrTemplate = (len(handlers)+len(uploads) > 0) && hSampleOnly && uSampleOnly &&
-		len(handlers) == len(filterSample(handlers)) && len(uploads) == len(filterSample(uploads))
-	// If we fell back to samples because no primary exists for a key side, mark sample influence.
-	if hSampleOnly && len(handlers) > 0 {
+	// SampleOrTemplate only when the deciding observations lack any non-sample evidence.
+	// Do not let sample-only handlers demote a primary upload-progress Off mitigation.
+	base.SampleOrTemplate = false
+	if len(handlers) > 0 && hSampleOnly && len(filterNonSample(handlers)) == 0 {
 		base.SampleOrTemplate = true
 	}
-	if uSampleOnly && len(uploads) > 0 && len(filterNonSample(uploads)) == 0 {
+	if len(uploads) > 0 && uSampleOnly && len(filterNonSample(uploads)) == 0 {
 		base.SampleOrTemplate = true
 	}
 
@@ -262,8 +262,10 @@ func assessSessionUpload115560(handlers, uploads []iniObs) AdditionalAdvisory {
 		if len(hVals) == 0 {
 			base.MissingEvidence += "; session.serialize_handler not observed in scanned configuration"
 		}
-		if base.SampleOrTemplate {
+		// Demote only when Off itself came solely from sample/template files.
+		if uSampleOnly && len(filterNonSample(uploads)) == 0 {
 			base.Status = "UNDETERMINED"
+			base.SampleOrTemplate = true
 			base.MissingEvidence = "upload progress Off observed only in sample/template ini candidates"
 			base.RequiredAction = "Inspect the active (non-sample) php.ini for the HTTP-serving SAPI and confirm session.upload_progress.enabled=0 there."
 		}
@@ -279,6 +281,21 @@ func assessSessionUpload115560(handlers, uploads []iniObs) AdditionalAdvisory {
 		case "php":
 			phpHandler = true
 		}
+	}
+	// Primary handlers may look safe while sample/template files still show risky values.
+	sampleRisky := false
+	for _, o := range filterSample(handlers) {
+		switch normalizeHandler(o.value) {
+		case "php_binary", "php_serialize":
+			sampleRisky = true
+		}
+	}
+	if !riskyHandler && sampleRisky && phpHandler {
+		base.Status = "UNDETERMINED"
+		base.MissingEvidence = "primary/non-sample serialize_handler appears php, but sample/template ini candidates still show php_binary or php_serialize"
+		base.RequiredAction = "Confirm which php.ini applies to the HTTP-serving SAPI; prefer session.upload_progress.enabled=0 until PHP publishes a regular fix if any active config uses php_binary/php_serialize."
+		base.Qualification += " Conflicting primary vs sample/template serialize_handler observations."
+		return base
 	}
 
 	// Scenario A: risky initial handler + upload progress enabled

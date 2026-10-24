@@ -17,6 +17,13 @@ var officialFixes = map[string]int{"8.2": 35, "8.3": 36, "8.4": 27, "8.5": 12}
 var cleanPHPVersion = regexp.MustCompile(`(?i)^\s*(\d+)\.(\d+)(?:\.(\d+))?(?:[-+][a-z0-9._+:-]+)?\s*$`)
 var preRelease = regexp.MustCompile(`(?i)(?:rc\d*|alpha\d*|beta\d*|dev|snapshot)`)
 
+// gluedPrerelease normalizes 8.6.0RC4 / 8.4.27alpha1 (no separator) before comparison.
+var gluedPrerelease = regexp.MustCompile(`(?i)^(\d+\.\d+\.\d+)(rc|alpha|beta)(\d*)$`)
+
+// AdvisoryRulesReviewedUTC is when embedded CVE thresholds / 115560 guidance were last checked
+// against php.net (offline scanner; not a live feed).
+const AdvisoryRulesReviewedUTC = "2026-10-24"
+
 type PatchAssessment struct {
 	Component       string `json:"component"`
 	ObservedVersion string `json:"observed_version"`
@@ -42,6 +49,9 @@ func CheckPHPVersion(input string) VersionDecision {
 	if v == "" || strings.ContainsAny(v, "<>^~*|, ") {
 		return VersionDecision{"UNDETERMINED_VERSION", "", "REVIEW", "Determine the exact deployed PHP patch version; a PHP requirement or a major.minor line is insufficient.", "Not an exact installed version."}
 	}
+	if m := gluedPrerelease.FindStringSubmatch(v); m != nil {
+		v = m[1] + "-" + strings.ToUpper(m[2]) + m[3]
+	}
 	match := cleanPHPVersion.FindStringSubmatch(v)
 	if match == nil {
 		return VersionDecision{"UNDETERMINED_VERSION", "", "REVIEW", "Determine the exact deployed PHP patch version from trusted deployment evidence.", "Version string not safely comparable."}
@@ -53,7 +63,7 @@ func CheckPHPVersion(input string) VersionDecision {
 	}
 	patch, _ := strconv.Atoi(match[3])
 	if preRelease.MatchString(v) {
-		return VersionDecision{"PRERELEASE_NOT_APPROVED", "", "REVIEW", "Do not use a prerelease build in production; install a supported patched stable release.", "Release candidates and pre-releases are not approved by this advisory comparison."}
+		return VersionDecision{"PRERELEASE_NOT_APPROVED", "", "REVIEW", "Do not use a prerelease build in production; install a supported patched stable release. PHP release candidates that include security fixes are still not approved production builds.", "Release candidates and pre-releases are not approved by this advisory comparison."}
 	}
 	branch := fmt.Sprintf("%d.%d", major, minor)
 	if min, ok := officialFixes[branch]; ok {
