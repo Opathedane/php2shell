@@ -23,12 +23,12 @@ Legend: **PASS** · **FAIL** · **NOT TESTED** (with environment note)
 | HTML patch-first executive summary | **PASS** | Hierarchy fix: next steps before optional IR |
 | README first-time onboarding (no `--quiet` in primary Quick Start) | **PASS** | |
 | Intune / GPO / PSADT / collection docs | **PASS** | Reference designs; field pilots still required |
-| Approved redistribution LICENSE | **FAIL** (P0 blocker for public) | `LICENSE.proposed` only — [LICENSING-DECISION.md](LICENSING-DECISION.md) |
+| Approved redistribution LICENSE | **PASS** | Apache-2.0 (`LICENSE`) — [LICENSING.md](LICENSING.md) |
 | Windows Authenticode | **FAIL** (P0 for broad Win public) | SHA256 published; [AUTHENTICODE-IMPLEMENTATION.md](deployment/AUTHENTICODE-IMPLEMENTATION.md) |
 | RPM package inventory | **NOT TESTED** / disclosed | Binary discovery still runs; not silent “no PHP” |
 
 **Stabilization readiness (pilots):** **CONDITIONAL GO**  
-**Unrestricted public distribution:** **NO-GO** until LICENSE (+ recommended signing)
+**Unrestricted public distribution:** **CONDITIONAL GO** — Apache-2.0 OK; Authenticode recommended for Windows binaries; complete field pilots as needed
 
 ---
 
@@ -125,7 +125,7 @@ Legend: **PASS** · **FAIL** · **NOT TESTED** (with environment note)
 
 | Item | Severity | Result |
 | --- | --- | --- |
-| Approved LICENSE | **P0** public | **FAIL** until maintainer decision |
+| Approved LICENSE | — | **PASS** (Apache-2.0) |
 | Authenticode | **P0** broad Windows public / **P1** pilots | **FAIL** (plan ready) |
 | SHA256SUMS process | — | **PASS** (documented + release workflow) |
 | Unsigned SmartScreen | — | Disclosed |
@@ -199,7 +199,7 @@ gh pr create --draft --base main --head stab/v2.7.2-enterprise-qa \
 | Audience | Verdict |
 | --- | --- |
 | Controlled enterprise pilots (SHA256 verified) | **CONDITIONAL GO** |
-| Unrestricted public GitHub distribution | **NO-GO** — P0 LICENSE; recommended Authenticode |
+| Unrestricted public GitHub distribution | **CONDITIONAL GO** — license OK; recommended Authenticode + field pilots |
 | Merge / tag / publish now | **NO-GO** without explicit maintainer approval |
 
 **Recommended tag when approved:** **v2.7.2** (stabilization).  

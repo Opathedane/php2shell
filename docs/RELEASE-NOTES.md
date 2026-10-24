@@ -27,4 +27,5 @@ Historical alpha notes: [ALPHA-RELEASE-NOTES.md](ALPHA-RELEASE-NOTES.md) (not cu
 - Does **not** execute discovered PHP binaries  
 - `customer_label` is not authenticated tenancy  
 - Binaries are **not** Authenticode-signed; verify `SHA256SUMS`  
-- Open-source license: still pending (`LICENSE.proposed` is not an approved license)  
+- Open-source license: **Apache License 2.0** (`LICENSE`)  
+

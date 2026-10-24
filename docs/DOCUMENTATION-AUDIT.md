@@ -22,7 +22,7 @@ These reflect intentional or unfinished product behavior — do **not** “fix�
 - No automatic verification of vendor security backports.
 - Default `rollup` consolidates fleet CSV; legacy `--format json` remains for older inputs.
 - Windows Server / IIS / enterprise package layouts need continued field validation.
-- `LICENSE.proposed` is not an approved license (ownership decision pending).
+- License: Apache-2.0 (`LICENSE`).
 - Actions are pinned to major tags (`@v5` / `@v6`), not immutable commit SHAs yet (see `GOVERNANCE.md`).
 
 ## CLI arguments verified against v2.3.0 help

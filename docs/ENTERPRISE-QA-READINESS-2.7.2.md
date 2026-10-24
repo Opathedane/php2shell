@@ -13,8 +13,8 @@ PHP2Shell’s primary job — upstream patch assessment for CVE-2026-109618 / CV
 | Console / HTML understandability | **GO** after this branch (P1) |
 | Execution integrity (exit / status JSON / WAF) | **GO** (prior + this branch regression) |
 | Intune/PSADT contract | **CONDITIONAL GO** — reference script ready; live tenant pilot open |
-| Supply chain / license | **NO-GO for redistribution** until approved `LICENSE` + signing policy |
-| Overall broad distribution | **CONDITIONAL GO** for controlled enterprise pilots; **NO-GO** for unrestricted public redistribution until license + CI green + field notes |
+| Supply chain / license | **PASS** — Apache-2.0; Authenticode still recommended for public Windows |
+| Overall broad distribution | **CONDITIONAL GO** for pilots and public source; Windows public binaries still prefer signing + field notes |
 
 ## 2. PHP.net / industry gap analysis (24 Oct 2026)
 
@@ -60,7 +60,7 @@ PHP2Shell’s primary job — upstream patch assessment for CVE-2026-109618 / CV
 | P2-1 | Read-only RPM DB inventory | Needs careful zero-dep design or approved dependency |
 | P2-2 | Fleet CSV columns for 115560 | Useful; not blocking pilot |
 | P2-3 | Authenticode signing | Policy + cert ownership |
-| P2-4 | Approved LICENSE | Maintainer/employer authorization required — **do not invent** |
+| P2-4 | Approved LICENSE | **Done** — Apache-2.0 |
 | P2-5 | Full-file alias hash | Low probability false-merge via 64KiB prefix |
 | P2-6 | Live Intune tenant pilot | Field checklist below |
 
@@ -134,7 +134,7 @@ Contract documented in script header + EXIT-CODES. Validates exit 0/1/2, HTML+CS
 
 | Risk | Status |
 | --- | --- |
-| Only `LICENSE.proposed` | **Blocker** for external redistribution |
+| Apache-2.0 `LICENSE` | **Resolved** |
 | Unsigned release assets | Documented; signing strategy needed |
 | Legacy Go 1.20.14 | Documented EOS risk |
 | SHA256SUMS in release workflow | Present |
@@ -151,7 +151,7 @@ Contract documented in script header + EXIT-CODES. Validates exit 0/1/2, HTML+CS
 
 **NO-GO** for:
 
-- Tagging/publishing v2.7.2 as a *broad public* distribution until: approved LICENSE, CI green on this tip, release notes draft banner removed, and maintainer explicit GO
+- Tagging/publishing v2.7.2 until: CI green on this tip, release notes draft banner removed, and maintainer explicit GO (Authenticode recommended for Windows public assets)
 - Claiming RPM package parity or 2012 R2 field certification
 
 Await maintainer approval before merge/tag/publish.

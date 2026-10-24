@@ -4,9 +4,8 @@ Post-v2.6.0 notes for maintainers and reviewers. This document does **not** chan
 
 ## Licensing and ownership
 
-- `LICENSE.proposed` is a **draft placeholder**, not an approved open-source license.
-- Do **not** add a `LICENSE` file or assert SPDX / open-source rights without explicit owner approval.
-- Until licensed, treat redistribution and derivative use as unapproved; keep README and release notes explicit about this.
+- PHP2Shell is licensed under **Apache License 2.0** (`LICENSE`). See [LICENSING.md](LICENSING.md).
+- Do not commit signing private keys, customer reports, or other secrets to the public tree.
 
 ## Repository permissions and branch protection (recommended)
 
