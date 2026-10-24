@@ -164,16 +164,25 @@ func EvaluatePatchPosture(r *Report) {
 	if legacy > 0 {
 		r.AddAction("Escalate PHP 8.1 and older for supported-branch upgrade or obtain explicit vendor/LTS patch evidence for both CVEs.")
 	}
-	if observed == 0 || r.VulnerabilityStatus == "INDETERMINATE_REVIEW_REQUIRED" {
-		r.AddAction("Inventory the exact active PHP patch versions for all production web handlers; static package, binary-name and repository observations may miss deployments.")
+	kind := classifyPHPDiscovery(r)
+	switch {
+	case kind == phpDiscNoneWithinCoverage:
+		r.AddAction("No comparable PHP versions were observed within applicable scan coverage. No PHP-specific upstream patch actions were identified. This does not prove PHP is absent from the host.")
+	case kind == phpDiscNoneIncomplete:
+		r.AddAction("Relevant PHP inventory was incomplete and no comparable PHP versions were observed. Re-run failed inventory checks before assigning patch status; absence of findings is not proof PHP is missing.")
+		r.AddAction("See official advisories: https://www.php.net/ and https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w and https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp")
+	default:
+		if observed == 0 || r.VulnerabilityStatus == "INDETERMINATE_REVIEW_REQUIRED" {
+			r.AddAction("Inventory the exact active PHP patch versions for all production web handlers; static package, binary-name and repository observations may miss deployments.")
+		}
+		r.AddAction("Immediately prioritize internet-reachable mod_php and other web-facing PHP (FPM, CGI, FrankenPHP, LiteSpeed). Determine network reachability separately; this is NOT an external exposure scan.")
+		r.AddAction("Apply upstream PHP 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35 or your vendor's verified equivalent patches. Restart/recycle all PHP workers, pools and services; re-scan and verify the active web-serving SAPI and container images.")
+		r.AddAction("If patching must be delayed: consider administratively enforced memory_limit=-1, conservative post_max_size and edge request bounds for CVE-2026-109618; these are incomplete risk reductions and have availability tradeoffs.")
+		r.AddAction("For CVE-2026-109619, administratively disable session.upload_progress.enabled and restart all workers; on PHP 8.5, consider fatal_error_backtraces=0 until patched. Neither measure covers every attack path.")
+		r.AddAction("Confirm WAF/origin access cannot be bypassed and document time-bounded restrictions if a patch cannot be deployed immediately.")
+		r.AddAction("Preserve and review access/error logs and EDR telemetry from before patching; patched servers may already have been compromised. A clean IOC result does not rule out compromise.")
+		r.AddAction("See official advisories: https://www.php.net/ and https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w and https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp")
 	}
-	r.AddAction("Immediately prioritize internet-reachable mod_php and other web-facing PHP (FPM, CGI, FrankenPHP, LiteSpeed). Determine network reachability separately; this is NOT an external exposure scan.")
-	r.AddAction("Apply upstream PHP 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35 or your vendor's verified equivalent patches. Restart/recycle all PHP workers, pools and services; re-scan and verify the active web-serving SAPI and container images.")
-	r.AddAction("If patching must be delayed: consider administratively enforced memory_limit=-1, conservative post_max_size and edge request bounds for CVE-2026-109618; these are incomplete risk reductions and have availability tradeoffs.")
-	r.AddAction("For CVE-2026-109619, administratively disable session.upload_progress.enabled and restart all workers; on PHP 8.5, consider fatal_error_backtraces=0 until patched. Neither measure covers every attack path.")
-	r.AddAction("Confirm WAF/origin access cannot be bypassed and document time-bounded restrictions if a patch cannot be deployed immediately.")
-	r.AddAction("Preserve and review access/error logs and EDR telemetry from before patching; patched servers may already have been compromised. A clean IOC result does not rule out compromise.")
-	r.AddAction("See official advisories: https://www.php.net/ and https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w and https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp")
 	installs := map[string]struct{}{}
 	for _, a := range r.PatchAssessments {
 		if a.InstallKey != "" && isHostRuntimeEvidence(a.EvidenceType) {

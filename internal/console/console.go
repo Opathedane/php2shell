@@ -129,7 +129,7 @@ func (p *Printer) Summary(r *audit.Report, htmlPath, csvPath string, elapsed tim
 
 	phpLabel, versions := audit.HumanPHPDetected(r)
 	fmt.Fprintf(p.out, "  PHP discovery:     %s\n", phpLabel)
-	fmt.Fprintf(p.out, "  Patch assessment:  %s\n", audit.HumanVulnerabilityLabel(r.VulnerabilityStatus))
+	fmt.Fprintf(p.out, "  Patch assessment:  %s\n", audit.HumanVulnerabilityLabelFor(r))
 	rtLabel, rtDetail := audit.HumanRuntime(r)
 	fmt.Fprintf(p.out, "  Serving runtime:   %s — %s\n", rtLabel, truncateConsole(rtDetail, 120))
 

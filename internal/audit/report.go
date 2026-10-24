@@ -78,82 +78,103 @@ func EncodeHTML(r *Report) []byte {
 	var b strings.Builder
 	h := func(s string) string { return html.EscapeString(s) }
 	phpLabel, versions := humanPHPDetected(r)
-	vulnLabel := humanVulnerability(r.VulnerabilityStatus)
+	vulnLabel := HumanVulnerabilityLabelFor(r)
 	rtLabel, rtDetail := humanRuntime(r)
 	compLabel := humanCompromise(r.CompromiseStatus)
 	attemptLabel := humanExploitationAttempt(r.ExploitationAttemptStatus)
 	possibleLabel := humanPossibleCompromise(r.PossibleCompromiseStatus)
 	invCovLabel := humanInvestigationCoverage(r.InvestigationCoverage)
 	groups := GroupInstallations(r)
+	discKind := classifyPHPDiscovery(r)
 	next := r.Summary.NextSteps
 	if len(next) == 0 {
 		next = BuildFocusedNextSteps(r)
 	}
+	prio := overallPriority(r)
+	prioClass := "priority"
+	if discKind == phpDiscNoneWithinCoverage && !strings.Contains(strings.ToLower(prio), "critical") && !strings.Contains(strings.ToLower(prio), "high") {
+		prioClass = "priority info"
+	}
 
 	b.WriteString(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>PHP2Shell Security Assessment</title><style>
-:root{--ink:#1a2332;--muted:#5b6573;--line:#d7dde6;--bg:#f7f8fa;--card:#fff;--accent:#1f4b7a;--warn:#8a4b12;--warnbg:#fff7ed;--ok:#1f5c3a}
+:root{--ink:#1a2332;--muted:#5b6573;--line:#d7dde6;--bg:#f7f8fa;--card:#fff;--accent:#1f4b7a;--warn:#8a4b12;--warnbg:#fff7ed;--info:#1a4a6b;--infobg:#eef5fb;--ok:#1f5c3a}
 *{box-sizing:border-box}body{font:16px/1.55 "Segoe UI",system-ui,sans-serif;margin:0;color:var(--ink);background:linear-gradient(180deg,#eef2f7, #f7f8fa 180px);padding:28px 18px 48px}
-main{max-width:980px;margin:0 auto}.header{margin-bottom:22px}h1{font-size:1.75rem;margin:0 0 8px;color:var(--accent);letter-spacing:-.02em}
-.meta{color:var(--muted);font-size:.95rem}.priority{display:inline-block;margin-top:12px;padding:8px 12px;border-radius:6px;background:var(--warnbg);color:var(--warn);font-weight:600}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:22px 0}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;box-shadow:0 1px 0 rgba(16,24,40,.04)}.card h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px;font-weight:700}.card .value{font-size:1.05rem;font-weight:650;margin:0 0 6px}.card .detail{color:var(--muted);font-size:.9rem;margin:0}
-.notice{background:var(--warnbg);border-left:4px solid #c2741a;padding:14px 16px;border-radius:0 8px 8px 0;margin:18px 0}
-h2.section{font-size:1.2rem;margin:28px 0 10px;color:var(--accent)}
+main{max-width:980px;margin:0 auto}.header{margin-bottom:20px}h1{font-size:clamp(1.35rem,2.5vw,1.75rem);margin:0 0 8px;color:var(--accent);letter-spacing:-.02em}
+.meta{color:var(--muted);font-size:.95rem;line-height:1.45}.priority{display:inline-block;margin-top:12px;padding:8px 14px;border-radius:6px;background:var(--warnbg);color:var(--warn);font-weight:600;font-size:.95rem;line-height:1.35}
+.priority.info{background:var(--infobg);color:var(--info)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:14px;margin:20px 0 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;box-shadow:0 1px 0 rgba(16,24,40,.04);display:flex;flex-direction:column;gap:4px;min-height:7.5rem}
+.card h2{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0;font-weight:700}.card .value{font-size:1.08rem;font-weight:650;margin:0;line-height:1.35}.card .detail{color:var(--muted);font-size:.88rem;margin:0;line-height:1.45;flex:1}
+.notice{background:var(--warnbg);border-left:4px solid #c2741a;padding:12px 14px;border-radius:0 8px 8px 0;margin:14px 0;font-size:.95rem;line-height:1.45}
+.notice.soft{background:var(--infobg);border-left-color:#3a6d9b}
+h2.section{font-size:1.15rem;margin:26px 0 10px;color:var(--accent)}
 table{border-collapse:collapse;width:100%;margin:10px 0 18px;background:var(--card)}th,td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#eef2f6;font-size:.9rem}
-ol.actions{padding-left:1.25rem}ol.actions li{margin:8px 0}
+ol.actions{padding-left:1.25rem;margin:8px 0 16px}ol.actions li{margin:10px 0;line-height:1.45}
 details{border:1px solid var(--line);border-radius:8px;background:var(--card);margin:10px 0;padding:0}details>summary{cursor:pointer;padding:12px 14px;font-weight:650;color:var(--accent)}details[open]>summary{border-bottom:1px solid var(--line)}details .body{padding:12px 14px}details table{margin:0}
 .footer{margin-top:28px;color:var(--muted);font-size:.85rem}
 @media print{body{background:#fff;padding:0}details{break-inside:avoid}details:not([open]){border-style:dashed}a{color:inherit}}
-@media (max-width:600px){body{padding:16px 12px}h1{font-size:1.4rem}}
+@media (max-width:600px){body{padding:16px 12px}.cards{gap:10px}.card{min-height:0;padding:14px}}
 </style></head><body><main>`)
 
 	b.WriteString(`<header class="header"><h1>PHP2Shell Security Assessment</h1>`)
 	b.WriteString(`<p class="meta"><strong>Host:</strong> ` + h(r.Hostname) + ` &nbsp;·&nbsp; <strong>Assessed (UTC):</strong> ` + h(r.GeneratedUTC.Format("2006-01-02 15:04:05")) + ` &nbsp;·&nbsp; <strong>Scanner:</strong> ` + h(r.ToolVersion) + `</p>`)
-	b.WriteString(`<p class="priority">Overall priority: ` + h(overallPriority(r)) + `</p></header>`)
+	b.WriteString(`<p class="` + prioClass + `">Overall priority: ` + h(prio) + `</p></header>`)
 
-	b.WriteString(`<div class="notice"><strong>This report is not a clearance.</strong> It assesses observed PHP inventory against upstream advisories. It does not prove the HTTP-serving runtime is patched or that the host is uncompromised. Missing findings are not proof of safety.</div>`)
+	if discKind == phpDiscNoneWithinCoverage {
+		b.WriteString(`<div class="notice soft"><strong>No PHP detected within scan coverage.</strong> Applicable inventory checks completed without finding a PHP installation. This is not a clearance and does not prove that PHP is absent from the host or that the host is safe.</div>`)
+	} else {
+		b.WriteString(`<div class="notice"><strong>This report is not a clearance.</strong> It assesses observed PHP inventory against upstream advisories. It does not prove the HTTP-serving runtime is patched or that the host is uncompromised. Missing findings are not proof of safety.</div>`)
+	}
 
 	b.WriteString(`<section class="cards" aria-label="Executive summary">`)
-	b.WriteString(`<article class="card"><h2>Patch assessment</h2><p class="value">` + h(vulnLabel) + `</p><p class="detail">Primary outcome for CVE-2026-109618 / CVE-2026-109619. Upstream thresholds (` + h(AdvisoryDate) + `): ` + h(OfficialFixThresholdsSummary()) + `. Rules reviewed ` + h(AdvisoryRulesReviewedUTC) + `.</p></article>`)
+	b.WriteString(`<article class="card"><h2>Patch assessment</h2><p class="value">` + h(vulnLabel) + `</p><p class="detail">`)
+	if discKind == phpDiscNoneWithinCoverage {
+		b.WriteString(`No PHP-specific remediation was identified for CVE-2026-109618 / CVE-2026-109619 within this scan scope.`)
+	} else if discKind == phpDiscNoneIncomplete {
+		b.WriteString(`Patch status undetermined because relevant PHP inventory was incomplete. Upstream thresholds (` + h(AdvisoryDate) + `): ` + h(OfficialFixThresholdsSummary()) + `.`)
+	} else {
+		b.WriteString(`Primary outcome for CVE-2026-109618 / CVE-2026-109619. Upstream thresholds (` + h(AdvisoryDate) + `): ` + h(OfficialFixThresholdsSummary()) + `. Rules reviewed ` + h(AdvisoryRulesReviewedUTC) + `.`)
+	}
+	b.WriteString(`</p></article>`)
 	b.WriteString(`<article class="card"><h2>PHP installations found</h2><p class="value">` + h(phpLabel) + `</p><p class="detail">`)
-	switch {
-	case strings.HasPrefix(phpLabel, "Declared"):
+	switch discKind {
+	case phpDiscNoneWithinCoverage:
+		b.WriteString("0 installations detected within applicable inventory coverage.")
+	case phpDiscNoneIncomplete:
+		b.WriteString("No PHP installations confirmed; one or more relevant inventory sources were unavailable or incomplete.")
+	case phpDiscDeclaredOnly:
 		if len(versions) == 0 {
 			b.WriteString("Repository declarations were found, but no confirmed host installation was inventoried.")
 		} else {
 			b.WriteString("Declared versions (not confirmed installed): " + h(strings.Join(versions, ", ")))
 		}
-	case strings.HasPrefix(phpLabel, "PHP configuration candidates"):
+	case phpDiscConfigCandidates:
 		b.WriteString("php.ini-style files were found, but no confirmed PHP executable/package install. Not proof of version or active HTTP runtime.")
-	case strings.HasPrefix(phpLabel, "PHP configuration coverage"):
+	case phpDiscConfigIncomplete:
 		b.WriteString("Known configuration candidates could not be inspected (permissions, size, or symlink). Coverage is incomplete.")
-	case strings.HasPrefix(phpLabel, "Possible"):
+	case phpDiscArtifactsOnly:
 		b.WriteString("Only filenames or configuration hints were seen; treat as unconfirmed.")
-	case len(versions) == 0:
-		b.WriteString("No comparable PHP release versions were extracted from this scan scope.")
+	case phpDiscVersionUnknown:
+		b.WriteString("PHP-related evidence was observed, but no comparable release version was extracted.")
 	default:
-		b.WriteString("Observed inventory versions (not proof of the HTTP-serving runtime): " + h(strings.Join(versions, ", ")))
+		if len(versions) == 0 {
+			b.WriteString("No comparable PHP release versions were extracted from this scan scope.")
+		} else {
+			b.WriteString("Observed inventory versions (not proof of the HTTP-serving runtime): " + h(strings.Join(versions, ", ")))
+		}
 	}
 	b.WriteString(`</p></article>`)
 	b.WriteString(`<article class="card"><h2>Active web runtime</h2><p class="value">` + h(rtLabel) + `</p><p class="detail">` + h(rtDetail) + `</p></article>`)
 	b.WriteString(`<article class="card"><h2>What could not be verified</h2><p class="value">`)
-	limParts := []string{}
-	if rtLabel != "Verified" {
-		limParts = append(limParts, "HTTP-serving PHP runtime")
-	}
-	for _, c := range r.Coverage {
-		if c.Name == "packages" && strings.EqualFold(c.Status, "NOT_SUPPORTED") {
-			limParts = append(limParts, "OS package database (no dpkg/apk; RPM not inventoried)")
-		}
-		switch strings.ToUpper(c.Status) {
-		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED", "TIMEOUT", "ACCESS_DENIED":
-			limParts = append(limParts, c.Name)
-		}
-	}
-	if len(limParts) == 0 {
+	limParts := executiveVerificationGaps(r)
+	switch {
+	case discKind == phpDiscNoneWithinCoverage && len(limParts) == 0:
+		b.WriteString(`No relevant inventory gaps`)
+		b.WriteString(`</p><p class="detail">Containers, custom install paths, and offline images may still be outside this scan. Successful scan ≠ clearance.</p></article>`)
+	case len(limParts) == 0:
 		b.WriteString(`Inventory limits still apply`)
 		b.WriteString(`</p><p class="detail">Vendor backports, containers, and nonstandard installs may be missing. Successful scan ≠ clearance.</p></article>`)
-	} else {
+	default:
 		if len(limParts) > 5 {
 			limParts = append(limParts[:5], "…")
 		}
@@ -236,7 +257,14 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 
 	b.WriteString(`<h2 class="section">PHP installations (grouped)</h2>`)
 	if len(groups) == 0 {
-		b.WriteString(`<p>No comparable PHP installation versions were assessed. Inventory may be incomplete.</p>`)
+		switch discKind {
+		case phpDiscNoneWithinCoverage:
+			b.WriteString(`<p><strong>0</strong> PHP installations detected within scan coverage. No PHP-specific remediation was identified.</p>`)
+		case phpDiscNoneIncomplete:
+			b.WriteString(`<p>No comparable PHP installation versions were assessed because relevant inventory was incomplete.</p>`)
+		default:
+			b.WriteString(`<p>No comparable PHP installation versions were assessed. Inventory may be incomplete.</p>`)
+		}
 	} else {
 		b.WriteString(`<table><thead><tr><th>PHP version</th><th>Minimum fixed</th><th>Assessment</th><th>Lifecycle (informational)</th></tr></thead><tbody>`)
 		for _, g := range groups {
@@ -270,7 +298,11 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		}
 	}
 
-	b.WriteString(`<p>Update sources: OS/LTS vendor security packages; <a href="https://windows.php.net/download/">PHP for Windows</a>; <a href="https://www.php.net/downloads.php">official source downloads</a>. Advisory: <a href="` + h(AdvisoryURL) + `">` + h(AdvisoryURL) + `</a>.</p>`)
+	if discKind != phpDiscNoneWithinCoverage && discKind != phpDiscNoneIncomplete {
+		b.WriteString(`<p>Update sources: OS/LTS vendor security packages; <a href="https://windows.php.net/download/">PHP for Windows</a>; <a href="https://www.php.net/downloads.php">official source downloads</a>. Advisory: <a href="` + h(AdvisoryURL) + `">` + h(AdvisoryURL) + `</a>.</p>`)
+	} else {
+		b.WriteString(`<details><summary>Advisory reference (no PHP-specific patch actions from this scan)</summary><div class="body"><p>Official advisory context: <a href="` + h(AdvisoryURL) + `">` + h(AdvisoryURL) + `</a>. Use only after confirming a PHP installation outside this scan coverage.</p></div></details>`)
+	}
 
 	if len(r.AdditionalAdvisories) > 0 {
 		b.WriteString(`<h2 class="section">Additional security advisories</h2>`)

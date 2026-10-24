@@ -24,6 +24,18 @@ type InstallGroup struct {
 // HumanVulnerabilityLabel returns an administrator-facing patch-exposure summary.
 func HumanVulnerabilityLabel(status string) string { return humanVulnerability(status) }
 
+// HumanVulnerabilityLabelFor returns the patch-exposure label using discovery context
+// (e.g. no-PHP within coverage → no PHP-specific assessment) without changing machine status codes.
+func HumanVulnerabilityLabelFor(r *Report) string {
+	if r == nil {
+		return humanVulnerability("")
+	}
+	if NoPHPDetectedWithinScanCoverage(r) {
+		return "No PHP-specific patch assessment"
+	}
+	return humanVulnerability(r.VulnerabilityStatus)
+}
+
 // HumanPatchStatusLabel returns an administrator-facing per-assessment status.
 func HumanPatchStatusLabel(status string) string { return humanPatchStatus(status) }
 
@@ -141,41 +153,23 @@ func humanCompromise(status string) string {
 func humanPHPDetected(r *Report) (label string, versions []string) {
 	confirmedVers := map[string]struct{}{}
 	declaredVers := map[string]struct{}{}
-	confirmed, declared, artifacts := false, false, false
-	iniCandidates, iniSkips := 0, 0
 	for _, e := range r.Evidence {
 		switch e.Type {
 		case "installed_package":
 			if e.Version == "" || e.Interpretation == "PACKAGE_METADATA_ONLY_NOT_PHP_RUNTIME_VERSION" {
-				artifacts = true
 				continue
 			}
-			confirmed = true
-			confirmedVers[e.Version] = struct{}{}
-		case "binary_path", "binary_static_version", "binary_path_inferred_version", "iis_php_handler_config", "apache_php_handler_config", "apache_php_module_config", "operator_reported_web_runtime":
-			confirmed = true
 			if e.Version != "" {
 				confirmedVers[e.Version] = struct{}{}
 			}
-		case "apache_vhost_config", "apache_remote_php_backend":
-			artifacts = true
-		case "running_process":
-			if e.Name != "w3wp.exe" {
-				confirmed = true
+		case "binary_path", "binary_static_version", "binary_path_inferred_version", "iis_php_handler_config", "apache_php_handler_config", "apache_php_module_config", "operator_reported_web_runtime":
+			if e.Version != "" {
+				confirmedVers[e.Version] = struct{}{}
 			}
 		case "repository_declaration":
-			declared = true
 			if e.Version != "" {
 				declaredVers[e.Version] = struct{}{}
 			}
-		case "php_ini_candidate":
-			artifacts = true
-			iniCandidates++
-		case "configuration_observation", "php_webroot_filename":
-			artifacts = true
-		case "php_ini_skip":
-			artifacts = true
-			iniSkips++
 		}
 	}
 	collect := func(m map[string]struct{}) []string {
@@ -186,31 +180,33 @@ func humanPHPDetected(r *Report) (label string, versions []string) {
 		sort.Strings(out)
 		return out
 	}
-	if confirmed {
-		versions = collect(confirmedVers)
-		if len(versions) == 0 {
-			return "Yes (exact versions limited)", versions
-		}
-		return "Yes", versions
-	}
-	if declared {
-		versions = collect(declaredVers)
-		return "Declared only (not confirmed installed)", versions
-	}
-	if artifacts {
-		// Prefer a precise label when configuration is the only strong signal.
-		if iniCandidates > 0 {
-			return "PHP configuration candidates only (installation unconfirmed)", nil
-		}
-		if iniSkips > 0 {
-			return "PHP configuration coverage incomplete (candidates not inspected)", nil
-		}
+	switch classifyPHPDiscovery(r) {
+	case phpDiscAssessable:
+		return "Yes", collect(confirmedVers)
+	case phpDiscVersionUnknown:
+		return "Yes (exact versions limited)", collect(confirmedVers)
+	case phpDiscDeclaredOnly:
+		return "Declared only (not confirmed installed)", collect(declaredVers)
+	case phpDiscConfigCandidates:
+		return "PHP configuration candidates only (installation unconfirmed)", nil
+	case phpDiscConfigIncomplete:
+		return "PHP configuration coverage incomplete (candidates not inspected)", nil
+	case phpDiscArtifactsOnly:
 		return "Possible PHP-related artifacts only", nil
+	case phpDiscNoneWithinCoverage:
+		return "No PHP detected within scan coverage", nil
+	default:
+		return "Unable to determine — inventory incomplete", nil
 	}
-	return "Unable to determine", nil
 }
 
 func humanRuntime(r *Report) (label, detail string) {
+	switch classifyPHPDiscovery(r) {
+	case phpDiscNoneWithinCoverage:
+		return "Not applicable", "No PHP installation was detected within applicable inventory coverage, so no HTTP-serving PHP runtime was identified. This is not proof the host has no PHP elsewhere."
+	case phpDiscNoneIncomplete:
+		return "Not verified", "Relevant PHP inventory was incomplete; the scan could not determine whether a PHP web runtime is present."
+	}
 	switch r.EffectiveWebRuntime {
 	case "OPERATOR_REPORTED_NOT_ATTESTED":
 		return "Candidates identified", "Operator-reported web runtime recorded; not independently verified."
@@ -258,7 +254,16 @@ func overallPriority(r *Report) string {
 	case "UPSTREAM_FIX_LEVEL_OBSERVED_ACTIVE_RUNTIME_UNVERIFIED":
 		return "Moderate — confirm active runtime"
 	default:
-		return "Review required — inventory incomplete"
+		switch classifyPHPDiscovery(r) {
+		case phpDiscNoneWithinCoverage:
+			return "Informational — no PHP detected within scan coverage"
+		case phpDiscVersionUnknown:
+			return "Review required — PHP version unknown"
+		case phpDiscNoneIncomplete:
+			return "Review required — inventory incomplete"
+		default:
+			return "Review required — inventory incomplete"
+		}
 	}
 }
 
@@ -600,36 +605,55 @@ func BuildFocusedNextSteps(r *Report) []string {
 		steps = append(steps, s)
 	}
 
-	groups := GroupInstallations(r)
-	below := []string{}
-	legacy := []string{}
-	for _, g := range groups {
-		switch g.Status {
-		case "BELOW_UPSTREAM_FIX":
-			target := g.MinimumFixed
-			if target == "" {
-				target = "the official fixed release for this branch"
+	kind := classifyPHPDiscovery(r)
+	switch kind {
+	case phpDiscNoneWithinCoverage:
+		add("No PHP installation was detected within the applicable scan coverage. No PHP-specific patch remediation was identified. This is not proof that PHP is absent from the host or that the host is safe — custom install paths, containers, and offline images may be outside coverage.")
+		add("If PHP may live outside default discovery paths, re-run with authorized --config-root, --deep-root, or --php-ini locations. Review advisory context at " + AdvisoryURL + " only when PHP is confirmed elsewhere.")
+	case phpDiscNoneIncomplete:
+		gaps := relevantPHPInventoryGaps(r)
+		msg := "Relevant PHP inventory sources were unavailable or incomplete; absence of PHP findings is not proof PHP is missing from the host."
+		if len(gaps) > 0 {
+			msg += " Gaps: " + strings.Join(gaps, "; ") + "."
+		}
+		add(msg)
+		add("Re-run with adequate permissions for failed inventory checks, then reassess. Do not treat this host as cleared for PHP patch status.")
+	default:
+		groups := GroupInstallations(r)
+		below := []string{}
+		legacy := []string{}
+		for _, g := range groups {
+			switch g.Status {
+			case "BELOW_UPSTREAM_FIX":
+				target := g.MinimumFixed
+				if target == "" {
+					target = "the official fixed release for this branch"
+				}
+				below = append(below, fmt.Sprintf("%s (update toward %s or verify an equivalent vendor security backport)", g.Label, target))
+			case "LEGACY_VENDOR_VERIFICATION_REQUIRED":
+				legacy = append(legacy, g.Label)
 			}
-			below = append(below, fmt.Sprintf("%s (update toward %s or verify an equivalent vendor security backport)", g.Label, target))
-		case "LEGACY_VENDOR_VERIFICATION_REQUIRED":
-			legacy = append(legacy, g.Label)
+		}
+		if len(below) > 0 {
+			add("Update or verify vendor backports for: " + strings.Join(below, "; ") + ". Restart PHP-FPM, Apache/mod_php, IIS FastCGI, or other workers that may load these builds, then confirm the serving runtime version.")
+		}
+		if len(legacy) > 0 {
+			add("Plan an upgrade off legacy PHP (" + strings.Join(legacy, ", ") + ") to a supported fixed branch, or obtain documented vendor/LTS patch evidence for both CVEs.")
+		}
+		if kind == phpDiscVersionUnknown {
+			add("PHP-related evidence was observed without a comparable patch version. Inventory the exact active PHP patch versions for production web handlers before assigning vulnerability status.")
+		}
+		rtLabel, _ := humanRuntime(r)
+		if rtLabel != "Verified" && rtLabel != "Not applicable" {
+			add("Identify which PHP binary or SAPI actually serves HTTP (FPM pool, Apache module, IIS handler, container entrypoint). Package and CLI versions alone are not sufficient.")
+		}
+		if iniPath := FirstUncorrelatedPrimaryIni(r); iniPath != "" {
+			add("Review uncorrelated php.ini candidate(s) such as " + iniPath + ". Configuration alone does not confirm a PHP install, version, or active web runtime; supply --php-ini, --config-root, or --deep-root for known custom locations if discovery missed them.")
+		} else if CountPHPIniSkips(r) > 0 {
+			add("Re-run with read access to skipped PHP configuration candidates (see php_ini_skip evidence), or pass --php-ini / --config-root / --deep-root for known custom paths. Skipped files were not inspected and secrets were not reported.")
 		}
 	}
-	if len(below) > 0 {
-		add("Update or verify vendor backports for: " + strings.Join(below, "; ") + ". Restart PHP-FPM, Apache/mod_php, IIS FastCGI, or other workers that may load these builds, then confirm the serving runtime version.")
-	}
-	if len(legacy) > 0 {
-		add("Plan an upgrade off legacy PHP (" + strings.Join(legacy, ", ") + ") to a supported fixed branch, or obtain documented vendor/LTS patch evidence for both CVEs.")
-	}
-	rtLabel, _ := humanRuntime(r)
-	if rtLabel != "Verified" {
-		add("Identify which PHP binary or SAPI actually serves HTTP (FPM pool, Apache module, IIS handler, container entrypoint). Package and CLI versions alone are not sufficient.")
-	}
-	if iniPath := FirstUncorrelatedPrimaryIni(r); iniPath != "" {
-		add("Review uncorrelated php.ini candidate(s) such as " + iniPath + ". Configuration alone does not confirm a PHP install, version, or active web runtime; supply --php-ini, --config-root, or --deep-root for known custom locations if discovery missed them.")
-	} else if CountPHPIniSkips(r) > 0 {
-		add("Re-run with read access to skipped PHP configuration candidates (see php_ini_skip evidence), or pass --php-ini / --config-root / --deep-root for known custom paths. Skipped files were not inspected and secrets were not reported.")
-	}
+
 	switch r.ExploitationAttemptStatus {
 	case "SUSPECTED_ATTEMPTS_REVIEW":
 		add("Review suspected exploitation-attempt leads (error-log patterns, long request-target anomalies, temporal correlations). A single memory error, crash, or long request-target is not proof of successful exploitation; correlation is not causality.")
@@ -652,14 +676,16 @@ func BuildFocusedNextSteps(r *Report) []string {
 	case "NO_MATCHES_SCOPE_LIMITED":
 		add("Treat the host as not cleared for compromise: expand log/EDR review for the pre-patch window. Absence of IOC matches is not proof of safety.")
 	default:
-		if r.InvestigationCoverage == "NOT_REQUESTED" {
+		if r.InvestigationCoverage == "NOT_REQUESTED" && kind != phpDiscNoneWithinCoverage && kind != phpDiscNoneIncomplete {
 			add("Compromise investigation was not requested. Use --access-log / --error-log / --process-telemetry / --webroot for evidence-based review; missing inputs leave statuses NOT_ASSESSED, not negative.")
 		}
 	}
 	if ScanIncomplete(r) {
 		add("Re-run with adequate permissions for any incomplete coverage items (packages, configs, logs, or webroot) listed in the coverage section.")
 	}
-	add("Validate remediation by checking the active web handler version after restart, and review official guidance at " + AdvisoryURL + ".")
+	if kind != phpDiscNoneWithinCoverage && kind != phpDiscNoneIncomplete {
+		add("Validate remediation by checking the active web handler version after restart, and review official guidance at " + AdvisoryURL + ".")
+	}
 	if len(steps) > 6 {
 		steps = steps[:6]
 	}

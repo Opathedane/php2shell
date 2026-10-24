@@ -429,6 +429,9 @@ func fleetDiscoveryCompleteness(r *Report) string {
 		}
 	}
 	if !hasPHP {
+		if NoPHPWithIncompleteInventory(r) || !hasApplicablePHPDiscoveryChecks(r) {
+			return "INCOMPLETE"
+		}
 		return "NO_PHP_OBSERVED_IN_SCOPE"
 	}
 	if len(r.PatchAssessments) == 0 && unknownOnly {

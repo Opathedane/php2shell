@@ -1,7 +1,5 @@
 package audit
 
-import "strings"
-
 // ReviewSummary is an evidence-qualified triage summary, not a clearance.
 // It cannot establish active runtime state, internet exposure or prior compromise.
 // HTML rendering maps these identifiers to human-readable labels.
@@ -19,18 +17,19 @@ type ReviewSummary struct {
 // IOC matching and optional log collection.
 func FinalizeSummary(r *Report) {
 	s := ReviewSummary{NextSteps: BuildFocusedNextSteps(r)}
-	label, _ := humanPHPDetected(r)
-	switch {
-	case strings.HasPrefix(label, "Yes"):
+	switch classifyPHPDiscovery(r) {
+	case phpDiscAssessable, phpDiscVersionUnknown:
 		s.PHPDiscovery = "PHP_RELATED_EVIDENCE_FOUND_RUNTIME_UNVERIFIED"
-	case strings.HasPrefix(label, "Declared"):
+	case phpDiscDeclaredOnly:
 		s.PHPDiscovery = "PHP_DECLARED_ONLY_NOT_CONFIRMED_INSTALLED"
-	case strings.HasPrefix(label, "PHP configuration candidates"):
+	case phpDiscConfigCandidates:
 		s.PHPDiscovery = "PHP_CONFIG_CANDIDATES_ONLY_INSTALLATION_UNCONFIRMED"
-	case strings.HasPrefix(label, "PHP configuration coverage"):
+	case phpDiscConfigIncomplete:
 		s.PHPDiscovery = "PHP_CONFIG_COVERAGE_INCOMPLETE_INSTALLATION_UNCONFIRMED"
-	case strings.HasPrefix(label, "Possible"):
+	case phpDiscArtifactsOnly:
 		s.PHPDiscovery = "PHP_ARTIFACTS_ONLY_INSTALLATION_UNCONFIRMED"
+	case phpDiscNoneWithinCoverage:
+		s.PHPDiscovery = "NO_PHP_DETECTED_WITHIN_SCAN_COVERAGE"
 	default:
 		s.PHPDiscovery = "NO_PHP_EVIDENCE_FOUND_COVERAGE_LIMITED"
 	}
@@ -44,7 +43,11 @@ func FinalizeSummary(r *Report) {
 	case "UPSTREAM_FIX_LEVEL_OBSERVED_ACTIVE_RUNTIME_UNVERIFIED":
 		s.PatchReview = "UPSTREAM_THRESHOLD_OBSERVED_VERIFY_ACTIVE_RUNTIME"
 	default:
-		s.PatchReview = "PATCH_STATUS_UNDETERMINED"
+		if NoPHPDetectedWithinScanCoverage(r) {
+			s.PatchReview = "NO_PHP_SPECIFIC_REMEDIATION_IDENTIFIED"
+		} else {
+			s.PatchReview = "PATCH_STATUS_UNDETERMINED"
+		}
 	}
 	switch r.CompromiseStatus {
 	case "INDICATORS_MATCHED_REVIEW_REQUIRED":
