@@ -339,7 +339,7 @@ func scanPackages(r *Report) {
 	if supported == 0 {
 		// Not UNAVAILABLE: absence of dpkg/apk on RPM/other distros is expected coverage limit,
 		// not a failed requested input — must not force exit code 2 on every RHEL/host without dpkg.
-		r.AddCheck("packages", "NOT_SUPPORTED", "No readable dpkg/apk database; RPM/pacman/vendor packages are not inventoried in this release")
+		r.AddCheck("packages", "NOT_SUPPORTED", "No readable dpkg/apk database on this host. RPM/yum/dnf/pacman package metadata is not inventoried in this release — binary/PATH/well-known discovery still runs; treat package coverage as incomplete on RHEL/CentOS/Fedora/SLES and verify vendor advisories separately")
 	} else {
 		r.AddCheck("packages", "PARTIAL", fmt.Sprintf("Read %d supported package databases; %d PHP-related packages; RPM/pacman and vendor alternatives not covered", supported, found))
 	}

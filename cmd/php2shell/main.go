@@ -128,13 +128,17 @@ func run(args []string) int {
 		return audit.ExitOK
 	case "doctor":
 		fmt.Printf("PHP2Shell %s (%s/%s, build=%s)\nNo Python or PHP required. No external modules.\n", audit.Version, runtime.GOOS, runtime.GOARCH, audit.BuildFlavorLabel())
-		fmt.Println("Host metadata: best-effort; Linux dpkg/apk and /proc; macOS/Windows partial.")
-		fmt.Println("Official upstream PHP2Shell fix thresholds: AVAILABLE. Web-runtime patch attestation: NOT IMPLEMENTED.")
+		fmt.Println("Host metadata: best-effort; Linux dpkg/apk and /proc; macOS/Windows partial. RPM package DB: not inventoried.")
+		fmt.Println("Assessed CVEs (embedded): CVE-2026-109618, CVE-2026-109619; informational CVE-2026-115560.")
+		fmt.Printf("Upstream fix thresholds (%s): %s\n", audit.AdvisoryDate, audit.OfficialFixThresholdsSummary())
+		fmt.Printf("Advisory rules last reviewed (UTC): %s — offline scanner, not a live vulnerability feed.\n", audit.AdvisoryRulesReviewedUTC)
+		fmt.Println("Web-runtime patch attestation: NOT IMPLEMENTED. Vendor backports require separate verification.")
 		fmt.Println("Signed indicator packs: manually trusted Ed25519 key; no automatic internet access.")
 		fmt.Println("Default: offline, no code execution, HTML+CSV report pair, no automatic browser or upload.")
 		fmt.Println("Exit codes: 0=HTML+CSV written, 1=fatal (often no reports), 2=HTML+CSV written but incomplete coverage.")
 		fmt.Println("Deployment: treat 0 and 2 as upload-eligible; use --accept-incomplete only when wrappers cannot. See docs/EXIT-CODES-AND-DEPLOYMENT.md.")
 		fmt.Println("Not a clearance: missing findings do not prove a host is patched or uncompromised.")
+		fmt.Println("License: see LICENSE.proposed / docs/LICENSING.md — no approved LICENSE grant until maintainer authorization.")
 		if audit.IsLegacyWindowsBuild() {
 			fmt.Println("Windows legacy build: compiled with Go 1.20 for Server 2012 R2; prefer standard amd64 on Win10/Server 2016+.")
 			fmt.Println("Security: Go 1.20 is end-of-support — see docs/WINDOWS-LEGACY-2012R2.md.")
@@ -380,14 +384,19 @@ func runScan(args []string) int {
 	}
 
 	if !checkTimeout() {
-		con.Phase("Access logs and file indicators")
 		var allAccessEvents []audit.InvestigationEvent
-		for _, p := range logs {
-			if checkTimeout() {
-				break
+		if len(logs) > 0 {
+			con.Phase("Reviewing access logs")
+			for _, p := range logs {
+				if checkTimeout() {
+					break
+				}
+				evs, _ := audit.ScanAccessLogCollect(r, p, indicators)
+				allAccessEvents = append(allAccessEvents, evs...)
 			}
-			evs, _ := audit.ScanAccessLogCollect(r, p, indicators)
-			allAccessEvents = append(allAccessEvents, evs...)
+		}
+		if *webroot != "" && len(indicators) > 0 {
+			con.Phase("Comparing webroot file hashes to indicators")
 		}
 		audit.ScanFileHashes(r, *webroot, indicators)
 		if len(r.Findings) > 0 {
@@ -411,17 +420,15 @@ func runScan(args []string) int {
 			r.AddCheck("historical_access_logs", status, fmt.Sprintf("Requested %d log files; see detailed coverage. Matched indicators require validation, and missing matches do not prove safety. Timestamps do not prove continuous coverage.", len(logs)))
 		}
 
-		con.Phase("Error logs and compromise investigation")
 		var allErrorEvents []audit.InvestigationEvent
-		for _, p := range errorLogs {
-			if checkTimeout() {
-				break
+		if len(errorLogs) > 0 {
+			con.Phase("Reviewing error logs")
+			for _, p := range errorLogs {
+				if checkTimeout() {
+					break
+				}
+				allErrorEvents = append(allErrorEvents, audit.ScanErrorLog(r, p)...)
 			}
-			allErrorEvents = append(allErrorEvents, audit.ScanErrorLog(r, p)...)
-		}
-		if len(errorLogs) == 0 {
-			r.AddCheck("historical_error_logs", "NOT_REQUESTED", "Use --error-log PATH to review PHP/Apache error patterns; research-backed leads only")
-		} else {
 			status := "PATTERNS_REVIEWED_COVERAGE_LIMITED"
 			for _, log := range r.ErrorLogs {
 				if log.Status != "PATTERNS_REVIEWED_COVERAGE_LIMITED" {
@@ -430,20 +437,20 @@ func runScan(args []string) int {
 				}
 			}
 			r.AddCheck("historical_error_logs", status, fmt.Sprintf("Requested %d error log files; pattern matches are suspected leads only", len(errorLogs)))
+		} else {
+			r.AddCheck("historical_error_logs", "NOT_REQUESTED", "Use --error-log PATH to review PHP/Apache error patterns; research-backed leads only")
 		}
 
-		con.Phase("Process telemetry investigation")
 		var allProcessLeads []audit.ProcessLead
-		for _, p := range procTelemetry {
-			if checkTimeout() {
-				break
+		if len(procTelemetry) > 0 {
+			con.Phase("Reviewing process telemetry")
+			for _, p := range procTelemetry {
+				if checkTimeout() {
+					break
+				}
+				_, leads := audit.ScanProcessTelemetry(r, p)
+				allProcessLeads = append(allProcessLeads, leads...)
 			}
-			_, leads := audit.ScanProcessTelemetry(r, p)
-			allProcessLeads = append(allProcessLeads, leads...)
-		}
-		if len(procTelemetry) == 0 {
-			r.AddCheck("historical_process_telemetry", "NOT_REQUESTED", "Use --process-telemetry FILE for offline MDE/Sysmon/auditd/ECS process exports; never live EDR APIs")
-		} else {
 			status := "PARSED_COVERAGE_LIMITED"
 			for _, pt := range r.ProcessTelemetry {
 				switch pt.Status {
@@ -453,34 +460,40 @@ func runScan(args []string) int {
 				}
 			}
 			r.AddCheck("historical_process_telemetry", status, fmt.Sprintf("Requested %d process telemetry file(s); suspicious child leads require analyst validation; command lines redacted", len(procTelemetry)))
+		} else {
+			r.AddCheck("historical_process_telemetry", "NOT_REQUESTED", "Use --process-telemetry FILE for offline MDE/Sysmon/auditd/ECS process exports; never live EDR APIs")
 		}
 
-		con.Phase("Offline WAF event investigation")
 		var allWAFEvents []audit.InvestigationEvent
-		for _, p := range wafLogs {
-			if checkTimeout() {
-				break
+		if len(wafLogs) > 0 {
+			con.Phase("Reviewing offline WAF exports")
+			for _, p := range wafLogs {
+				if checkTimeout() {
+					break
+				}
+				allWAFEvents = append(allWAFEvents, audit.ScanWAFLog(r, p)...)
 			}
-			allWAFEvents = append(allWAFEvents, audit.ScanWAFLog(r, p)...)
-		}
-		if len(wafLogs) == 0 {
-			r.AddCheck("historical_waf_logs", "NOT_REQUESTED", "Use --waf-log FILE for offline Cloudflare firewall_events JSONL; never live WAF APIs; block≠success")
-		} else {
 			status := "PARSED_COVERAGE_LIMITED"
 			for _, w := range r.WAFLogs {
 				switch w.Status {
 				case "PARSED_COVERAGE_LIMITED", "PARTIAL":
+				case "TRUNCATED":
+					if status != "INCOMPLETE" {
+						status = "TRUNCATED"
+					}
 				default:
 					status = "INCOMPLETE"
 				}
 			}
 			r.AddCheck("historical_waf_logs", status, fmt.Sprintf("Requested %d WAF export file(s); allowlisted rule matches are attempt assists only", len(wafLogs)))
+		} else {
+			r.AddCheck("historical_waf_logs", "NOT_REQUESTED", "Use --waf-log FILE for offline Cloudflare firewall_events JSONL; never live WAF APIs; block≠success")
 		}
 
-		con.Phase("Webroot filesystem investigation")
 		var allWebrootLeads []audit.WebrootLead
 		assessing := len(logs) > 0 || len(errorLogs) > 0 || len(procTelemetry) > 0 || len(wafLogs) > 0 || *webroot != ""
 		if assessing && *webroot != "" {
+			con.Phase("Reviewing webroot filesystem metadata")
 			from, to, _ := audit.ResolveInvestigationWindow(audit.InvestigationOptions{From: invFrom, To: invTo}, r.GeneratedUTC)
 			allWebrootLeads = audit.ScanWebrootInvestigation(r, *webroot, from, to)
 		}

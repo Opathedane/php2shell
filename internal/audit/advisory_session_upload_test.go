@@ -101,7 +101,7 @@ func TestCVE115560BareInventoryNoAdvisoryNoise(t *testing.T) {
 		t.Fatalf("bare inventory without php.ini candidates must not emit CVE-2026-115560 noise: %+v", r.AdditionalAdvisories)
 	}
 	html := string(EncodeHTML(r))
-	if strings.Contains(html, "Additional PHP security advisories") {
+	if strings.Contains(html, "Additional security advisories") || strings.Contains(html, "CVE-2026-115560") {
 		t.Fatal("HTML must not show Additional advisories section without evidence")
 	}
 }
@@ -184,7 +184,7 @@ func TestCVE115560HTMLAndExitCode(t *testing.T) {
 	ini := writeIni(t, dir, "php.ini", "session.serialize_handler = php_binary\nsession.upload_progress.enabled = On\n")
 	r := scanIniReport(t, ini)
 	html := string(EncodeHTML(r))
-	if !strings.Contains(html, "Additional PHP security advisories") {
+	if !strings.Contains(html, "Additional security advisories") {
 		t.Fatal("missing HTML section")
 	}
 	if !strings.Contains(html, "CVE-2026-115560") || !strings.Contains(html, "MANUAL_VERIFICATION_REQUIRED") {
@@ -212,6 +212,20 @@ func TestCVE115560HTMLAndExitCode(t *testing.T) {
 				t.Logf("coverage %s=%s may drive exit %d", c.Name, c.Status, code)
 			}
 		}
+	}
+}
+
+func TestCVE115560PrimaryMitigationNotPoisonedBySampleHandler(t *testing.T) {
+	isolatePHPIniHostDiscovery(t)
+	dir := t.TempDir()
+	primary := writeIni(t, dir, "php.ini", "session.serialize_handler = php\nsession.upload_progress.enabled = Off\n")
+	sample := writeIni(t, dir, "php.ini-production", "session.serialize_handler = php_binary\nsession.upload_progress.enabled = On\n")
+	r := NewReport("t", "linux", "amd64")
+	scanConfigs(r, HostScanOptions{PHPIniPaths: []string{primary, sample}}, nil)
+	EvaluatePatchPosture(r)
+	a := find115560(r)
+	if a.Status != "MITIGATION_CONFIGURED_NOT_RUNTIME_VERIFIED" {
+		t.Fatalf("primary Off must not be demoted by sample handlers, got %s (%s)", a.Status, a.ObservedConfig)
 	}
 }
 

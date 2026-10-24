@@ -111,10 +111,11 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 	b.WriteString(`<p class="meta"><strong>Host:</strong> ` + h(r.Hostname) + ` &nbsp;·&nbsp; <strong>Assessed (UTC):</strong> ` + h(r.GeneratedUTC.Format("2006-01-02 15:04:05")) + ` &nbsp;·&nbsp; <strong>Scanner:</strong> ` + h(r.ToolVersion) + `</p>`)
 	b.WriteString(`<p class="priority">Overall priority: ` + h(overallPriority(r)) + `</p></header>`)
 
-	b.WriteString(`<div class="notice"><strong>This report is not a clearance.</strong> It does not prove that a host is fully patched, that the correct PHP runtime is serving HTTP, or that the server is uncompromised. Missing findings are not proof of safety. Patched does not mean uncompromised. Unavailable evidence is not the same as a completed assessment with no matches. Successful in-process exploitation may produce neither a crash nor a suspicious child process. Independent statuses cover vulnerability exposure, exploitation attempts, possible compromise, and investigation coverage.</div>`)
+	b.WriteString(`<div class="notice"><strong>This report is not a clearance.</strong> It assesses observed PHP inventory against upstream advisories. It does not prove the HTTP-serving runtime is patched or that the host is uncompromised. Missing findings are not proof of safety.</div>`)
 
 	b.WriteString(`<section class="cards" aria-label="Executive summary">`)
-	b.WriteString(`<article class="card"><h2>PHP detected</h2><p class="value">` + h(phpLabel) + `</p><p class="detail">`)
+	b.WriteString(`<article class="card"><h2>Patch assessment</h2><p class="value">` + h(vulnLabel) + `</p><p class="detail">Primary outcome for CVE-2026-109618 / CVE-2026-109619. Upstream thresholds (` + h(AdvisoryDate) + `): ` + h(OfficialFixThresholdsSummary()) + `. Rules reviewed ` + h(AdvisoryRulesReviewedUTC) + `.</p></article>`)
+	b.WriteString(`<article class="card"><h2>PHP installations found</h2><p class="value">` + h(phpLabel) + `</p><p class="detail">`)
 	switch {
 	case strings.HasPrefix(phpLabel, "Declared"):
 		if len(versions) == 0 {
@@ -131,18 +132,60 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 	case len(versions) == 0:
 		b.WriteString("No comparable PHP release versions were extracted from this scan scope.")
 	default:
-		b.WriteString("Confirmed host evidence versions: " + h(strings.Join(versions, ", ")))
+		b.WriteString("Observed inventory versions (not proof of the HTTP-serving runtime): " + h(strings.Join(versions, ", ")))
 	}
 	b.WriteString(`</p></article>`)
-	b.WriteString(`<article class="card"><h2>Vulnerability / patch exposure</h2><p class="value">` + h(vulnLabel) + `</p><p class="detail">Upstream thresholds (21 Oct 2026): 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35. Vendor backports require separate verification. Independent of investigation statuses.</p></article>`)
 	b.WriteString(`<article class="card"><h2>Active web runtime</h2><p class="value">` + h(rtLabel) + `</p><p class="detail">` + h(rtDetail) + `</p></article>`)
-	sapi := ClassifyConfiguredSAPIContext(r)
-	b.WriteString(`<article class="card"><h2>Configured SAPI hints</h2><p class="value">` + h(sapi.Label) + `</p><p class="detail">` + h(sapi.Detail) + `</p></article>`)
-	b.WriteString(`<article class="card"><h2>Exploitation attempts</h2><p class="value">` + h(attemptLabel) + `</p><p class="detail">` + h(humanExploitationAttemptDetail(r)) + `</p></article>`)
-	b.WriteString(`<article class="card"><h2>Possible compromise</h2><p class="value">` + h(possibleLabel) + `</p><p class="detail">` + h(humanPossibleCompromiseDetail(r)) + `</p></article>`)
-	b.WriteString(`<article class="card"><h2>Investigation coverage</h2><p class="value">` + h(invCovLabel) + `</p><p class="detail">First/last timestamps do not prove continuous coverage. REQUESTED_UNAVAILABLE sources differ from completed NO_MATCHES_IN_SCOPE on usable sources. Ordinary access logs lack HTTP body and form-field metadata.</p></article>`)
-	b.WriteString(`<article class="card"><h2>Signed IOC rollup</h2><p class="value">` + h(compLabel) + `</p><p class="detail">Legacy signed-pack matches only; not a host clearance.</p></article>`)
+	b.WriteString(`<article class="card"><h2>What could not be verified</h2><p class="value">`)
+	limParts := []string{}
+	if rtLabel != "Verified" {
+		limParts = append(limParts, "HTTP-serving PHP runtime")
+	}
+	for _, c := range r.Coverage {
+		if c.Name == "packages" && strings.EqualFold(c.Status, "NOT_SUPPORTED") {
+			limParts = append(limParts, "OS package database (no dpkg/apk; RPM not inventoried)")
+		}
+		switch strings.ToUpper(c.Status) {
+		case "INCOMPLETE", "UNAVAILABLE", "TRUNCATED", "TIMEOUT", "ACCESS_DENIED":
+			limParts = append(limParts, c.Name)
+		}
+	}
+	if len(limParts) == 0 {
+		b.WriteString(`Inventory limits still apply`)
+		b.WriteString(`</p><p class="detail">Vendor backports, containers, and nonstandard installs may be missing. Successful scan ≠ clearance.</p></article>`)
+	} else {
+		if len(limParts) > 5 {
+			limParts = append(limParts[:5], "…")
+		}
+		b.WriteString(h(strings.Join(limParts, "; ")))
+		b.WriteString(`</p><p class="detail">Incomplete evidence does not prove PHP is missing from the host, and does not prove the host is patched.</p></article>`)
+	}
 	b.WriteString(`</section>`)
+
+	// Optional IR cards only when investigation was requested or actionable findings exist.
+	showIR := false
+	if r.ExploitationAttemptStatus != "" && r.ExploitationAttemptStatus != "NOT_ASSESSED" {
+		showIR = true
+	}
+	if r.PossibleCompromiseStatus != "" && r.PossibleCompromiseStatus != "NOT_ASSESSED" {
+		showIR = true
+	}
+	if r.InvestigationCoverage != "" && r.InvestigationCoverage != "NOT_REQUESTED" && r.InvestigationCoverage != "NOT_ASSESSED" {
+		showIR = true
+	}
+	if r.CompromiseStatus == "INDICATORS_MATCHED_REVIEW_REQUIRED" {
+		showIR = true
+	}
+	if showIR {
+		sapi := ClassifyConfiguredSAPIContext(r)
+		b.WriteString(`<section class="cards" aria-label="Optional investigation">`)
+		b.WriteString(`<article class="card"><h2>Configured SAPI hints</h2><p class="value">` + h(sapi.Label) + `</p><p class="detail">` + h(sapi.Detail) + `</p></article>`)
+		b.WriteString(`<article class="card"><h2>Exploitation attempts</h2><p class="value">` + h(attemptLabel) + `</p><p class="detail">` + h(humanExploitationAttemptDetail(r)) + `</p></article>`)
+		b.WriteString(`<article class="card"><h2>Possible compromise</h2><p class="value">` + h(possibleLabel) + `</p><p class="detail">` + h(humanPossibleCompromiseDetail(r)) + `</p></article>`)
+		b.WriteString(`<article class="card"><h2>Investigation coverage</h2><p class="value">` + h(invCovLabel) + `</p><p class="detail">Not requesting investigation is not a clean result. First/last timestamps do not prove continuous coverage.</p></article>`)
+		b.WriteString(`<article class="card"><h2>Signed IOC rollup</h2><p class="value">` + h(compLabel) + `</p><p class="detail">Legacy signed-pack matches only; not a host clearance.</p></article>`)
+		b.WriteString(`</section>`)
+	}
 
 	if r.InvestigationWindow != nil {
 		b.WriteString(`<div class="notice"><strong>Investigation window (UTC):</strong> ` + h(r.InvestigationWindow.FromUTC) + ` → ` + h(r.InvestigationWindow.ToUTC))
@@ -194,9 +237,13 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 	if len(groups) == 0 {
 		b.WriteString(`<p>No comparable PHP installation versions were assessed. Inventory may be incomplete.</p>`)
 	} else {
-		b.WriteString(`<table><thead><tr><th>PHP version</th><th>Minimum fixed</th><th>Assessment</th></tr></thead><tbody>`)
+		b.WriteString(`<table><thead><tr><th>PHP version</th><th>Minimum fixed</th><th>Assessment</th><th>Lifecycle (informational)</th></tr></thead><tbody>`)
 		for _, g := range groups {
-			b.WriteString(`<tr><td>` + h(g.Label) + `</td><td>` + h(g.MinimumFixed) + `</td><td>` + h(g.StatusLabel) + `</td></tr>`)
+			life := PHPLifecycleNote(g.Version)
+			if life == "" {
+				life = PHPLifecycleNote(g.Label)
+			}
+			b.WriteString(`<tr><td>` + h(g.Label) + `</td><td>` + h(g.MinimumFixed) + `</td><td>` + h(g.StatusLabel) + `</td><td>` + h(life) + `</td></tr>`)
 		}
 		b.WriteString(`</tbody></table>`)
 		for _, g := range groups {
@@ -225,12 +272,12 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 	b.WriteString(`<p>Update sources: OS/LTS vendor security packages; <a href="https://windows.php.net/download/">PHP for Windows</a>; <a href="https://www.php.net/downloads.php">official source downloads</a>. Advisory: <a href="` + h(AdvisoryURL) + `">` + h(AdvisoryURL) + `</a>.</p>`)
 
 	if len(r.AdditionalAdvisories) > 0 {
-		b.WriteString(`<h2>Additional PHP security advisories</h2>`)
-		b.WriteString(`<p>These reviews use observed configuration text only. They do <strong>not</strong> replace the primary CVE-2026-109618 / CVE-2026-109619 patch assessment above, and they never prove a host is vulnerable or safe.</p>`)
+		b.WriteString(`<h2 class="section">Additional security advisories</h2>`)
+		b.WriteString(`<p>CVE-2026-115560 is reviewed separately from CVE-2026-109618 / CVE-2026-109619. Conclusions use observed configuration text only — never a definitive vulnerable or safe verdict. No fixed-version threshold is published yet.</p>`)
 		b.WriteString(`<table><thead><tr><th>CVE</th><th>Status</th><th>Observed configuration</th><th>Missing evidence</th><th>Recommended action</th></tr></thead><tbody>`)
 		for _, a := range r.AdditionalAdvisories {
 			b.WriteString(`<tr><td>` + h(a.CVE) + `<br><small>` + h(a.Title) + `</small><br><a href="` + h(a.AdvisoryURL) + `">PHP.net advisory</a></td>`)
-			b.WriteString(`<td>` + h(a.Status) + `<br><small>priority=` + h(a.Priority) + `</small></td>`)
+			b.WriteString(`<td>` + h(HumanAdvisoryStatusLabel(a.Status)) + `<br><small>` + h(a.Status) + ` · priority=` + h(a.Priority) + `</small></td>`)
 			b.WriteString(`<td>` + h(a.ObservedConfig) + `<br><small>` + h(a.SourceFiles) + `</small></td>`)
 			b.WriteString(`<td>` + h(a.MissingEvidence) + `</td>`)
 			b.WriteString(`<td>` + h(a.RequiredAction) + `<br><small>` + h(a.Qualification) + `</small></td></tr>`)
