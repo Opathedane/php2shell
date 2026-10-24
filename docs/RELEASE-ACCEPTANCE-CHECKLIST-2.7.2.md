@@ -1,6 +1,6 @@
 # Release Acceptance Checklist — v2.7.2 (stabilization)
 
-**Reviewed commit (local tip at acceptance writing):** see §13 after commit.  
+**Reviewed commit (local tip):** `a6414491541f04f9516fec2907eeb32a5d31d34a` (`stab/v2.7.2-enterprise-qa`).  
 **Feature freeze:** no new PHP discovery, WAF providers, DFIR, or advisory features.  
 **Version plan:** ship technical+docs as **v2.7.2**; reserve **v2.8.0** for public distribution after LICENSE + Authenticode + field pilots.
 
