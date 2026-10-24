@@ -4,6 +4,8 @@ PHP2Shell Windows release assets are currently **unsigned**. Users verify downlo
 
 Signing is **not** required to finish technical QA, but it is a **P0 usability/trust** item for broad Windows distribution (SmartScreen, AppLocker/WDAC friendliness).
 
+**Implementation plan (costs, GHA integration):** [AUTHENTICODE-IMPLEMENTATION.md](AUTHENTICODE-IMPLEMENTATION.md).
+
 ---
 
 ## 1. What signing does and does not do

@@ -20,7 +20,8 @@ PHP2Shell is a **read-only**, offline-friendly scanner for Windows and Linux. It
 | **Enterprise deployment** | [Intune](docs/deployment/INTUNE.md) · [Group Policy](docs/deployment/GPO.md) · [PSADT](deploy/PSADT-PHP2Shell-Reference.ps1) · [Report collection](docs/deployment/REPORT-COLLECTION.md) |
 | **Exit codes** | [docs/EXIT-CODES-AND-DEPLOYMENT.md](docs/EXIT-CODES-AND-DEPLOYMENT.md) |
 | **DFIR / advanced** | [COMPROMISE-INVESTIGATION.md](docs/COMPROMISE-INVESTIGATION.md) · [ADVANCED-USAGE.md](docs/ADVANCED-USAGE.md) |
-| **Security & verification** | SHA256 below · [DISTRIBUTION-SIGNING.md](docs/deployment/DISTRIBUTION-SIGNING.md) · [LICENSING.md](docs/LICENSING.md) |
+| **Security & verification** | SHA256 below · [signing plan](docs/deployment/AUTHENTICODE-IMPLEMENTATION.md) · [LICENSING-DECISION.md](docs/LICENSING-DECISION.md) |
+| **Release acceptance** | [RELEASE-ACCEPTANCE-CHECKLIST-2.7.2.md](docs/RELEASE-ACCEPTANCE-CHECKLIST-2.7.2.md) · [field tests](docs/FIELD-ACCEPTANCE-TESTS-2.7.2.md) |
 | **Troubleshooting** | Exit codes doc · `php2shell doctor` · GitHub Issues |
 
 ---

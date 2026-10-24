@@ -20,9 +20,9 @@ Synthetic examples (no customer data): [`testdata/examples/v2.7.2-qa/`](../testd
 | **PHP installations found** | What versions/evidence were seen? |
 | **Active web runtime** | Was the HTTP-serving PHP runtime verified? (Usually **not**) |
 | **What could not be verified** | Package DB gaps, permissions, truncation, runtime |
-| **Recommended next steps** | Practical actions |
+| **Recommended next steps** | Practical actions (always before optional IR) |
 | **Additional security advisories** | CVE-2026-115560 config review (if any) |
-| **Optional investigation** | Only when IR inputs were used or findings exist |
+| **Optional investigation findings** | Only when IR inputs were used or findings exist |
 | **Expandable technical evidence** | Full detail for auditors |
 
 ---

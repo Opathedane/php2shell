@@ -1,5 +1,7 @@
 # Licensing status (pending maintainer approval)
 
+**Decision worksheet for the copyright owner:** [LICENSING-DECISION.md](LICENSING-DECISION.md).
+
 ## Intent
 
 The maintainer intends PHP2Shell to be released under the **Apache License 2.0**.

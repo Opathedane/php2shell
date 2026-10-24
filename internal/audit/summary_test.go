@@ -45,3 +45,24 @@ func TestGenericIISProcessDoesNotProvePHP(t *testing.T) {
 		t.Fatal(r.Summary)
 	}
 }
+
+func TestHTMLRecommendedStepsBeforeOptionalInvestigation(t *testing.T) {
+	r := NewReport("dfir", "linux", "amd64")
+	r.AddEvidence(Evidence{Type: "binary_static_version", Name: "php-fpm", Version: "8.3.36", Source: "static", Location: "/usr/sbin/php-fpm"})
+	EvaluatePatchPosture(r)
+	r.ExploitationAttemptStatus = "SUSPECTED_ATTEMPTS_REVIEW"
+	r.InvestigationCoverage = "PARTIAL"
+	FinalizeSummary(r)
+	html := string(EncodeHTML(r))
+	steps := strings.Index(html, "Recommended next steps")
+	ir := strings.Index(html, `aria-label="Optional investigation"`)
+	if steps < 0 || ir < 0 {
+		t.Fatalf("missing sections steps=%d ir=%d", steps, ir)
+	}
+	if steps > ir {
+		t.Fatal("Recommended next steps must appear before optional investigation cards")
+	}
+	if strings.Contains(html, "FPM_EXIT_SOFTWARE") {
+		t.Fatal("primary HTML must not expose FPM_EXIT_SOFTWARE jargon")
+	}
+}

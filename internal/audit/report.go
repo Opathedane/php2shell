@@ -162,7 +162,13 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 	}
 	b.WriteString(`</section>`)
 
-	// Optional IR cards only when investigation was requested or actionable findings exist.
+	b.WriteString(`<h2 class="section">Recommended next steps</h2><ol class="actions">`)
+	for _, step := range next {
+		b.WriteString(`<li>` + h(step) + `</li>`)
+	}
+	b.WriteString(`</ol>`)
+
+	// Optional IR cards after next steps so ordinary patch actions stay first-screen.
 	showIR := false
 	if r.ExploitationAttemptStatus != "" && r.ExploitationAttemptStatus != "NOT_ASSESSED" {
 		showIR = true
@@ -178,6 +184,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 	}
 	if showIR {
 		sapi := ClassifyConfiguredSAPIContext(r)
+		b.WriteString(`<h2 class="section">Optional investigation findings</h2>`)
 		b.WriteString(`<section class="cards" aria-label="Optional investigation">`)
 		b.WriteString(`<article class="card"><h2>Configured SAPI hints</h2><p class="value">` + h(sapi.Label) + `</p><p class="detail">` + h(sapi.Detail) + `</p></article>`)
 		b.WriteString(`<article class="card"><h2>Exploitation attempts</h2><p class="value">` + h(attemptLabel) + `</p><p class="detail">` + h(humanExploitationAttemptDetail(r)) + `</p></article>`)
@@ -194,12 +201,6 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		}
 		b.WriteString(`<br>` + h(r.InvestigationWindow.Note) + `</div>`)
 	}
-
-	b.WriteString(`<h2 class="section">Recommended next steps</h2><ol class="actions">`)
-	for _, step := range next {
-		b.WriteString(`<li>` + h(step) + `</li>`)
-	}
-	b.WriteString(`</ol>`)
 
 	// Surface configuration-only / uncorrelated php.ini before the empty install table
 	// so operators do not miss discovery that never correlated to a binary.
