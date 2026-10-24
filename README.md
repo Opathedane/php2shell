@@ -4,7 +4,7 @@
 
 PHP2Shell is a **read-only**, offline-friendly scanner for Windows and Linux. It writes a local **HTML + CSV** report pair (plus a small **status JSON** file). It does **not** exploit systems, execute discovered PHP binaries, upload your data, or prove that a host is uncompromised.
 
-**Latest public release: [v2.7.2](https://github.com/Opathedane/php2shell/releases/tag/v2.7.2).** Confirm `php2shell version` matches the binary you run.
+**Latest public release: [v2.7.2](https://github.com/Opathedane/php2shell/releases/tag/v2.7.2).** **Version in this tree: 2.7.3 (unreleased)** — see [docs/releases/v2.7.3.md](docs/releases/v2.7.3.md). Confirm `php2shell version` matches the binary you run.
 
 | Currently assessed | Detail |
 | --- | --- |

@@ -31,7 +31,7 @@ Every `php2shell scan` writes a UTF-8 CSV (with BOM for Excel) beside the HTML r
 | `active_http_runtime_status` | e.g. `NOT_VERIFIED`, `OPERATOR_REPORTED_NOT_ATTESTED` |
 | `compromise_status` | Host compromise review status |
 | `host_vulnerability_status` | Host-level vulnerability rollup status |
-| `discovery_completeness` | `PARTIAL`, `INCOMPLETE`, `NO_PHP_OBSERVED_IN_SCOPE`, `PARTIAL_VERSION_UNKNOWN` |
+| `discovery_completeness` | `PARTIAL`, `INCOMPLETE`, `NO_PHP_OBSERVED_IN_SCOPE` (applicable inventory completed with no PHP evidence), `PARTIAL_VERSION_UNKNOWN` |
 | `limitations_summary` | Short caveats (may mention config candidates) |
 | `config_discovery_status` | Host-level php.ini inventory status (see below) |
 | `config_candidate_count` | Count of `php_ini_candidate` files |

@@ -118,6 +118,7 @@ func TestNoBinaryFindingsDoNotClaimSafe(t *testing.T) {
 	r := NewReport("empty", "windows", "amd64")
 	EvaluatePatchPosture(r)
 	FinalizeSummary(r)
+	// Bare report (no inventory coverage rows) stays coverage-limited — not a PHP-free claim.
 	if r.Summary.PHPDiscovery != "NO_PHP_EVIDENCE_FOUND_COVERAGE_LIMITED" {
 		t.Fatal(r.Summary.PHPDiscovery)
 	}
@@ -128,5 +129,24 @@ func TestNoBinaryFindingsDoNotClaimSafe(t *testing.T) {
 	label, _ := humanPHPDetected(r)
 	if label == "Yes" {
 		t.Fatal(label)
+	}
+
+	r2 := NewReport("empty-covered", "windows", "amd64")
+	r2.AddCheck("packages", "NOT_SUPPORTED", "No passive native package database reader for this OS")
+	r2.AddCheck("binary_paths", "PARTIAL", "Found 0")
+	r2.AddCheck("windows_processes", "PARTIAL", "Observed 0")
+	EvaluatePatchPosture(r2)
+	FinalizeSummary(r2)
+	if r2.Summary.PHPDiscovery != "NO_PHP_DETECTED_WITHIN_SCAN_COVERAGE" {
+		t.Fatal(r2.Summary.PHPDiscovery)
+	}
+	html2 := strings.ToLower(string(EncodeHTML(r2)))
+	for _, bad := range []string{"php is confirmed absent", "host is cleared", "no further action required", "marked safe"} {
+		if strings.Contains(html2, bad) {
+			t.Fatalf("coverage-complete no-PHP must still refuse absence/safety claims (%q)", bad)
+		}
+	}
+	if !strings.Contains(html2, "does not prove") {
+		t.Fatal("expected uncertainty disclaimer")
 	}
 }

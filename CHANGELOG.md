@@ -1,4 +1,8 @@
-## Unreleased
+## Unreleased (toward v2.7.3)
+
+- Fix: OS-aware no-PHP reporting — distinguish completed inventory coverage from incomplete discovery; suppress Windows dpkg/apk/RPM false gaps; avoid patch/runtime remediation spam when no PHP is found within coverage; never claim the host is PHP-free, patched, or uncompromised.
+- Improve: HTML executive summary layout for no-PHP and incomplete-coverage cases; consistent CLI/HTML/CSV/`summary.php_discovery` semantics (`NO_PHP_DETECTED_WITHIN_SCAN_COVERAGE`, `NO_PHP_SPECIFIC_REMEDIATION_IDENTIFIED`) without changing vulnerability-detection rules or exit codes.
+- Docs: [docs/releases/v2.7.3.md](docs/releases/v2.7.3.md); PR preview assets under `docs/pr-assets/v2.7.3-no-php/`.
 
 ## v2.7.2 — 2026-10-24
 

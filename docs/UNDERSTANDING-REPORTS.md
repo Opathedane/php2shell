@@ -96,17 +96,27 @@ Synthetic examples (no customer data): [`testdata/examples/v2.7.2-qa/`](../testd
 
 ### E. No PHP detected within scan coverage
 
-**Meaning:** No comparable package/binary evidence in the **authorized** scan scope.
+**Meaning:** Applicable PHP inventory checks **completed** (OS-aware) and found **no** package/binary/process PHP evidence. HTML shows **“No PHP detected within scan coverage”**, **0** installations, and **no PHP-specific patch remediation**. Machine `vulnerability_status` may still say inventory incomplete for schema stability; human labels and `summary.php_discovery` use `NO_PHP_DETECTED_WITHIN_SCAN_COVERAGE`.
 
-**Do this:** Widen authorized roots (`--config-root`, `--deep-root`, `--php-ini`) if PHP may live elsewhere. Absence in-scope is **not** proof PHP is absent on the host.
+**Do this:** Widen authorized roots (`--config-root`, `--deep-root`, `--php-ini`) only if PHP may live elsewhere. Do **not** treat the host as PHP-free or safe. Do **not** expect Windows reports to warn about missing Linux dpkg/apk/RPM databases.
 
 **Example file:** `04-no-php-detected.html`
 
 ---
 
+### E2. No PHP evidence, inventory incomplete
+
+**Meaning:** No PHP evidence, but one or more **relevant** discovery sources failed or are unavailable (permissions, truncation, or Linux packaging systems this release does not inventory). Distinct from unsupported sources that do not apply on the current OS (for example packages `NOT_SUPPORTED` on Windows).
+
+**Typical HTML language:** “Unable to determine — inventory incomplete”
+
+**Do this:** Fix the listed coverage gaps and re-scan before closing patch status.
+
+---
+
 ### F. Incomplete scan
 
-**Meaning:** Exit code **2**, or status JSON `COMPLETED_INCOMPLETE` / `SCAN_INCOMPLETE`, or coverage `TRUNCATED` / `UNAVAILABLE` / `ACCESS_DENIED`.
+**Meaning:** Exit code **2**, or status JSON `COMPLETED_INCOMPLETE` / `SCAN_INCOMPLETE`, or coverage `TRUNCATED` / `UNAVAILABLE` / `ACCESS_DENIED`. Independent of whether PHP was detected.
 
 **Do this:** Collect HTML+CSV anyway; fix permissions/paths; re-run. Do not close the engagement as cleared.
 

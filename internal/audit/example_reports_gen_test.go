@@ -40,7 +40,11 @@ func TestGenerateExampleReports(t *testing.T) {
 	EvaluatePatchPosture(r3)
 	write("03-legacy-vendor-verification.html", r3)
 
-	r4 := NewReport("empty-host", "linux", "amd64")
+	r4 := NewReport("empty-host", "windows", "amd64")
+	r4.AddCheck("packages", "NOT_SUPPORTED", "No passive native package database reader for this OS; no package commands executed")
+	r4.AddCheck("binary_paths", "PARTIAL", "Found 0 PHP-like binary paths")
+	r4.AddCheck("windows_processes", "PARTIAL", "Observed 0 PHP/IIS process names")
+	r4.AddCheck("windows_iis_configuration", "NOT_APPLICABLE", "IIS configuration not present")
 	EvaluatePatchPosture(r4)
 	write("04-no-php-detected.html", r4)
 
