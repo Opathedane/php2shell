@@ -26,7 +26,13 @@ jobs:
         os: [ubuntu-24.04, windows-latest, macos-15-intel]
     runs-on: ${{ matrix.os }}
     steps:
+      # Tag push: github.ref is refs/tags/vX.Y.Z (commit = tagged SHA).
+      # workflow_dispatch: require inputs.tag to already exist and check it out so
+      # the built tree cannot silently diverge from the named release tag.
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          fetch-depth: 0
       - uses: actions/setup-go@v6
         with:
           go-version: '1.27.3'
@@ -45,6 +51,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          fetch-depth: 0
       - uses: actions/setup-go@v6
         with:
           go-version: '1.27.3'
@@ -66,6 +75,16 @@ jobs:
           if [[ -z "${TAG}" ]]; then
             echo "Refusing to publish: empty tag (set workflow_dispatch input or push a vX.Y.Z tag)" >&2
             exit 1
+          fi
+          # Bind release to the checked-out commit (not the dispatch branch tip).
+          TARGET_SHA="$(git rev-parse HEAD)"
+          echo "Release target SHA: ${TARGET_SHA}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag_sha="$(git rev-list -n 1 "$TAG")"
+            if [[ "$TARGET_SHA" != "$tag_sha" ]]; then
+              echo "Refusing to publish: checked-out HEAD $TARGET_SHA != tag $TAG at $tag_sha" >&2
+              exit 1
+            fi
           fi
           built="$(./dist/php2shell-linux-amd64 version | awk '{print $2}')"
           if [[ "$TAG" != "v${built}" ]]; then
@@ -91,6 +110,6 @@ jobs:
             exit 1
           fi
           gh release create "$TAG" dist/php2shell-* dist/SHA256SUMS \
-            --target "${GITHUB_SHA}" \
+            --target "${TARGET_SHA}" \
             --title "PHP2Shell $TAG" \
             --notes-file "$NOTES"
