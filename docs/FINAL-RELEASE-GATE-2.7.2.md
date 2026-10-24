@@ -2,7 +2,7 @@
 
 **Gate date:** 2026-10-24  
 **Branch:** `stab/v2.7.2-enterprise-qa`  
-**Includes:** `6fe5bae` and later (`e13f67f` Apache-2.0 + this gate’s integrity fixes)  
+**Gate tip:** `27d76d4` (includes `6fe5bae` … `e13f67f` Apache-2.0 + integrity fixes below)  
 **Do not merge / tag / publish** until the maintainer explicitly approves.
 
 ---
