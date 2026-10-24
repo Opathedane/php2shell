@@ -55,6 +55,8 @@ Integration contract (uploads stay customer-specific / external):
 
 Reference: [deploy/PSADT-PHP2Shell-Reference.ps1](../deploy/PSADT-PHP2Shell-Reference.ps1).
 
+Enterprise guides: [Intune](deployment/INTUNE.md) · [GPO](deployment/GPO.md) · [Report collection](deployment/REPORT-COLLECTION.md) · [Understanding reports](UNDERSTANDING-REPORTS.md).
+
 ## Error identifiers (stable)
 
 Examples: `UNSUPPORTED_OS`, `INVALID_ARGUMENT`, `ACCESS_DENIED`, `EVIDENCE_UNAVAILABLE`, `SCAN_INCOMPLETE`, `OUTPUT_WRITE_FAILED`, `OUTPUT_EXISTS`, `TIMEOUT`, `INTERNAL_ERROR`.
