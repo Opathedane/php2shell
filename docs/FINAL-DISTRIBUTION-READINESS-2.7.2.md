@@ -17,7 +17,7 @@ PHP2Shell is a focused **PHP inventory + upstream patch assessment** tool with o
 | Console + HTML for ordinary admins | Yes (post-QA) |
 | Exit / status JSON automation | Yes |
 | Intune/GPO/PSADT **documentation** | Yes (field pilot still required) |
-| Unrestricted public redistribution | **No** — license + signing gates |
+| Unrestricted public redistribution | **Conditional** — Apache-2.0 in force; Authenticode still recommended |
 
 ---
 
@@ -34,7 +34,7 @@ Preserved from prior QA (`12b6777` / `ddc9f89`): glued RC rejection, 115560 samp
 - [deployment/REPORT-COLLECTION.md](deployment/REPORT-COLLECTION.md)
 - [deployment/DISTRIBUTION-SIGNING.md](deployment/DISTRIBUTION-SIGNING.md)
 - PSADT reference: **preserves scanner exit code** by default; stale HTML guard; `-NormalizeSuccessExit` opt-in
-- Licensing decision table expanded (still no auto-LICENSE)
+- Licensing resolved: Apache-2.0 (`LICENSE`)
 
 ---
 
@@ -84,7 +84,7 @@ README is the entry point with documentation map, Quick Start (interactive), fea
 
 | Issue | Classification | Notes |
 | --- | --- | --- |
-| No approved `LICENSE` | **P0** | `LICENSE.proposed` only |
+| Approved `LICENSE` | **PASS** | Apache-2.0 |
 | Unsigned Windows EXEs | **P0** for public Win download | SHA256 OK for pilots; signing guide written |
 | RPM package DB | **P1** | Documented; not silent “no PHP”; postpone reader |
 | 2012 R2 / Intune full pilot | **P1** | Legacy build exists; one prior customer run ≠ full matrix |
@@ -116,7 +116,7 @@ Legacy artifact: `bash scripts/build-windows-legacy.sh` previously succeeded on 
 3. Server 2012 R2 legacy EXE under SYSTEM + report collection  
 4. RHEL/Rocky host: confirm binary discovery + clear RPM limitation messaging  
 5. SmartScreen behavior once signing is enabled  
-6. Maintainer license approval → replace `LICENSE.proposed`
+6. ~~Maintainer license approval~~ — done (Apache-2.0)
 
 ---
 
@@ -125,7 +125,7 @@ Legacy artifact: `bash scripts/build-windows-legacy.sh` previously succeeded on 
 | Option | Recommendation |
 | --- | --- |
 | **v2.7.2** | **Preferred for this milestone** — advisory 115560 + correctness/UX/docs/stabilization; no new major detection surface |
-| **v2.8.0** | Reserve for **after** P0 distribution gates (approved LICENSE + Windows signing) and/or RPM inventory — market as “public distribution” release |
+| **v2.8.0** | Reserve for **after** remaining public gates (Windows signing) and/or RPM inventory — market as “public distribution” release |
 
 Do **not** bump to 2.8.0 in-tree until those gates are intentionally scoped.
 
@@ -136,11 +136,11 @@ Do **not** bump to 2.8.0 in-tree until those gates are intentionally scoped.
 | Audience | Verdict |
 | --- | --- |
 | Controlled enterprise pilots (SHA256, internal catalog) | **CONDITIONAL GO** after CI green on tip |
-| Unrestricted public GitHub distribution | **NO-GO** until LICENSE + (recommended) Authenticode |
-| Tag/publish now | **NO-GO** — await maintainer approval |
+| Unrestricted public GitHub distribution | **CONDITIONAL GO** — license OK; Authenticode recommended; field pilots |
+| Tag/publish now | **NO-GO** — await maintainer approval + CI |
 
 ### Outstanding by priority
 
-- **P0:** Approved license; (for public Win) signing; CI green on final tip  
+- **P0:** (for public Win) signing; CI green on final tip  
 - **P1:** RPM reader or sustained clear messaging; live Intune/GPO/2012R2 pilots; fleet CSV 115560 column  
 - **P2:** Longer binary alias hash; broader HTML polish; Trusted Signing automation

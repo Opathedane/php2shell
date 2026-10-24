@@ -138,7 +138,7 @@ func run(args []string) int {
 		fmt.Println("Exit codes: 0=HTML+CSV written, 1=fatal (often no reports), 2=HTML+CSV written but incomplete coverage.")
 		fmt.Println("Deployment: treat 0 and 2 as upload-eligible; use --accept-incomplete only when wrappers cannot. See docs/EXIT-CODES-AND-DEPLOYMENT.md.")
 		fmt.Println("Not a clearance: missing findings do not prove a host is patched or uncompromised.")
-		fmt.Println("License: see LICENSE.proposed / docs/LICENSING.md — no approved LICENSE grant until maintainer authorization.")
+		fmt.Println("License: Apache License 2.0 — see LICENSE and docs/LICENSING.md.")
 		if audit.IsLegacyWindowsBuild() {
 			fmt.Println("Windows legacy build: compiled with Go 1.20 for Server 2012 R2; prefer standard amd64 on Win10/Server 2016+.")
 			fmt.Println("Security: Go 1.20 is end-of-support — see docs/WINDOWS-LEGACY-2012R2.md.")

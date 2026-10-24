@@ -183,4 +183,4 @@ Synthetic demos: `testdata/demos/` (regenerate with `PHP2SHELL_WRITE_DEMOS=1 go 
 
 ## Licensing
 
-`LICENSE.proposed` is not an approved license. See [LICENSING.md](LICENSING.md).
+Apache License 2.0 — see [LICENSE](../LICENSE) and [LICENSING.md](LICENSING.md).

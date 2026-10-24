@@ -20,7 +20,7 @@ PHP2Shell is a **read-only**, offline-friendly scanner for Windows and Linux. It
 | **Enterprise deployment** | [Intune](docs/deployment/INTUNE.md) · [Group Policy](docs/deployment/GPO.md) · [PSADT](deploy/PSADT-PHP2Shell-Reference.ps1) · [Report collection](docs/deployment/REPORT-COLLECTION.md) |
 | **Exit codes** | [docs/EXIT-CODES-AND-DEPLOYMENT.md](docs/EXIT-CODES-AND-DEPLOYMENT.md) |
 | **DFIR / advanced** | [COMPROMISE-INVESTIGATION.md](docs/COMPROMISE-INVESTIGATION.md) · [ADVANCED-USAGE.md](docs/ADVANCED-USAGE.md) |
-| **Security & verification** | SHA256 below · [signing plan](docs/deployment/AUTHENTICODE-IMPLEMENTATION.md) · [LICENSING-DECISION.md](docs/LICENSING-DECISION.md) |
+| **Security & verification** | SHA256 below · [signing plan](docs/deployment/AUTHENTICODE-IMPLEMENTATION.md) · [Apache-2.0](LICENSE) · [LICENSING.md](docs/LICENSING.md) |
 | **Release acceptance** | [RELEASE-ACCEPTANCE-CHECKLIST-2.7.2.md](docs/RELEASE-ACCEPTANCE-CHECKLIST-2.7.2.md) · [field tests](docs/FIELD-ACCEPTANCE-TESTS-2.7.2.md) |
 | **Troubleshooting** | Exit codes doc · `php2shell doctor` · GitHub Issues |
 
@@ -56,7 +56,7 @@ PHP2Shell is a **read-only**, offline-friendly scanner for Windows and Linux. It
 2. Verify checksums against `SHA256SUMS` (Windows: `Get-FileHash … -Algorithm SHA256`).
 3. Binaries are **not Authenticode-signed** today — [signing plan](docs/deployment/DISTRIBUTION-SIGNING.md).
 
-**Licensing:** only `LICENSE.proposed` exists — **no approved open-source license is in force** until the maintainer confirms ownership rights ([LICENSING.md](docs/LICENSING.md)). Do not redistribute broadly until that is resolved.
+**Licensing:** [Apache License 2.0](LICENSE) ([docs/LICENSING.md](docs/LICENSING.md)).
 
 ---
 

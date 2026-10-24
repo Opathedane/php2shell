@@ -75,7 +75,7 @@ Do not overwrite assets for an existing tag (`v2.3.0`–`v2.7.1`, …). Ship fix
 - [ ] Independent security review focus areas: symlink/TOCTOU, Windows ACLs, input caps, release workflow permissions.
 - [ ] Decide Authenticode (Windows) and optional notarization (macOS) strategy; until then keep “unsigned + SHA256SUMS” messaging consistent.
 - [ ] Pin GitHub Actions to reviewed immutable digests; enable branch/tag protection and required status checks on `main`.
-- [ ] Obtain approved open-source license / ownership attribution **only with explicit owner approval** (do not treat `LICENSE.proposed` as a license).
+- [x] Open-source license in force: Apache-2.0 (`LICENSE`).
 - [ ] Add `docs/releases/vX.Y.Z.md` (concise GitHub Release body); update CHANGELOG dated section; clear Unreleased targeting that version; run `bash scripts/check-release-docs.sh --for-tag vX.Y.Z`.
 - [ ] Tag `vX.Y.Z` only after CI is green; confirm embedded `version` matches the tag; confirm `gh release` creates a **new** release (no asset overwrite). Never use `docs/RELEASE-NOTES.md` as `--notes-file`.
 

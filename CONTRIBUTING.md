@@ -32,4 +32,4 @@ Use the GitHub issue templates. Redact customer hostnames, paths, and reports. S
 
 ## Licensing
 
-The repository currently has **no approved open-source license** (`LICENSE.proposed` is a draft). Do not assume Apache-2.0 (or any other license) applies until the maintainer commits an approved `LICENSE`. See `docs/LICENSING.md`.
+This project is licensed under the **Apache License 2.0** (`LICENSE`). By contributing, you agree that your contributions are provided under the same license. See `docs/LICENSING.md`.

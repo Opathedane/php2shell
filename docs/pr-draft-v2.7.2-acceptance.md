@@ -10,8 +10,8 @@
 - [ ] CI green on Draft PR
 - [ ] Maintainer visual open of `testdata/examples/v2.7.2-qa/*.html`
 - [ ] Field pilots per `docs/FIELD-ACCEPTANCE-TESTS-2.7.2.md` (Windows / Intune / GPO / 2012 R2)
-- [ ] LICENSE decision before unrestricted public distribution
-- [ ] Prefer tag **v2.7.2** for stabilization; reserve **v2.8.0** for public milestone
+- [x] Apache-2.0 `LICENSE` applied
+- [ ] Prefer tag **v2.7.2** for stabilization; reserve **v2.8.0** for signing/public binary milestone
 
 ## Notes
 

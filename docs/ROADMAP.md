@@ -53,6 +53,7 @@ Richer FPM `listen` ↔ ProxyPassMatch / multi-install binding. Preserve: instal
 
 - Pin GitHub Actions to full commit SHAs  
 - Detached signature over `SHA256SUMS`; Authenticode / notarization decisions  
-- Approved open-source license **only** with explicit owner approval (`LICENSE.proposed` remains a placeholder)  
+- Open-source license: **Apache-2.0** (`LICENSE`) — done  
+
 
 Historical filename: [ROADMAP-2.5.0.md](ROADMAP-2.5.0.md) (redirect stub).
