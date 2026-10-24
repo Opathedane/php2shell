@@ -1,6 +1,12 @@
-## Unreleased (toward v2.7.2)
+## Unreleased
+
+## v2.7.2 — 2026-10-24
 
 - Feature: CVE-2026-115560 informational advisory assessment from observed `session.serialize_handler` + `session.upload_progress.enabled` (static config only; no invented fixed versions; separate from CVE-2026-109618/109619 patch thresholds).
+- Improve: enterprise QA — humanized console, patch-first HTML, glued RC handling, WAF RuleID casings + incomplete coverage, status JSON integrity, PSADT/GPO/Intune docs.
+- License: Apache License 2.0 (`LICENSE`).
+- Fix: legacy Go 1.20.14 archive SHA-256 verification; release workflow binds workflow_dispatch to the named tag commit.
+- Docs: [docs/releases/v2.7.2.md](docs/releases/v2.7.2.md).
 
 ## v2.7.1 — 2026-10-22
 
