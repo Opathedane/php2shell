@@ -12,7 +12,7 @@ It does **not** exploit systems, execute discovered PHP binaries, upload your da
 
 > **Naming:** This project is the **PHP2Shell assessment tool** (a defensive scanner). It assesses advisories such as CVE-2026-109618 / CVE-2026-109619. It is **not** an exploit toolkit and is not affiliated with any similarly nicknamed vulnerability or offensive tooling.
 
-**Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0).** Version in this tree: 2.8.1 (unreleased) — detection maintenance draft; do not treat as published. Confirm `php2shell version` matches the binary you run, and verify files against `SHA256SUMS` on the [Releases](https://github.com/Opathedane/php2shell/releases/latest) page.
+**Latest public release: [v2.8.1](https://github.com/Opathedane/php2shell/releases/tag/v2.8.1).** Confirm `php2shell version` matches the binary you run, and verify files against `SHA256SUMS` on the [Releases](https://github.com/Opathedane/php2shell/releases/latest) page.
 
 | Advisory | How PHP2Shell treats it |
 | --- | --- |
@@ -65,7 +65,7 @@ Open the newest `php2shell-*.html` in a browser. Start with **Patch assessment**
 
 ![Representative HTML report — patch assessment (synthetic lab data)](docs/assets/report-example-patch-assessment.png)
 
-*Representative screenshot only — synthetic lab data (host label `old-php`), not a customer report. Layout remains valid for v2.8.0; CVE thresholds unchanged. Matching HTML: [docs/assets/report-example-patch-assessment.html](docs/assets/report-example-patch-assessment.html).*
+*Representative screenshot only — synthetic lab data (host label `old-php`), not a customer report. Layout remains valid for v2.8.1; CVE thresholds unchanged. Matching HTML: [docs/assets/report-example-patch-assessment.html](docs/assets/report-example-patch-assessment.html).*
 
 **Automation:** add `--quiet` so progress is suppressed; errors and the status line still go to stderr, and `.status.json` remains machine-readable.
 
@@ -89,7 +89,7 @@ Exit **0 is not a security clearance.** Details: [EXIT-CODES-AND-DEPLOYMENT.md](
 
 ---
 
-## Coverage at a glance (v2.8.0)
+## Coverage at a glance (v2.8.1)
 
 **Does**
 
@@ -120,7 +120,7 @@ Authoritative coverage contract: [docs/SUPPORTED-COVERAGE.md](docs/SUPPORTED-COV
 | Advanced usage | [docs/ADVANCED-USAGE.md](docs/ADVANCED-USAGE.md) |
 | Enterprise (Intune / GPO / collection) | [docs/deployment/](docs/deployment/) |
 | Security / disclosure | [SECURITY.md](SECURITY.md) |
-| Release notes | [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md) · [v2.8.0](docs/releases/v2.8.0.md) |
+| Release notes | [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md) · [v2.8.1](docs/releases/v2.8.1.md) |
 | Roadmap | [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ---

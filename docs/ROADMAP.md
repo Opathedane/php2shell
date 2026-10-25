@@ -1,10 +1,18 @@
 # PHP2Shell roadmap
 
-**Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0)** (bounded nginx / PHP-FPM configuration discovery). Notes: [releases/v2.8.0.md](releases/v2.8.0.md).
+**Latest public release: [v2.8.1](https://github.com/Opathedane/php2shell/releases/tag/v2.8.1)** (security-detection maintenance). Notes: [releases/v2.8.1.md](releases/v2.8.1.md).
 
 This file lists **open** product directions. It is not a commitment calendar. Honesty rules stay fixed: installed ≠ configured ≠ actively serving; config never attests patch posture of the live HTTP SAPI.
 
+**Maintenance mode:** after v2.8.1, no additional development is planned without new security intelligence, confirmed defects, or demonstrated user demand.
+
 ## Shipped recently
+
+### v2.8.1
+
+- ReliaQuest-aligned error patterns (`zend_mm_heap`, AH00052 Abort) + multi-signal correlation  
+- Conservative time-only confidence handling; Unit 42 agentic process markers  
+- No discovery / threshold / telemetry-source expansion  
 
 ### v2.8.0
 

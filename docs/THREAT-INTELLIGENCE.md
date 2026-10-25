@@ -21,7 +21,7 @@
 ## In v2.7.0
 
 - Compromise investigation assist: offline access/error-log review, offline process/EDR telemetry (`--process-telemetry`: MDE, Sysmon, auditd, Elastic ECS), passive webroot metadata investigation, independent statuses, research-backed PHP/Apache error patterns and web/PHP process-relationship leads. See [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md) and [releases/v2.7.0.md](releases/v2.7.0.md).
-- Toward v2.8.1 (unreleased; latest public remains v2.8.0): security-detection maintenance informed by ReliaQuest and Palo Alto Networks Unit 42 (**research published/covered 22–25 Oct 2026**; product release date independent). ReliaQuest multi-signal sequences (`zend_mm_heap`, AH00052 Abort, OOM Unknown on line 0), POST 5xx correlation-only assist, Unit 42 agentic delimiters, conservative confidence ladder. Does **not** claim every published technique (body markers, LDAP inventories, same-request identity without PID). Draft notes: [releases/v2.8.1.md](releases/v2.8.1.md).
+- **v2.8.1** (published 25 October 2026): security-detection maintenance informed by ReliaQuest and Palo Alto Networks Unit 42 (**research published/covered 22–25 Oct 2026**; product release date independent). ReliaQuest multi-signal sequences (`zend_mm_heap`, AH00052 Abort, OOM Unknown on line 0), POST 5xx correlation-only assist, Unit 42 agentic delimiters, conservative confidence ladder. Does **not** claim every published technique (body markers, LDAP inventories, same-request identity without PID). Notes: [releases/v2.8.1.md](releases/v2.8.1.md).
 - AWS MadPot source IPs remain **weak** threat-intelligence candidates only; not imported as proof of exploitation or compromise.
 
 ## Planned validated features (not delivered)
