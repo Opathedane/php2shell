@@ -1,0 +1,4 @@
+found:static.lab.local
+absent_ok:directive=fastcgi_pass
+absent_ok:correlated_fpm_pool=
+found:php_binary_evidence

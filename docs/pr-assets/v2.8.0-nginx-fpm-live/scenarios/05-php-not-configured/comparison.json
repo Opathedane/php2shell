@@ -1,0 +1,14 @@
+{
+  "scenario": "05-php-not-configured",
+  "result": "PASS",
+  "html": "php2shell-lab-05-php-not-configured-20261025T162903Z.html",
+  "csv": "php2shell-lab-05-php-not-configured-20261025T162903Z.csv",
+  "status_json": "php2shell-lab-05-php-not-configured-20261025T162903Z.status.json",
+  "ground_truth": "ground-truth.json",
+  "checks": [
+    "found:static.lab.local",
+    "absent_ok:directive=fastcgi_pass",
+    "absent_ok:correlated_fpm_pool=",
+    "found:php_binary_evidence"
+  ]
+}

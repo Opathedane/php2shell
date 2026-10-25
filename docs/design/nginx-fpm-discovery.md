@@ -63,7 +63,10 @@ Identify PHP FastCGI wiring from nginx and local PHP-FPM pool configs with the s
 | --- | --- | --- |
 | **SYNTHETIC_UNIT** | `nginx_fpm_test.go`, `nginx_fpm_review_test.go` | Focused parser/honesty cases |
 | **REALISTIC_LAYOUT** | `nginx_fpm_layout_integration_test.go` | Debian-style `sites-enabled` symlinks, versioned `pool.d`, mixed backends — **no live nginx/php-fpm process** |
-| **LIVE_PROCESS / CONTAINER** | Not in this PR | Requires docker/nginx/php-fpm on the runner; scanner would still remain passive |
+| **CONFIG_TREE_OFFLINE** | `nginx_fpm_lab_offline_test.go` + `testdata/nginx-fpm-labs/scenarios/*/ground-truth.json` | Lab config trees vs ground truth without daemons |
+| **LIVE_DOCKER** | `testdata/nginx-fpm-labs/` + `scripts/run-all.sh` | Real images when Docker is available; see `docs/design/nginx-fpm-integration-validation.md` |
+
+Fixture/offline success is **not** equivalent to a live Docker pass.
 
 ## Acceptance-test matrix
 

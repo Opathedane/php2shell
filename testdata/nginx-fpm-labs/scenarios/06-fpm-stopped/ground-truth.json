@@ -1,0 +1,18 @@
+{
+  "scenario": "06-fpm-stopped",
+  "kind": "LIVE_DOCKER",
+  "description": "Identical wiring to unix-socket but php-fpm service not started; config candidates only, runtime NOT_VERIFIED",
+  "no_extra_operator_flags": true,
+  "fpm_started": false,
+  "expect": {
+    "effective_web_runtime": "NOT_VERIFIED",
+    "must_not_claim_verified_runtime": true,
+    "evidence_any": [
+      {"type": "nginx_php_handler_config", "detail_contains_all": ["unix:/run/php/php-fpm.sock", "scope=local_candidate"]},
+      {"type": "php_fpm_pool_config", "detail_contains_all": ["listen=unix:/run/php/php-fpm.sock"]}
+    ],
+    "evidence_none_types": ["nginx_remote_php_backend"],
+    "handler_and_pool_versions_empty": true,
+    "forbid_soft_no_php_within_coverage": true
+  }
+}

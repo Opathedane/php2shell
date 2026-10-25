@@ -1,0 +1,2 @@
+found:php8.3-fpm.sock
+found:127.0.0.1:9084

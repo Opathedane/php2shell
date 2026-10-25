@@ -1,0 +1,3 @@
+found:unix:/run/php/php-fpm.sock
+found:local_candidate
+absent_ok:10.23.23.23:9000

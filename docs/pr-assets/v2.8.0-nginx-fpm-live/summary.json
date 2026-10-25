@@ -1,0 +1,17 @@
+{
+  "live_docker": "PASS",
+  "require_live": true,
+  "pass": 8,
+  "fail": 0,
+  "skip": 0,
+  "scenarios": [
+    {"id":"01-unix-socket","result":"PASS"},
+    {"id":"02-tcp-local","result":"PASS"},
+    {"id":"03-remote-fpm","result":"PASS"},
+    {"id":"04-multi-pool","result":"PASS"},
+    {"id":"05-php-not-configured","result":"PASS"},
+    {"id":"06-fpm-stopped","result":"PASS"},
+    {"id":"07-unreadable-config","result":"PASS"},
+    {"id":"08-php-free","result":"PASS"}
+  ]
+}

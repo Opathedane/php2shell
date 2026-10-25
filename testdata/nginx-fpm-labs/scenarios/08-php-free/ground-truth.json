@@ -1,0 +1,15 @@
+{
+  "scenario": "08-php-free",
+  "kind": "LIVE_DOCKER",
+  "description": "nginx only; no PHP packages, pools, or handlers on scan FS",
+  "no_extra_operator_flags": true,
+  "expect": {
+    "effective_web_runtime_in": ["NOT_VERIFIED", ""],
+    "must_not_claim_verified_runtime": true,
+    "evidence_none_types": ["nginx_php_handler_config", "nginx_remote_php_backend", "php_fpm_pool_config"],
+    "evidence_any": [
+      {"type": "nginx_site_config", "name": "free.lab.local"}
+    ],
+    "allow_soft_no_php_or_artifacts_only": true
+  }
+}

@@ -1,0 +1,27 @@
+# Runtime profile establishes independent FPM process ground truth.
+# Scan always runs in its own container with well-known path mounts (see SCAN-CONTEXT.md).
+services:
+  fpm:
+    image: php:8.3-fpm-bookworm
+    profiles: ["with-runtime"]
+    volumes:
+      - ./fpm/www.conf:/usr/local/etc/php-fpm.d/zz-www.conf:ro
+      - sockdata:/run/php
+    entrypoint: ["/bin/sh", "-c", "mkdir -p /run/php && exec docker-php-entrypoint php-fpm -F"]
+
+  scan:
+    hostname: lab-01-unix-socket
+    image: debian:bookworm-slim
+    user: "65534:65534"
+    volumes:
+      - ./nginx:/etc/nginx:ro
+      - ./fpm:/usr/local/etc/php-fpm.d:ro
+      - ../../bin/php2shell-linux-amd64:/usr/local/bin/php2shell:ro
+      - ../../scripts/scan-inside.sh:/usr/local/bin/scan-inside.sh:ro
+      - ../../results/01-unix-socket:/results
+    working_dir: /results
+    entrypoint: ["/bin/sh", "/usr/local/bin/scan-inside.sh"]
+    command: ["lab-01-unix-socket"]
+
+volumes:
+  sockdata:

@@ -1,0 +1,13 @@
+{
+  "scenario": "06-fpm-stopped",
+  "result": "PASS",
+  "html": "php2shell-lab-06-fpm-stopped-20261025T162904Z.html",
+  "csv": "php2shell-lab-06-fpm-stopped-20261025T162904Z.csv",
+  "status_json": "php2shell-lab-06-fpm-stopped-20261025T162904Z.status.json",
+  "ground_truth": "ground-truth.json",
+  "checks": [
+    "found:unix:/run/php/php-fpm.sock",
+    "found:local_candidate",
+    "absent_ok:10.23.23.23:9000"
+  ]
+}

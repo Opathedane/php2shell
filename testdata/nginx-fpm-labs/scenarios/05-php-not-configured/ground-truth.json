@@ -1,0 +1,16 @@
+{
+  "scenario": "05-php-not-configured",
+  "kind": "LIVE_DOCKER",
+  "description": "FPM pool exists but nginx does not reference PHP; no invented handlers",
+  "no_extra_operator_flags": true,
+  "expect": {
+    "effective_web_runtime": "NOT_VERIFIED",
+    "must_not_claim_verified_runtime": true,
+    "evidence_any": [
+      {"type": "php_fpm_pool_config", "detail_contains_all": ["listen=unix:/run/php/unused.sock"]},
+      {"type": "nginx_site_config", "name": "static.lab.local"}
+    ],
+    "evidence_none_types": ["nginx_php_handler_config", "nginx_remote_php_backend"],
+    "handler_and_pool_versions_empty": true
+  }
+}
