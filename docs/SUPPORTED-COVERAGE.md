@@ -1,6 +1,6 @@
 # Supported platforms and scan coverage
 
-**Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0).**
+**Latest public release: [v2.8.1](https://github.com/Opathedane/php2shell/releases/tag/v2.8.1).**
 
 This page is the short coverage contract. Details and flags: [ADVANCED-USAGE.md](ADVANCED-USAGE.md). Report reading: [UNDERSTANDING-REPORTS.md](UNDERSTANDING-REPORTS.md).
 

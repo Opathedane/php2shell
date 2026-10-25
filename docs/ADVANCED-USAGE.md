@@ -2,13 +2,13 @@
 
 # Advanced usage — PHP2Shell Assessment
 
-Latest public release: **v2.8.0** (bounded nginx/PHP-FPM configuration discovery). Tree may include unreleased **2.8.1** IR detection maintenance — confirm `php2shell version`. Coverage contract: [SUPPORTED-COVERAGE.md](SUPPORTED-COVERAGE.md).
+Latest public release: **v2.8.1** (security-detection maintenance; nginx/PHP-FPM discovery from v2.8.0 retained). Confirm `php2shell version`. Coverage contract: [SUPPORTED-COVERAGE.md](SUPPORTED-COVERAGE.md).
 
 PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory, evidence-qualified patch review, and offline compromise investigation assist for CVE-2026-109618 / CVE-2026-109619. nginx/FPM configuration correlation never proves the active HTTP-serving runtime or its patch state ([design/nginx-fpm-discovery.md](design/nginx-fpm-discovery.md)).
 
 ## Download
 
-Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.8.0**, and download the archive for the destination OS/CPU (use `php2shell-windows-legacy-amd64` only for Server 2012 R2 testing). Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.8.0`, …).
+Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.8.1**, and download the archive for the destination OS/CPU (use `php2shell-windows-legacy-amd64` only for Server 2012 R2 testing). Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.8.1`, …).
 
 ## Scan output pair
 

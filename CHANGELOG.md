@@ -1,11 +1,15 @@
-## Unreleased (toward v2.8.1)
+## Unreleased
 
+## v2.8.1 — 2026-10-25
+
+- Detection: focused security-detection maintenance informed by ReliaQuest and Palo Alto Networks Unit 42 research (research published/covered 22–25 Oct 2026; product release **2026-10-25**).
 - Detection: ReliaQuest-aligned error patterns (`zend_mm_heap corrupted`, AH00052 Abort) and same-file multi-signal `correlated_error_sequence` (OOM Unknown line 0 + heap/crash ≤2m).
-- Evidence integrity: sequence confidence ladder (`suspected` only for ≥3 kinds or shared Apache WorkerPID; two-kind time-only stays `unconfirmed`); cross-file joins refused; duplicate floods collapsed; POST 5xx↔error stays **unconfirmed** (not same-request proof).
+- Evidence integrity: confidence ladder (`suspected` for ≥3 kinds or shared WorkerPID on ≥2 **distinct** crash/abort kinds; duplicate same-kind lines do not elevate); two-kind time-only and POST 5xx↔error stay `unconfirmed`; cross-file joins refused; duplicate floods collapsed; PID ≠ same-request proof.
 - Detection: POST 5xx access events as **correlation-only** assist (never standalone leads).
 - Detection: Unit 42 agentic section delimiters `==SHELLUSER==` / `==PASSWD==` only under web/PHP parents (exact tokens; content never retained).
-- Docs: draft [docs/releases/v2.8.1.md](docs/releases/v2.8.1.md); [COMPROMISE-INVESTIGATION.md](docs/COMPROMISE-INVESTIGATION.md) pattern table.
+- Docs: [docs/releases/v2.8.1.md](docs/releases/v2.8.1.md); [COMPROMISE-INVESTIGATION.md](docs/COMPROMISE-INVESTIGATION.md) pattern table.
 - Scope: security detection maintenance only — no new discovery, thresholds, telemetry sources, or CLI/CSV/fleet contract changes.
+- Field: interactive Windows PowerShell 5.1 / Windows Terminal ANSI matrix **NOT TESTED** at publish; automated CI (incl. Windows + legacy Go 1.20.14 cross-build) passed on PR #44 / finalize.
 
 ## v2.8.0 — 2026-10-25
 
