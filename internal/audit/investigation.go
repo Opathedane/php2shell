@@ -742,10 +742,20 @@ func correlateErrorSequence(r *Report, inScopeError []InvestigationEvent) int {
 		kinds := map[string]bool{a.Kind: true}
 		minLine := a.Line
 		anchor := a
-		pidCounts := map[string]int{}
-		if a.WorkerPID != "" {
-			pidCounts[a.WorkerPID]++
+		// Track which research kinds expose each WorkerPID. Duplicate lines of the
+		// same kind (repeated Abort for one worker) must not look like independent
+		// PID corroboration — require the same PID on ≥2 distinct crash/abort kinds.
+		pidKinds := map[string]map[string]bool{}
+		notePIDKind := func(pid, kind string) {
+			if pid == "" {
+				return
+			}
+			if pidKinds[pid] == nil {
+				pidKinds[pid] = map[string]bool{}
+			}
+			pidKinds[pid][kind] = true
 		}
+		notePIDKind(a.WorkerPID, a.Kind)
 		for j := 0; j < len(timed); j++ {
 			if i == j {
 				continue
@@ -763,9 +773,7 @@ func correlateErrorSequence(r *Report, inScopeError []InvestigationEvent) int {
 				continue
 			}
 			kinds[b.Kind] = true
-			if b.WorkerPID != "" {
-				pidCounts[b.WorkerPID]++
-			}
+			notePIDKind(b.WorkerPID, b.Kind)
 			if b.Line < minLine {
 				minLine = b.Line
 				anchor = b
@@ -788,8 +796,8 @@ func correlateErrorSequence(r *Report, inScopeError []InvestigationEvent) int {
 		seen[dedup] = true
 
 		sharedPID := ""
-		for pid, n := range pidCounts {
-			if n >= 2 {
+		for pid, kindsWithPID := range pidKinds {
+			if len(kindsWithPID) >= 2 {
 				sharedPID = pid
 				break
 			}
@@ -799,8 +807,8 @@ func correlateErrorSequence(r *Report, inScopeError []InvestigationEvent) int {
 		if sharedPID != "" {
 			conf = "suspected"
 			identityNote = fmt.Sprintf(
-				"Same Apache child PID %s observed on ≥2 crash/abort lines in this window (stronger than time-only). "+
-					"PHP OOM/heap lines typically lack worker PID — still not proof every pattern shared that worker or one request. ",
+				"Same Apache child PID %s observed on ≥2 distinct crash/abort pattern kinds in this window (stronger than time-only; duplicate same-kind lines do not count as independent corroboration). "+
+					"PHP OOM/heap lines typically lack worker PID — still not proof every pattern shared that worker or one HTTP request. ",
 				sharedPID,
 			)
 		} else if len(kinds) >= 3 {

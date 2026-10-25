@@ -587,8 +587,7 @@ func TestOct25UntimedErrorCannotSequence(t *testing.T) {
 }
 
 func TestOct25SamePIDCrashLinesElevateSequence(t *testing.T) {
-	// Two-kind OOM+abort would be unconfirmed, but shared WorkerPID on ≥2 crash lines elevates.
-	// Craft: OOM + two abort lines same PID (duplicate abort kind still one kind) — need segfault+abort same PID.
+	// Shared WorkerPID on ≥2 distinct crash/abort kinds elevates; still not same-request proof.
 	oom := InvestigationEvent{
 		Kind: "php_oom_unknown_line0", Class: "verified_public_pattern", Confidence: "suspected",
 		Location: "error.log", Line: 1, Time: time.Date(2026, 10, 18, 14, 5, 1, 0, time.UTC),
@@ -612,7 +611,7 @@ func TestOct25SamePIDCrashLinesElevateSequence(t *testing.T) {
 		if f.Kind == "correlated_error_sequence" {
 			found = true
 			if f.Confidence != "suspected" {
-				t.Fatalf("shared WorkerPID + multi-kind want suspected, got %s", f.Confidence)
+				t.Fatalf("shared WorkerPID across distinct crash kinds want suspected, got %s", f.Confidence)
 			}
 			if !strings.Contains(f.Detail, "PID 777") {
 				t.Fatalf("must disclose shared PID: %s", f.Detail)
@@ -620,10 +619,43 @@ func TestOct25SamePIDCrashLinesElevateSequence(t *testing.T) {
 			if !strings.Contains(f.Detail, "not proof every pattern shared") && !strings.Contains(f.Detail, "still not proof") {
 				t.Fatalf("must still deny full same-request proof: %s", f.Detail)
 			}
+			if !strings.Contains(f.Detail, "distinct crash/abort") {
+				t.Fatalf("must distinguish distinct-kind PID corroboration: %s", f.Detail)
+			}
 		}
 	}
 	if !found {
 		t.Fatal("expected sequence with shared PID")
+	}
+}
+
+func TestOct25DuplicateSameKindPIDDoesNotElevate(t *testing.T) {
+	// OOM + repeated Abort for the same worker PID must stay unconfirmed (duplicates ≠ independent corroboration).
+	events := []InvestigationEvent{
+		{Kind: "php_oom_unknown_line0", Class: "verified_public_pattern", Confidence: "suspected",
+			Location: "error.log", Line: 1, Time: time.Date(2026, 10, 18, 14, 5, 1, 0, time.UTC)},
+		{Kind: "apache_child_abort", Class: "verified_public_pattern", Confidence: "suspected",
+			Location: "error.log", Line: 2, WorkerPID: "4242",
+			Time: time.Date(2026, 10, 18, 14, 5, 2, 0, time.UTC)},
+		{Kind: "apache_child_abort", Class: "verified_public_pattern", Confidence: "suspected",
+			Location: "error.log", Line: 3, WorkerPID: "4242",
+			Time: time.Date(2026, 10, 18, 14, 5, 3, 0, time.UTC)},
+	}
+	r := NewReport("host", "linux", "amd64")
+	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
+	r.ErrorLogs = []ErrorLogCoverage{{File: "error.log", Status: "PATTERNS_REVIEWED_COVERAGE_LIMITED"}}
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true}, nil, events, nil, nil)
+	found := false
+	for _, f := range r.InvestigationFindings {
+		if f.Kind == "correlated_error_sequence" {
+			found = true
+			if f.Confidence != "unconfirmed" {
+				t.Fatalf("duplicate same-kind Abort PID must not elevate to suspected, got %s detail=%s", f.Confidence, f.Detail)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("expected two-kind unconfirmed sequence")
 	}
 }
 
