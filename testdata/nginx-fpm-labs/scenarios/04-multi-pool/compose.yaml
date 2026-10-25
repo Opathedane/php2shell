@@ -1,18 +1,14 @@
 services:
   scan:
     image: debian:bookworm-slim
+    user: "65534:65534"
     volumes:
       - ./nginx:/etc/nginx:ro
       - ./fpm83:/etc/php/8.3/fpm/pool.d:ro
       - ./fpm84:/etc/php/8.4/fpm/pool.d:ro
       - ../../bin/php2shell-linux-amd64:/usr/local/bin/php2shell:ro
+      - ../../scripts/scan-inside.sh:/usr/local/bin/scan-inside.sh:ro
       - ../../results/04-multi-pool:/results
     working_dir: /results
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -e
-        mkdir -p /results
-        php2shell scan --hostname lab-04-multi-pool --output-dir /results --quiet || true
-        ls -la /results
-        test -n "$(ls /results/*.html 2>/dev/null)"
+    entrypoint: ["/bin/sh", "/usr/local/bin/scan-inside.sh"]
+    command: ["lab-04-multi-pool"]

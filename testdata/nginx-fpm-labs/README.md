@@ -41,8 +41,13 @@ If Docker is unavailable, `scripts/run-all.sh` exits with status **0** and write
 ## Quick start
 
 ```bash
-# from repo root
+# from repo root (local: honest SKIP exit 0 if Docker missing)
 bash testdata/nginx-fpm-labs/scripts/run-all.sh
+
+# CI / required live (SKIP is a failure)
+PHP2SHELL_LABS_REQUIRE_LIVE=1 bash testdata/nginx-fpm-labs/scripts/run-all.sh
 ```
 
 Results land in `testdata/nginx-fpm-labs/results/<scenario>/`.
+
+GitHub Actions workflow: `.github/workflows/nginx-fpm-labs.yml` (Ubuntu 24.04). See `SCAN-CONTEXT.md` for why php2shell runs **inside** scan containers rather than against the Actions host.

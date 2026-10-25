@@ -1,4 +1,5 @@
-# Config-discovery live lab. Optional fpm/nginx services prove packages exist; scan FS uses ordinary well-known mounts only.
+# Runtime profile establishes independent FPM process ground truth.
+# Scan always runs in its own container with well-known path mounts (see SCAN-CONTEXT.md).
 services:
   fpm:
     image: php:8.3-fpm-bookworm
@@ -8,31 +9,18 @@ services:
       - sockdata:/run/php
     entrypoint: ["/bin/sh", "-c", "mkdir -p /run/php && exec docker-php-entrypoint php-fpm -F"]
 
-  nginx:
-    image: nginx:1.27-bookworm
-    profiles: ["with-runtime"]
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - sockdata:/run/php
-    depends_on: [fpm]
-
   scan:
     image: debian:bookworm-slim
+    user: "65534:65534"
     volumes:
       - ./nginx:/etc/nginx:ro
       - ./fpm:/usr/local/etc/php-fpm.d:ro
       - ../../bin/php2shell-linux-amd64:/usr/local/bin/php2shell:ro
+      - ../../scripts/scan-inside.sh:/usr/local/bin/scan-inside.sh:ro
       - ../../results/01-unix-socket:/results
     working_dir: /results
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -e
-        mkdir -p /results
-        php2shell scan --hostname lab-01-unix-socket --output-dir /results --quiet || true
-        ls -la /results
-        test -n "$(ls /results/*.html 2>/dev/null)"
+    entrypoint: ["/bin/sh", "/usr/local/bin/scan-inside.sh"]
+    command: ["lab-01-unix-socket"]
 
 volumes:
   sockdata:

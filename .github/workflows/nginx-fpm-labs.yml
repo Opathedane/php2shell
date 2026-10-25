@@ -1,0 +1,101 @@
+name: nginx/PHP-FPM LIVE_DOCKER labs
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - validate/nginx-fpm-v2.8.0-readiness
+      - validate/**
+    paths:
+      - "testdata/nginx-fpm-labs/**"
+      - "internal/audit/nginx*.go"
+      - "internal/audit/php_fpm.go"
+      - "internal/audit/nginx_fpm*.go"
+      - ".github/workflows/nginx-fpm-labs.yml"
+      - "docs/releases/v2.8.0-readiness.md"
+  pull_request:
+    paths:
+      - "testdata/nginx-fpm-labs/**"
+      - "internal/audit/nginx*.go"
+      - "internal/audit/php_fpm.go"
+      - "internal/audit/nginx_fpm*.go"
+      - ".github/workflows/nginx-fpm-labs.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nginx-fpm-labs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-docker:
+    name: LIVE_DOCKER eight scenarios
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.27.3"
+          cache: false
+
+      - name: Verify Docker Engine and Compose
+        run: |
+          set -euo pipefail
+          docker version
+          docker compose version
+          # Fail loudly if Docker is somehow unavailable (must not silent-PASS).
+          command -v docker
+          docker info >/dev/null
+
+      - name: Offline ground-truth contracts (non-substitutable)
+        run: go test ./internal/audit/ -run TestNginxFPMLabConfigTreesMatchGroundTruth -count=1
+
+      - name: Run LIVE_DOCKER labs (required; skips are failures)
+        env:
+          PHP2SHELL_LABS_REQUIRE_LIVE: "1"
+          GITHUB_ACTIONS: "true"
+        run: |
+          set -euo pipefail
+          bash testdata/nginx-fpm-labs/scripts/run-all.sh
+          test -f testdata/nginx-fpm-labs/results/summary.json
+          test -f testdata/nginx-fpm-labs/results/SUMMARY.md
+          test ! -f testdata/nginx-fpm-labs/results/SKIPPED-NO-DOCKER.txt
+          python3 - <<'PY'
+          import json, sys
+          doc = json.load(open("testdata/nginx-fpm-labs/results/summary.json"))
+          print(json.dumps(doc, indent=2))
+          if doc.get("live_docker") != "PASS":
+              sys.exit("live_docker status is not PASS")
+          if doc.get("pass", 0) < 8 or doc.get("fail", 0) != 0 or doc.get("skip", 0) != 0:
+              sys.exit("expected 8 PASS / 0 FAIL / 0 SKIP")
+          ids = {s["id"] for s in doc.get("scenarios", [])}
+          want = {
+              "01-unix-socket", "02-tcp-local", "03-remote-fpm", "04-multi-pool",
+              "05-php-not-configured", "06-fpm-stopped", "07-unreadable-config", "08-php-free",
+          }
+          if ids != want:
+              sys.exit(f"scenario set mismatch: {ids}")
+          if any(s.get("result") != "PASS" for s in doc["scenarios"]):
+              sys.exit("one or more scenarios not PASS")
+          PY
+
+      - name: Unit regression suite
+        run: |
+          go test ./... -count=1
+          go vet ./...
+
+      - name: Upload LIVE_DOCKER artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nginx-fpm-live-docker-${{ github.run_id }}
+          path: |
+            testdata/nginx-fpm-labs/results/**
+            testdata/nginx-fpm-labs/SCAN-CONTEXT.md
+            testdata/nginx-fpm-labs/README.md
+          if-no-files-found: warn
+          retention-days: 30

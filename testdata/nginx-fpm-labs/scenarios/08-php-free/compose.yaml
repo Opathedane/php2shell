@@ -1,17 +1,12 @@
 services:
   scan:
     image: debian:bookworm-slim
+    user: "65534:65534"
     volumes:
       - ./nginx:/etc/nginx:ro
-
       - ../../bin/php2shell-linux-amd64:/usr/local/bin/php2shell:ro
+      - ../../scripts/scan-inside.sh:/usr/local/bin/scan-inside.sh:ro
       - ../../results/08-php-free:/results
     working_dir: /results
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -e
-        mkdir -p /results
-        php2shell scan --hostname lab-08-php-free --output-dir /results --quiet || true
-        ls -la /results
-        test -n "$(ls /results/*.html 2>/dev/null)"
+    entrypoint: ["/bin/sh", "/usr/local/bin/scan-inside.sh"]
+    command: ["lab-08-php-free"]
