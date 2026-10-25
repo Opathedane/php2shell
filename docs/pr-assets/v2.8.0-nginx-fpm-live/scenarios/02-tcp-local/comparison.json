@@ -1,0 +1,12 @@
+{
+  "scenario": "02-tcp-local",
+  "result": "PASS",
+  "html": "php2shell-lab-02-tcp-local-20261025T162859Z.html",
+  "csv": "php2shell-lab-02-tcp-local-20261025T162859Z.csv",
+  "status_json": "php2shell-lab-02-tcp-local-20261025T162859Z.status.json",
+  "ground_truth": "ground-truth.json",
+  "checks": [
+    "found:127.0.0.1:9000",
+    "found:local_candidate"
+  ]
+}

@@ -1,0 +1,18 @@
+label=lab-04-multi-pool
+container_hostname=lab-04-multi-pool
+pwd=/results
+date_utc=2026-10-25T16:29:01Z
+php2shell=/usr/local/bin/php2shell
+uid=65534
+total 16
+drwxr-xr-x 3 1001 1001 4096 Oct 25 16:27 .
+drwxr-xr-x 1 root root 4096 Oct 25 16:29 ..
+drwxr-xr-x 2 1001 1001 4096 Oct 25 16:27 conf.d
+-rw-r--r-- 1 1001 1001  286 Oct 25 16:27 nginx.conf
+no_php-fpm.d
+total 16
+drwxr-xr-x 4 root root 4096 Oct 25 16:29 .
+drwxr-xr-x 1 root root 4096 Oct 25 16:29 ..
+drwxr-xr-x 3 root root 4096 Oct 25 16:29 8.3
+drwxr-xr-x 3 root root 4096 Oct 25 16:29 8.4
+php_cli_absent

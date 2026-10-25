@@ -1,0 +1,3 @@
+found:free.lab.local
+absent_ok:directive=fastcgi_pass
+absent_ok:scope=remote

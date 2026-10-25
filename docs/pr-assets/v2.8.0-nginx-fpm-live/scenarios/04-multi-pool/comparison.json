@@ -1,0 +1,12 @@
+{
+  "scenario": "04-multi-pool",
+  "result": "PASS",
+  "html": "php2shell-lab-04-multi-pool-20261025T162901Z.html",
+  "csv": "php2shell-lab-04-multi-pool-20261025T162901Z.csv",
+  "status_json": "php2shell-lab-04-multi-pool-20261025T162901Z.status.json",
+  "ground_truth": "ground-truth.json",
+  "checks": [
+    "found:php8.3-fpm.sock",
+    "found:127.0.0.1:9084"
+  ]
+}

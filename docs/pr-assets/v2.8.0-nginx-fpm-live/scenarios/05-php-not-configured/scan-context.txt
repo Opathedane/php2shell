@@ -1,0 +1,17 @@
+label=lab-05-php-not-configured
+container_hostname=lab-05-php-not-configured
+pwd=/results
+date_utc=2026-10-25T16:29:01Z
+php2shell=/usr/local/bin/php2shell
+uid=65534
+total 16
+drwxr-xr-x 3 1001 1001 4096 Oct 25 16:27 .
+drwxr-xr-x 1 root root 4096 Oct 25 16:29 ..
+drwxr-xr-x 2 1001 1001 4096 Oct 25 16:27 conf.d
+-rw-r--r-- 1 1001 1001  286 Oct 25 16:27 nginx.conf
+total 12
+drwxr-xr-x 2 1001 1001 4096 Oct 25 16:27 .
+drwxr-xr-x 1 root root 4096 Oct 25 16:29 ..
+-rw-r--r-- 1 1001 1001   68 Oct 25 16:27 www.conf
+no_/etc/php
+PHP 8.3.36 (cli) (built: Oct 21 2026 15:59:51) (NTS)

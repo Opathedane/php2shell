@@ -1,0 +1,12 @@
+{
+  "scenario": "07-unreadable-config",
+  "result": "PASS",
+  "html": "php2shell-lab-07-unreadable-config-20261025T162905Z.html",
+  "csv": "php2shell-lab-07-unreadable-config-20261025T162905Z.csv",
+  "status_json": "php2shell-lab-07-unreadable-config-20261025T162905Z.status.json",
+  "ground_truth": "ground-truth.json",
+  "checks": [
+    "found:skip_evidence",
+    "found:unix:/run/php/php-fpm.sock"
+  ]
+}

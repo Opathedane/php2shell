@@ -1,0 +1,13 @@
+{
+  "scenario": "08-php-free",
+  "result": "PASS",
+  "html": "php2shell-lab-08-php-free-20261025T162906Z.html",
+  "csv": "php2shell-lab-08-php-free-20261025T162906Z.csv",
+  "status_json": "php2shell-lab-08-php-free-20261025T162906Z.status.json",
+  "ground_truth": "ground-truth.json",
+  "checks": [
+    "found:free.lab.local",
+    "absent_ok:directive=fastcgi_pass",
+    "absent_ok:scope=remote"
+  ]
+}

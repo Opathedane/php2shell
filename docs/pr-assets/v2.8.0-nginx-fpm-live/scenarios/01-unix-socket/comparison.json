@@ -1,0 +1,13 @@
+{
+  "scenario": "01-unix-socket",
+  "result": "PASS",
+  "html": "php2shell-lab-01-unix-socket-20261025T162855Z.html",
+  "csv": "php2shell-lab-01-unix-socket-20261025T162855Z.csv",
+  "status_json": "php2shell-lab-01-unix-socket-20261025T162855Z.status.json",
+  "ground_truth": "ground-truth.json",
+  "checks": [
+    "found:unix:/run/php/php-fpm.sock",
+    "found:local_candidate",
+    "absent_ok:10.23.23.23:9000"
+  ]
+}

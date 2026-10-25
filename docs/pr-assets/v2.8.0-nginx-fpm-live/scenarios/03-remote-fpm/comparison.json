@@ -1,0 +1,12 @@
+{
+  "scenario": "03-remote-fpm",
+  "result": "PASS",
+  "html": "php2shell-lab-03-remote-fpm-20261025T162900Z.html",
+  "csv": "php2shell-lab-03-remote-fpm-20261025T162900Z.csv",
+  "status_json": "php2shell-lab-03-remote-fpm-20261025T162900Z.status.json",
+  "ground_truth": "ground-truth.json",
+  "checks": [
+    "found:10.23.23.23:9000",
+    "found:scope=remote"
+  ]
+}

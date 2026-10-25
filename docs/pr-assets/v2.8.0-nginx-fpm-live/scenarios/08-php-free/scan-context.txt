@@ -1,0 +1,14 @@
+label=lab-08-php-free
+container_hostname=lab-08-php-free
+pwd=/results
+date_utc=2026-10-25T16:29:06Z
+php2shell=/usr/local/bin/php2shell
+uid=65534
+total 16
+drwxr-xr-x 3 1001 1001 4096 Oct 25 16:27 .
+drwxr-xr-x 1 root root 4096 Oct 25 16:29 ..
+drwxr-xr-x 2 1001 1001 4096 Oct 25 16:27 conf.d
+-rw-r--r-- 1 1001 1001  286 Oct 25 16:27 nginx.conf
+no_php-fpm.d
+no_/etc/php
+php_cli_absent
