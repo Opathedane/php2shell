@@ -6,6 +6,7 @@ Version-specific GitHub Release bodies live under [`docs/releases/`](releases/).
 
 | Version | Notes |
 | --- | --- |
+| [v2.7.5](releases/v2.7.5.md) | Unix PHP symlink discovery (draft — do not publish yet) |
 | [v2.7.4](releases/v2.7.4.md) | Console UX / reliability polish (patch; no new CTI/IOC) |
 | [v2.7.3](releases/v2.7.3.md) | OS-aware no-PHP reporting & HTML usability (patch; no new CTI/IOC) |
 | [v2.7.2](releases/v2.7.2.md) | Enterprise QA + CVE-2026-115560 advisory assessment + Apache-2.0 |

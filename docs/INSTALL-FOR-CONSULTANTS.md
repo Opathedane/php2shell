@@ -1,6 +1,6 @@
 # PHP2Shell – consultant quick start
 
-**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory, evidence-qualified patch review, and offline compromise investigation assist. Latest public release: **v2.7.4**. Confirm `php2shell version` on the binary you run matches the release you downloaded.
+**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory, evidence-qualified patch review, and offline compromise investigation assist. Latest public release: **v2.7.4**. Tree may include unreleased **2.7.5** development builds — confirm `php2shell version` on the binary you run matches the release you downloaded.
 
 Download the build matching the destination server from GitHub **Releases**. No Python, Go, PHP, installer, or network access is required for the basic local inventory. The optional IOC update requires an independently authenticated rule signing key and a reviewed signed ruleset; the repository does **not** include a validated PHP2Shell-specific rulepack yet.
 
