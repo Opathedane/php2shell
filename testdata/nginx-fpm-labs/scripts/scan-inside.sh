@@ -24,6 +24,8 @@ php2shell scan --customer "nginx-fpm-lab:$LABEL" --output-dir /results --quiet -
 rc=$?
 set -e
 echo "$rc" > /results/php2shell.exit
+# Reports are written mode 0600 by php2shell; make them readable for the CI host assert/upload.
+chmod -R a+rX /results 2>/dev/null || true
 ls -la /results
 test -n "$(ls /results/*.html 2>/dev/null)"
 test -n "$(ls /results/*.csv 2>/dev/null)"

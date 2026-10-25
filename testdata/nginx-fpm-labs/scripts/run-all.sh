@@ -129,6 +129,9 @@ run_scenario() {
     return
   fi
 
+  # Host may not own nobody-created files; sudo chmod for assert/upload.
+  sudo chmod -R a+rX "$out" 2>/dev/null || chmod -R a+rX "$out" 2>/dev/null || true
+
   if [[ ! -f "$out/scan-context.txt" ]]; then
     echo "FAIL $id: missing scan-context.txt (scan did not run in-container?)" >&2
     FAIL=$((FAIL+1))
