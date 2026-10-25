@@ -171,7 +171,7 @@ func humanPHPDetected(r *Report) (label string, versions []string) {
 			if e.Version != "" {
 				confirmedVers[e.Version] = struct{}{}
 			}
-		case "binary_path", "binary_static_version", "binary_path_inferred_version", "iis_php_handler_config", "apache_php_handler_config", "apache_php_module_config", "operator_reported_web_runtime":
+		case "binary_path", "binary_static_version", "binary_path_inferred_version", "iis_php_handler_config", "apache_php_handler_config", "apache_php_module_config", "nginx_php_handler_config", "php_fpm_pool_config", "operator_reported_web_runtime":
 			if e.Version != "" {
 				confirmedVers[e.Version] = struct{}{}
 			}
@@ -227,6 +227,7 @@ func humanRuntime(r *Report) (label, detail string) {
 				break
 			}
 			if e.Type == "iis_php_handler_config" || e.Type == "apache_php_handler_config" || e.Type == "apache_php_module_config" ||
+				e.Type == "nginx_php_handler_config" || e.Type == "php_fpm_pool_config" ||
 				e.Type == "binary_static_version" || e.Type == "binary_path_inferred_version" || e.Type == "binary_path" {
 				hasCandidate = true
 				break

@@ -42,6 +42,7 @@ func isPHPDiscoveryCheck(name string) bool {
 	switch name {
 	case "packages", "binary_paths", "processes", "windows_processes",
 		"windows_iis_configuration", "deep_discovery", "configuration", "apache_configuration",
+		"nginx_configuration", "php_fpm_configuration",
 		"webroot": // only contributes when present; NOT_REQUESTED is ignored below
 		return true
 	default:
@@ -91,7 +92,7 @@ func relevantPHPInventoryGaps(r *Report) []string {
 				add("packages (unsupported packaging system; RPM/yum/dnf/pacman not inventoried)")
 				continue
 			}
-		case "windows_iis_configuration", "apache_configuration", "webroot":
+		case "windows_iis_configuration", "apache_configuration", "nginx_configuration", "php_fpm_configuration", "webroot":
 			if st == "NOT_APPLICABLE" || st == "NOT_SUPPORTED" || st == "NOT_REQUESTED" {
 				continue
 			}
@@ -132,12 +133,14 @@ func classifyPHPDiscovery(r *Report) string {
 			}
 			confirmed = true
 			confirmedVers[e.Version] = struct{}{}
-		case "binary_path", "binary_static_version", "binary_path_inferred_version", "iis_php_handler_config", "apache_php_handler_config", "apache_php_module_config", "operator_reported_web_runtime":
+		case "binary_path", "binary_static_version", "binary_path_inferred_version", "iis_php_handler_config", "apache_php_handler_config", "apache_php_module_config", "nginx_php_handler_config", "php_fpm_pool_config", "operator_reported_web_runtime":
 			confirmed = true
-			if e.Version != "" {
+			if e.Version == "" {
+				// Configured handlers/pools without a version stay version_unknown once confirmed.
+			} else {
 				confirmedVers[e.Version] = struct{}{}
 			}
-		case "apache_vhost_config", "apache_remote_php_backend":
+		case "apache_vhost_config", "apache_remote_php_backend", "nginx_site_config", "nginx_remote_php_backend", "nginx_php_upstream_config":
 			artifacts = true
 		case "running_process":
 			if e.Name != "w3wp.exe" {
@@ -150,7 +153,7 @@ func classifyPHPDiscovery(r *Report) string {
 			iniCandidates++
 		case "configuration_observation", "php_webroot_filename":
 			artifacts = true
-		case "php_ini_skip":
+		case "php_ini_skip", "nginx_config_skip", "php_fpm_config_skip", "nginx_include_unresolved":
 			artifacts = true
 			iniSkips++
 		}

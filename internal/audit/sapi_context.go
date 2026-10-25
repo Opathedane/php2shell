@@ -40,6 +40,8 @@ func ClassifyConfiguredSAPIContext(r *Report) ConfiguredSAPIContext {
 			if strings.Contains(low, "php-cgi") || strings.Contains(low, "cgi") {
 				ctx.PHPCGIHints = true
 			}
+		case "nginx_php_handler_config", "nginx_remote_php_backend", "php_fpm_pool_config", "nginx_php_upstream_config":
+			ctx.PHPFPMHints = true
 		case "iis_php_handler_config":
 			ctx.IISHints = true
 			ctx.PHPCGIHints = true
