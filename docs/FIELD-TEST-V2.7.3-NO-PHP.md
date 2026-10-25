@@ -1,6 +1,8 @@
 # Field retest plan — v2.7.3 no-PHP (Windows)
 
-Use **after** PR #28 is approved and merged. Do **not** treat this as a published release.
+**Status (as of v2.7.3 publish decision):** original Windows no-PHP host retest is **NOT TESTED** — not PASS. Automated tests/CI are green; this document remains the retest procedure after stable publish if needed.
+
+Use on the same Windows machine that previously produced misleading v2.7.2 no-PHP inventory warnings.
 
 ## Build a local test binary (post-merge)
 
@@ -37,4 +39,4 @@ Copy the EXE to the same Windows machine used for the v2.7.2 no-PHP field test.
 
 ## After field PASS
 
-Proceed with stable **v2.7.3** publish only with explicit approval: finalize `docs/releases/v2.7.3.md` (remove draft banner), move CHANGELOG to `## v2.7.3 —`, update “latest public” docs, then tag `v2.7.3` (never rewrite `v2.7.2`).
+Release docs are prepared on branch `release/v2.7.3-finalize` (see [RELEASE-FINALIZE-CHECKLIST-2.7.3.md](RELEASE-FINALIZE-CHECKLIST-2.7.3.md)). With explicit GO: merge that branch → `main`, then tag **`v2.7.3`** only (never rewrite `v2.7.2`).
