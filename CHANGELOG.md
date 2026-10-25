@@ -1,5 +1,14 @@
 ## Unreleased
 
+## v2.7.5 — 2026-10-25
+
+- Fix: Unix PHP executables behind file symlinks (Homebrew Cellar, `/etc/alternatives`, versioned `php8.x` / `php-cgi` / `php-fpm` PATH names) are resolved within a hop budget and inspected as regular files — closing a confirmed false-negative discovery path.
+- Fix: Permission-denied and over-budget `phpBin` symlink chains record `PHP_EXECUTABLE_CANDIDATE_UNRESOLVED_NOT_INSPECTED` so coverage cannot claim `NO_PHP_DETECTED_WITHIN_SCAN_COVERAGE` after skipping a relevant candidate; broken/circular/non-regular links stay silent.
+- Improve: Multiple aliases to the same binary dedupe by resolved path while retaining `via symlink` / `also_via_symlink` path evidence.
+- Scope: discovery reliability only — no nginx, PHP-FPM pool config, RPM/dnf, Docker, or CVE threshold changes; Windows file-symlink rejection unchanged.
+- Docs: [docs/releases/v2.7.5.md](docs/releases/v2.7.5.md).
+- Field: interactive Windows PowerShell 5.1 / Windows Terminal ANSI matrix **NOT TESTED** at publish; automated CI (incl. Windows + legacy cross-build) passed on PR #32 and finalize tip.
+
 ## v2.7.4 — 2026-10-25
 
 - Fix: CLI no longer prints Linux dpkg/apk package-DB warnings on Windows (`packages=NOT_SUPPORTED`).
