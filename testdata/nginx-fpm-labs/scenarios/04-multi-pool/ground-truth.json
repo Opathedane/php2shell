@@ -1,0 +1,19 @@
+{
+  "scenario": "04-multi-pool",
+  "kind": "LIVE_DOCKER",
+  "description": "Two pools (unix 8.3 path + TCP 8.4 port); no version cross-inheritance on pool/handler rows",
+  "no_extra_operator_flags": true,
+  "expect": {
+    "effective_web_runtime": "NOT_VERIFIED",
+    "must_not_claim_verified_runtime": true,
+    "nginx_coverage_status_in": ["PARTIAL", "INCOMPLETE", "TRUNCATED"],
+    "evidence_any": [
+      {"type": "nginx_php_handler_config", "detail_contains_all": ["unix:/run/php/php8.3-fpm.sock"]},
+      {"type": "nginx_php_handler_config", "detail_contains_all": ["127.0.0.1:9084"]},
+      {"type": "php_fpm_pool_config", "name": "pool83"},
+      {"type": "php_fpm_pool_config", "name": "pool84"}
+    ],
+    "handler_and_pool_versions_empty": true,
+    "forbid_soft_no_php_within_coverage": true
+  }
+}

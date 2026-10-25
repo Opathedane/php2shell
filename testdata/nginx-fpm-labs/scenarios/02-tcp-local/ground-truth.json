@@ -1,0 +1,19 @@
+{
+  "scenario": "02-tcp-local",
+  "kind": "LIVE_DOCKER",
+  "description": "nginx + local PHP-FPM over TCP 127.0.0.1:9000",
+  "no_extra_operator_flags": true,
+  "expect": {
+    "effective_web_runtime": "NOT_VERIFIED",
+    "must_not_claim_verified_runtime": true,
+    "nginx_coverage_status_in": ["PARTIAL", "INCOMPLETE", "TRUNCATED"],
+    "php_fpm_coverage_status_in": ["PARTIAL", "INCOMPLETE", "TRUNCATED"],
+    "evidence_any": [
+      {"type": "nginx_php_handler_config", "detail_contains_all": ["127.0.0.1:9000", "scope=local_candidate"]},
+      {"type": "php_fpm_pool_config", "detail_contains_all": ["listen=127.0.0.1:9000"]}
+    ],
+    "evidence_none_types": ["nginx_remote_php_backend"],
+    "handler_and_pool_versions_empty": true,
+    "forbid_soft_no_php_within_coverage": true
+  }
+}

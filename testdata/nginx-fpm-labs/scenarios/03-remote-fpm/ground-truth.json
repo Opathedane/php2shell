@@ -1,0 +1,19 @@
+{
+  "scenario": "03-remote-fpm",
+  "kind": "LIVE_DOCKER",
+  "description": "nginx host sees only remote FastCGI IP; local FPM configs absent from scan FS",
+  "no_extra_operator_flags": true,
+  "scan_mounts_note": "Scan container mounts nginx configs only — not remote pool.d — matching a front-end host",
+  "expect": {
+    "effective_web_runtime": "NOT_VERIFIED",
+    "must_not_claim_verified_runtime": true,
+    "nginx_coverage_status_in": ["INCOMPLETE", "TRUNCATED"],
+    "evidence_any": [
+      {"type": "nginx_remote_php_backend", "detail_contains_all": ["10.23.23.23:9000", "scope=remote"]}
+    ],
+    "evidence_none_types": ["php_fpm_pool_config"],
+    "handler_and_pool_versions_empty": true,
+    "forbid_soft_no_php_within_coverage": true,
+    "forbid_version_on_remote": true
+  }
+}

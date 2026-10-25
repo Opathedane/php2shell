@@ -1,0 +1,17 @@
+{
+  "scenario": "07-unreadable-config",
+  "kind": "LIVE_DOCKER",
+  "description": "secret.conf chmod 000 before scan; expect php_fpm_config_skip and incomplete, not soft none",
+  "no_extra_operator_flags": true,
+  "chmod_000": ["fpm/secret.conf"],
+  "expect": {
+    "effective_web_runtime": "NOT_VERIFIED",
+    "must_not_claim_verified_runtime": true,
+    "php_fpm_coverage_status_in": ["INCOMPLETE", "TRUNCATED"],
+    "evidence_any": [
+      {"type": "php_fpm_config_skip"},
+      {"type": "nginx_php_handler_config", "detail_contains_all": ["unix:/run/php/php-fpm.sock"]}
+    ],
+    "forbid_soft_no_php_within_coverage": true
+  }
+}

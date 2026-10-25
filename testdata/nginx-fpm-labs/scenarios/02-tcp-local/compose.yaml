@@ -1,0 +1,17 @@
+services:
+  scan:
+    image: debian:bookworm-slim
+    volumes:
+      - ./nginx:/etc/nginx:ro
+      - ./fpm:/usr/local/etc/php-fpm.d:ro
+      - ../../bin/php2shell-linux-amd64:/usr/local/bin/php2shell:ro
+      - ../../results/02-tcp-local:/results
+    working_dir: /results
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mkdir -p /results
+        php2shell scan --hostname lab-02-tcp-local --output-dir /results --quiet || true
+        ls -la /results
+        test -n "$(ls /results/*.html 2>/dev/null)"

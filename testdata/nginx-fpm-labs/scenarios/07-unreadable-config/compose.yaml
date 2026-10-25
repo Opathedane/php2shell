@@ -1,0 +1,27 @@
+services:
+  prepare:
+    image: debian:bookworm-slim
+    volumes:
+      - ./fpm:/fpm
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["chmod 000 /fpm/secret.conf && ls -la /fpm"]
+
+  scan:
+    image: debian:bookworm-slim
+    depends_on:
+      prepare:
+        condition: service_completed_successfully
+    volumes:
+      - ./nginx:/etc/nginx:ro
+      - ./fpm:/usr/local/etc/php-fpm.d:ro
+      - ../../bin/php2shell-linux-amd64:/usr/local/bin/php2shell:ro
+      - ../../results/07-unreadable-config:/results
+    working_dir: /results
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mkdir -p /results
+        php2shell scan --hostname lab-07-unreadable-config --output-dir /results --quiet || true
+        ls -la /results
+        test -n "$(ls /results/*.html 2>/dev/null)"
