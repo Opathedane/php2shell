@@ -6,6 +6,7 @@ Version-specific GitHub Release bodies live under [`docs/releases/`](releases/).
 
 | Version | Notes |
 | --- | --- |
+| [v2.8.0](releases/v2.8.0.md) | In-tree draft — bounded nginx/PHP-FPM config discovery (latest public remains v2.7.5) |
 | [v2.7.5](releases/v2.7.5.md) | Unix PHP symlink discovery (patch; no new CTI/IOC; thresholds unchanged) |
 | [v2.7.4](releases/v2.7.4.md) | Console UX / reliability polish (patch; no new CTI/IOC) |
 | [v2.7.3](releases/v2.7.3.md) | OS-aware no-PHP reporting & HTML usability (patch; no new CTI/IOC) |
