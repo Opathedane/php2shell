@@ -1,0 +1,15 @@
+PHP2Shell Assessment 2.7.3
+Host: win-empty  OS: windows/amd64
+
+Scan summary
+  PHP discovery:     No PHP detected within scan coverage
+  Patch assessment:  No PHP-specific patch assessment
+  Serving runtime:   Not applicable — No PHP installation was detected within scan coverage.
+  Observed versions: none in this scan scope (absence is not proof PHP is missing)
+  Coverage note:    OS package DB not inventoried (no dpkg/apk). On RPM hosts, rely on binary/PATH discovery and vendor advisories.
+  Duration:          1.2s
+  HTML report:       C:\ProgramData\PHP2Shell\Reports\php2shell-win-empty.html
+  CSV report:        C:\ProgramData\PHP2Shell\Reports\php2shell-win-empty.csv
+
+Process completion is not a vulnerability or compromise clearance.
+Open the HTML report for findings; use CSV for fleet consolidation.

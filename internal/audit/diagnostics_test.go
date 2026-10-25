@@ -96,6 +96,25 @@ func TestClassifySaveError(t *testing.T) {
 	if id != DiagOutputExists {
 		t.Fatal(id)
 	}
+	id, _ = ClassifySaveError(errString("open report: permission denied"))
+	if id != DiagAccessDenied {
+		t.Fatal(id)
+	}
+	id, _ = ClassifySaveError(errString("Access is denied."))
+	if id != DiagAccessDenied {
+		t.Fatal(id)
+	}
+}
+
+func TestDefaultRemediationAccessDenied(t *testing.T) {
+	st := &ExecutionStatus{ExecutionStatus: "FAILED", ErrorIDs: []string{DiagAccessDenied}}
+	msg := defaultRemediation(st)
+	if !strings.Contains(strings.ToLower(msg), "write access") && !strings.Contains(strings.ToLower(msg), "grant") {
+		t.Fatal(msg)
+	}
+	if strings.Contains(strings.ToLower(msg), "password") || strings.Contains(msg, "/Users/") {
+		t.Fatal("must not expose sensitive path heuristics")
+	}
 }
 
 func TestPersistExecutionStatusJSONFallbackMachineDetectable(t *testing.T) {

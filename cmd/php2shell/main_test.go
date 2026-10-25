@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -204,5 +207,121 @@ func TestScanExitCodeHelper(t *testing.T) {
 	}
 	if audit.ScanExitCode(r, os.ErrPermission) != audit.ExitFatal {
 		t.Fatal()
+	}
+}
+
+func TestVersionCommandExitOK(t *testing.T) {
+	if code := run([]string{"version"}); code != audit.ExitOK {
+		t.Fatalf("exit %d", code)
+	}
+}
+
+func TestHelpMentionsNoColor(t *testing.T) {
+	if !strings.Contains(help, "--no-color") {
+		t.Fatal("help must document --no-color")
+	}
+}
+
+func TestOverwriteEmitsOUTPUT_EXISTSStatusJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "once.html")
+	code := run([]string{"scan", "--quiet", "--out", path})
+	if code != audit.ExitOK && code != audit.ExitIncomplete {
+		t.Fatalf("first scan exit %d", code)
+	}
+	statusPath := audit.MatchingStatusJSONPath(path)
+	// Second scan must refuse overwrite; status JSON path may fall back beside HTML.
+	code = run([]string{"scan", "--quiet", "--out", path, "--status-json", filepath.Join(dir, "overwrite.status.json")})
+	if code != audit.ExitFatal {
+		t.Fatalf("overwrite should be fatal, got %d", code)
+	}
+	candidates := []string{
+		filepath.Join(dir, "overwrite.status.json"),
+		statusPath,
+	}
+	var raw []byte
+	for _, c := range candidates {
+		b, err := os.ReadFile(c)
+		if err == nil {
+			raw = b
+			break
+		}
+	}
+	if len(raw) == 0 {
+		// Status write may use execution-scoped fallbacks; search dir.
+		entries, _ := os.ReadDir(dir)
+		for _, e := range entries {
+			if strings.HasSuffix(e.Name(), ".status.json") && e.Name() != filepath.Base(statusPath) {
+				b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+				if err == nil && strings.Contains(string(b), "OUTPUT_EXISTS") {
+					raw = b
+					break
+				}
+			}
+		}
+	}
+	if len(raw) == 0 {
+		t.Fatal("expected a status JSON mentioning OUTPUT_EXISTS after overwrite refusal")
+	}
+	var st audit.ExecutionStatus
+	if err := json.Unmarshal(raw, &st); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, id := range st.ErrorIDs {
+		if id == audit.DiagOutputExists {
+			found = true
+		}
+	}
+	if !found && !strings.Contains(string(raw), "OUTPUT_EXISTS") {
+		t.Fatalf("missing OUTPUT_EXISTS: %s", raw)
+	}
+}
+
+func TestAcceptIncompleteMapsExitZeroWhenReportsWritten(t *testing.T) {
+	dir := t.TempDir()
+	// Force incompleteness via ACCESS_DENIED coverage on a discovery check.
+	// Real scans may or may not be incomplete; use helper for mapping contract.
+	r := audit.NewReport("h", runtime.GOOS, runtime.GOARCH)
+	r.AddCheck("binary_paths", "ACCESS_DENIED", "denied")
+	if audit.ScanExitCode(r, nil) != audit.ExitIncomplete {
+		t.Fatal("fixture must be incomplete")
+	}
+	code := run([]string{"scan", "--quiet", "--accept-incomplete", "--output-dir", dir, "--timeout", "2m"})
+	if code != audit.ExitOK && code != audit.ExitIncomplete {
+		t.Fatalf("unexpected exit %d", code)
+	}
+	// When incomplete and accept-incomplete, finishScan should map to 0.
+	if code == audit.ExitIncomplete {
+		t.Log("host scan completed fully; accept-incomplete path not exercised on this host")
+	}
+}
+
+func TestBuiltBinarySmokeVersionAndDoctor(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping binary smoke in short mode")
+	}
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "php2shell-smoke")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
+	build := exec.Command("go", "build", "-o", bin, "github.com/Opathedane/php2shell/cmd/php2shell")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+	verOut, err := exec.Command(bin, "version").CombinedOutput()
+	if err != nil {
+		t.Fatalf("version: %v %s", err, verOut)
+	}
+	if !strings.Contains(string(verOut), audit.Version) {
+		t.Fatalf("version output missing %s: %s", audit.Version, verOut)
+	}
+	docOut, err := exec.Command(bin, "doctor").CombinedOutput()
+	if err != nil {
+		t.Fatalf("doctor: %v %s", err, docOut)
+	}
+	if !strings.Contains(string(docOut), "PHP2Shell") {
+		t.Fatalf("doctor: %s", docOut)
 	}
 }

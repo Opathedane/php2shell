@@ -214,6 +214,9 @@ func defaultRemediation(st *ExecutionStatus) string {
 		if containsID(st.ErrorIDs, DiagUnsupportedOS) {
 			return "On Windows Server 2012 R2 use php2shell-windows-legacy-amd64.exe; see docs/WINDOWS-LEGACY-2012R2.md."
 		}
+		if containsID(st.ErrorIDs, DiagAccessDenied) {
+			return "Grant the scan account write access to the report path (and read access to inventory sources), or choose a writable --out/--output-dir. Missing or incomplete reports are not a clearance."
+		}
 		if containsID(st.ErrorIDs, DiagOutputWriteFailed) || containsID(st.ErrorIDs, DiagOutputExists) {
 			return "Fix output path permissions or choose a new --out/--output-dir; existing files are never overwritten."
 		}

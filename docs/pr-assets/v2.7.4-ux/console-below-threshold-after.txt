@@ -1,0 +1,19 @@
+
+Scan summary
+  PHP discovery:     Yes
+  Patch assessment:  Update review required
+  Overall priority:  High — update review required
+  Serving runtime:   Candidates identified — Installed packages, binaries, or processes were observed; the HTTP-serving PHP runtime is not verified.
+  Observed versions: 8.4.24
+  Upstream fixes:    8.5.12 / 8.4.27 / 8.3.36 / 8.2.35 (upstream; vendor backports require separate verification)
+  Lifecycle:         PHP 8.4: active support until 31 Dec 2026; security until 31 Dec 2028 (php.net)
+  Installation review:
+    - PHP 8.4.24 @ /usr/bin/php: Update review required
+      Action: Update the PHP web-serving runtime to 8.4.27 or later on this supported branch (or verify an equivalent vendor security backport), restart …
+  Recommended next:  Update or verify vendor backports for: PHP 8.4.24 @ /usr/bin/php (update toward 8.4.27 or verify an equivalent vendor security backport). Restart PHP-FPM, Apache/mod_php, IIS FastCGI, or other workers that may load thes…
+  Duration:          1s
+  HTML report:       /tmp/old.html
+  CSV report:        /tmp/old.csv
+
+Process completion is not a vulnerability or compromise clearance.
+Open the HTML report for findings; use CSV for fleet consolidation.

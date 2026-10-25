@@ -2,7 +2,7 @@
 
 # Advanced usage — PHP2Shell Assessment
 
-Latest public release: **v2.7.3** (OS-aware no-PHP reporting & HTML usability). Confirm `php2shell version`.
+Latest public release: **v2.7.3** (OS-aware no-PHP reporting & HTML usability). Tree may include unreleased **2.7.4**. Confirm `php2shell version`.
 
 PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory, evidence-qualified patch review, and offline compromise investigation assist for CVE-2026-109618 / CVE-2026-109619.
 
