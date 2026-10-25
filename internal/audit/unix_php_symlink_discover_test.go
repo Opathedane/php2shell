@@ -328,9 +328,23 @@ func TestScanBinariesSymlinkNoiseDoesNotForceIncomplete(t *testing.T) {
 	t.Setenv("PATH", binDir)
 	r := NewReport("no-php-symlinks", runtime.GOOS, "amd64")
 	_ = scanBinaries(r, HostScanOptions{})
+	rootKey := normalizeInstallPath(root)
 	for _, e := range r.Evidence {
-		if isBinaryEvidenceType(e.Type) {
-			t.Fatalf("broken/circular symlinks must not invent PHP installs: %+v", e)
+		if !isBinaryEvidenceType(e.Type) {
+			continue
+		}
+		loc := normalizeInstallPath(e.Location)
+		src := e.Source + " " + e.Detail
+		// Ignore host well-known PHP (e.g. CI images with /usr/bin/php); only fixture paths matter.
+		if !strings.Contains(loc, rootKey) && !strings.Contains(normalizeInstallPath(src), rootKey) {
+			continue
+		}
+		t.Fatalf("broken/circular fixture symlinks must not invent PHP installs: %+v", e)
+	}
+	for _, e := range r.Evidence {
+		if e.Interpretation == "PHP_EXECUTABLE_CANDIDATE_UNRESOLVED_NOT_INSPECTED" &&
+			strings.Contains(normalizeInstallPath(e.Location), rootKey) {
+			t.Fatalf("broken/circular links must stay silent (no unresolved gap): %+v", e)
 		}
 	}
 	for _, w := range r.Warnings {
