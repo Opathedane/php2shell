@@ -4,11 +4,14 @@ This guide is for IT administrators reading an HTML report or CSV fleet row for 
 
 PHP2Shell assesses **observed PHP inventory** against official upstream advisories. A successful scan is **not** proof that the HTTP-serving runtime is patched or that the host is uncompromised.
 
+**Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0).**  
 **Primary CVEs:** CVE-2026-109618, CVE-2026-109619  
 **Upstream fix thresholds (21 Oct 2026):** PHP 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35  
 **Additional advisory:** CVE-2026-115560 (informational; no fixed versions yet)
 
-Synthetic examples (no customer data): [`testdata/examples/v2.7.2-qa/`](../testdata/examples/v2.7.2-qa/).
+Synthetic screenshot + HTML (no customer data): [`assets/report-example-patch-assessment.png`](assets/report-example-patch-assessment.png). Additional fixtures: [`testdata/examples/v2.7.2-qa/`](../testdata/examples/v2.7.2-qa/).
+
+**nginx / PHP-FPM (v2.8.0):** configuration evidence may appear under technical / coverage sections. Correlation of `fastcgi_pass` with a local FPM `listen` is **never** proof of the active HTTP-serving PHP runtime or its patch state. See [SUPPORTED-COVERAGE.md](SUPPORTED-COVERAGE.md).
 
 ---
 
