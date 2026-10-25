@@ -265,7 +265,7 @@ func summarizeHostConfigDiscovery(r *Report) hostConfigSummary {
 			}
 		case "configuration_observation":
 			settings++
-		case "php_ini_skip", "nginx_config_skip", "php_fpm_config_skip":
+		case "php_ini_skip", "nginx_config_skip", "php_fpm_config_skip", "nginx_include_unresolved":
 			skips++
 		}
 	}
@@ -493,7 +493,7 @@ func fleetLimitationsSummary(r *Report) string {
 			}
 		case "configuration_observation":
 			settingObs++
-		case "php_ini_skip", "nginx_config_skip", "php_fpm_config_skip":
+		case "php_ini_skip", "nginx_config_skip", "php_fpm_config_skip", "nginx_include_unresolved":
 			skips++
 		}
 	}

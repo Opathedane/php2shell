@@ -233,7 +233,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 			switch e.Type {
 			case "php_ini_candidate", "configuration_observation":
 				cfgCount++
-			case "php_ini_skip", "nginx_config_skip", "php_fpm_config_skip":
+			case "php_ini_skip", "nginx_config_skip", "php_fpm_config_skip", "nginx_include_unresolved":
 				skipCount++
 			}
 		}
@@ -244,7 +244,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 			shown := 0
 			for _, e := range r.Evidence {
 				if e.Type != "php_ini_candidate" && e.Type != "configuration_observation" && e.Type != "php_ini_skip" &&
-					e.Type != "nginx_config_skip" && e.Type != "php_fpm_config_skip" {
+					e.Type != "nginx_config_skip" && e.Type != "php_fpm_config_skip" && e.Type != "nginx_include_unresolved" {
 					continue
 				}
 				shown++
@@ -335,6 +335,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 			if e.Type != "running_process" && e.Type != "iis_php_handler_config" && e.Type != "iis_site_config" &&
 				e.Type != "apache_vhost_config" && e.Type != "apache_php_handler_config" && e.Type != "apache_php_module_config" && e.Type != "apache_remote_php_backend" &&
 				e.Type != "nginx_site_config" && e.Type != "nginx_php_handler_config" && e.Type != "nginx_remote_php_backend" && e.Type != "nginx_php_upstream_config" && e.Type != "php_fpm_pool_config" &&
+				e.Type != "nginx_include_unresolved" &&
 				e.Type != "binary_static_version" && e.Type != "binary_path_inferred_version" && e.Type != "binary_path" && e.Type != "operator_reported_web_runtime" {
 				continue
 			}
@@ -353,7 +354,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		b.WriteString(`<table><thead><tr><th>Setting / file</th><th>Detail</th><th>Meaning</th></tr></thead><tbody>`)
 		for _, e := range r.Evidence {
 			if e.Type != "configuration_observation" && e.Type != "php_ini_candidate" && e.Type != "php_ini_skip" &&
-				e.Type != "nginx_config_skip" && e.Type != "php_fpm_config_skip" {
+				e.Type != "nginx_config_skip" && e.Type != "php_fpm_config_skip" && e.Type != "nginx_include_unresolved" {
 				continue
 			}
 			count++

@@ -11,6 +11,152 @@ import (
 // Runtime-correlation and honesty regressions for PR #34 review.
 // These scenarios must not silently upgrade evidence confidence.
 
+func TestNginxArbitraryUpstreamNameReferencedByPHP(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("nginx/FPM discovery is Unix-focused")
+	}
+	root := t.TempDir()
+	nginxRoot := filepath.Join(root, "nginx")
+	writeNginxTree(t, nginxRoot, map[string]string{
+		"nginx.conf": `
+http {
+  upstream backend {
+    server 127.0.0.1:9000;
+  }
+  upstream static_assets {
+    server 10.0.0.9:80;
+  }
+  server {
+    location /assets/ { proxy_pass http://static_assets; }
+    location ~ \.php$ {
+      include fastcgi_params;
+      fastcgi_pass backend;
+    }
+  }
+}
+`,
+	})
+	r := NewReport("nginx-arb-upstream", "linux", "amd64")
+	ParseNginxConfigForTest(r, nginxRoot)
+	EvaluatePatchPosture(r)
+	FinalizeSummary(r)
+
+	sawHandler, sawBackendUpstream, sawStaticUpstream := false, false, false
+	for _, e := range r.Evidence {
+		if e.Type == "nginx_php_handler_config" && strings.Contains(e.Detail, "127.0.0.1:9000") &&
+			strings.Contains(e.Detail, "scope=local_candidate") {
+			sawHandler = true
+		}
+		if e.Type == "nginx_php_upstream_config" && e.Name == "backend" {
+			sawBackendUpstream = true
+			if !strings.Contains(e.Detail, "referenced_by_php_fastcgi_pass") {
+				t.Fatalf("arbitrarily named PHP-referenced upstream should note reference: %+v", e)
+			}
+		}
+		if e.Type == "nginx_php_upstream_config" && e.Name == "static_assets" {
+			sawStaticUpstream = true
+		}
+		if e.Version != "" && strings.HasPrefix(e.Type, "nginx_") {
+			t.Fatalf("must not invent version: %+v", e)
+		}
+	}
+	if !sawHandler {
+		t.Fatalf("expected local FastCGI handler via upstream backend: %+v", r.Evidence)
+	}
+	if !sawBackendUpstream {
+		t.Fatalf("expected upstream evidence for PHP-referenced backend: %+v", r.Evidence)
+	}
+	if sawStaticUpstream {
+		t.Fatal("unrelated HTTP proxy upstream must not be classified as PHP")
+	}
+	if r.EffectiveWebRuntime == "VERIFIED" {
+		t.Fatal("must not verify runtime")
+	}
+}
+
+func TestNginxRelevantIncludeUnresolvedBlocksSoftNone(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("nginx/FPM discovery is Unix-focused")
+	}
+	root := t.TempDir()
+	nginxRoot := filepath.Join(root, "nginx")
+	outside := filepath.Join(root, "outside", "php-app.conf")
+	_ = os.MkdirAll(filepath.Dir(outside), 0755)
+	_ = os.WriteFile(outside, []byte(`
+server {
+  location ~ \.php$ { fastcgi_pass unix:/run/php/php-fpm.sock; }
+}
+`), 0644)
+	writeNginxTree(t, nginxRoot, map[string]string{
+		"nginx.conf": `
+http {
+  include mime.types;
+  include ` + outside + `;
+}
+`,
+		"mime.types": `types { text/html html; }`,
+	})
+	r := NewReport("nginx-include-gap", "linux", "amd64")
+	r.AddCheck("packages", "PARTIAL", "Found 0")
+	r.AddCheck("binary_paths", "PARTIAL", "Found 0")
+	r.AddCheck("processes", "PARTIAL", "Found 0")
+	ParseNginxConfigForTest(r, nginxRoot)
+	EvaluatePatchPosture(r)
+	FinalizeSummary(r)
+
+	sawUnresolved := false
+	for _, e := range r.Evidence {
+		if e.Type == "nginx_include_unresolved" && strings.Contains(e.Detail, "outside_allowlisted_roots") {
+			sawUnresolved = true
+		}
+		if e.Type == "nginx_php_handler_config" && strings.Contains(e.Detail, "/run/php/php-fpm.sock") {
+			t.Fatal("must not follow PHP include outside allowlisted roots")
+		}
+	}
+	if !sawUnresolved {
+		t.Fatalf("expected nginx_include_unresolved for PHP-relevant out-of-root include: %+v", r.Evidence)
+	}
+	for _, c := range r.Coverage {
+		if c.Name == "nginx_configuration" && c.Status != "INCOMPLETE" && c.Status != "TRUNCATED" {
+			t.Fatalf("PHP-relevant unresolved include should mark INCOMPLETE, got %s", c.Status)
+		}
+	}
+	if NoPHPDetectedWithinScanCoverage(r) {
+		t.Fatal("must not claim soft no-PHP-within-coverage when PHP-relevant includes remain unresolved")
+	}
+}
+
+func TestNginxIrrelevantIncludeOutsideRootStaysSilent(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("nginx/FPM discovery is Unix-focused")
+	}
+	root := t.TempDir()
+	nginxRoot := filepath.Join(root, "nginx")
+	outside := filepath.Join(root, "outside", "mime.types")
+	_ = os.MkdirAll(filepath.Dir(outside), 0755)
+	_ = os.WriteFile(outside, []byte(`types { text/html html; }`), 0644)
+	writeNginxTree(t, nginxRoot, map[string]string{
+		"nginx.conf": `
+http {
+  include ` + outside + `;
+  server { server_name static.local; root /var/www; location / { return 204; } }
+}
+`,
+	})
+	r := NewReport("nginx-mime-out", "linux", "amd64")
+	r.AddCheck("packages", "PARTIAL", "Found 0")
+	r.AddCheck("binary_paths", "PARTIAL", "Found 0")
+	r.AddCheck("processes", "PARTIAL", "Found 0")
+	ParseNginxConfigForTest(r, nginxRoot)
+	EvaluatePatchPosture(r)
+	FinalizeSummary(r)
+	for _, e := range r.Evidence {
+		if e.Type == "nginx_include_unresolved" {
+			t.Fatalf("irrelevant mime.types outside root must not create incomplete noise: %+v", e)
+		}
+	}
+}
+
 func TestNginxVariableFastCGIPassNotLocal(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("nginx/FPM discovery is Unix-focused")

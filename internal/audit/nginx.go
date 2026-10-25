@@ -89,46 +89,53 @@ func ApplyNginxRootsInventory(r *Report, roots []string) {
 			}
 		}
 	}
+	// Emit upstream evidence after full parse so arbitrarily named groups referenced by
+	// PHP FastCGI handlers are included; unrelated proxy upstreams stay silent.
+	state.emitPHPRelatedUpstreams(r)
 	status := "PARTIAL"
-	if state.remoteBackends > 0 || state.ambiguousBackends > 0 || state.skippedFiles > 0 || state.variableBackends > 0 {
+	if state.remoteBackends > 0 || state.ambiguousBackends > 0 || state.skippedFiles > 0 || state.variableBackends > 0 || state.unresolvedIncludes > 0 {
 		status = "INCOMPLETE"
 	}
 	if state.truncated {
 		status = "TRUNCATED"
 	}
 	r.AddCheck("nginx_configuration", status, fmt.Sprintf(
-		"Read %d nginx config files under %d allowlisted root(s); %d server/root rows; %d PHP-related fastcgi_pass rows; %d upstream blocks; %d remote PHP backends (not local installs); %d ambiguous/variable backends; %d skipped unreadable/symlink-out-of-root/oversized files; active serving runtime unverified; Includes limited to depth %d within allowlisted roots; no network probes; LiteSpeed/OpenResty-only layouts not targeted",
-		state.inspectedFiles, len(roots), state.sites, state.handlers, state.upstreams, state.remoteBackends, state.ambiguousBackends+state.variableBackends, state.skippedFiles, maxNginxIncludeDepth,
+		"Read %d nginx config files under %d allowlisted root(s); %d server/root rows; %d PHP-related fastcgi_pass rows; %d upstream blocks; %d remote PHP backends (not local installs); %d ambiguous/variable backends; %d skipped unreadable/symlink-out-of-root/oversized files; %d unresolved PHP-relevant includes; active serving runtime unverified; Includes limited to depth %d within allowlisted roots; no network probes; LiteSpeed/OpenResty-only layouts not targeted",
+		state.inspectedFiles, len(roots), state.sites, state.handlers, state.upstreams, state.remoteBackends, state.ambiguousBackends+state.variableBackends, state.skippedFiles, state.unresolvedIncludes, maxNginxIncludeDepth,
 	))
 }
 
 type nginxScanState struct {
-	roots             []string
-	rootSet           map[string]bool
-	seenFile          map[string]bool
-	seenSkipKey       map[string]bool
-	inspectedFiles    int
-	skippedFiles      int
-	sites             int
-	handlers          int
-	upstreams         int
-	remoteBackends    int
-	ambiguousBackends int
-	variableBackends  int
-	truncated          bool
-	seenHandlerKey    map[string]bool
-	seenSiteKey       map[string]bool
-	seenRemoteKey     map[string]bool
-	seenUpstreamKey   map[string]bool
-	upstreamsByName   map[string]*nginxUpstream
+	roots               []string
+	rootSet             map[string]bool
+	seenFile            map[string]bool
+	seenSkipKey         map[string]bool
+	seenIncludeGapKey   map[string]bool
+	inspectedFiles      int
+	skippedFiles        int
+	unresolvedIncludes  int
+	sites               int
+	handlers            int
+	upstreams           int
+	remoteBackends      int
+	ambiguousBackends   int
+	variableBackends    int
+	truncated            bool
+	seenHandlerKey      map[string]bool
+	seenSiteKey         map[string]bool
+	seenRemoteKey       map[string]bool
+	seenUpstreamKey     map[string]bool
+	upstreamsByName     map[string]*nginxUpstream
 }
 
 type nginxUpstream struct {
-	name    string
-	servers []string
-	remote  bool
-	local   bool
-	mixed   bool
+	name            string
+	configPath      string
+	servers         []string
+	remote          bool
+	local           bool
+	mixed           bool
+	referencedByPHP bool
 }
 
 type nginxParseCtx struct {
@@ -143,6 +150,7 @@ func (s *nginxScanState) initMaps() {
 	if s.seenFile == nil {
 		s.seenFile = map[string]bool{}
 		s.seenSkipKey = map[string]bool{}
+		s.seenIncludeGapKey = map[string]bool{}
 		s.seenHandlerKey = map[string]bool{}
 		s.seenSiteKey = map[string]bool{}
 		s.seenRemoteKey = map[string]bool{}
@@ -407,8 +415,11 @@ func (s *nginxScanState) tryNginxInclude(r *Report, path, ln string, depth int) 
 	if len(m) != 2 {
 		return false
 	}
+	pattern := unquoteNginx(firstNginxArg(m[1]))
 	if depth < maxNginxIncludeDepth {
-		s.followInclude(r, path, unquoteNginx(firstNginxArg(m[1])), depth+1)
+		s.followInclude(r, path, pattern, depth+1)
+	} else if nginxIncludeLooksPHPRelevant(pattern) {
+		s.recordIncludeUnresolved(r, path, pattern, "include_depth_limit")
 	}
 	return true
 }
@@ -440,7 +451,13 @@ func (s *nginxScanState) handleNginxInnerLine(r *Report, path, ln string, depth 
 }
 
 func (s *nginxScanState) followInclude(r *Report, fromPath, pattern string, depth int) {
-	if pattern == "" || strings.Contains(pattern, "..") {
+	if pattern == "" {
+		return
+	}
+	if strings.Contains(pattern, "..") {
+		if nginxIncludeLooksPHPRelevant(pattern) {
+			s.recordIncludeUnresolved(r, fromPath, pattern, "parent_path_rejected")
+		}
 		return
 	}
 	base := filepath.Dir(fromPath)
@@ -451,8 +468,50 @@ func (s *nginxScanState) followInclude(r *Report, fromPath, pattern string, dept
 		candidates, _ = filepath.Glob(filepath.Join(base, pattern))
 	}
 	for _, c := range candidates {
+		if !s.pathAllowed(c) {
+			if nginxIncludeLooksPHPRelevant(pattern) || nginxIncludeLooksPHPRelevant(c) {
+				s.recordIncludeUnresolved(r, fromPath, c, "outside_allowlisted_roots")
+			}
+			continue
+		}
 		s.readConfigFile(r, c, depth)
 	}
+}
+
+// nginxIncludeLooksPHPRelevant identifies include patterns that can affect PHP
+// FastCGI discovery completeness. Irrelevant system includes (mime.types, etc.)
+// stay silent when blocked by allowlist/depth/safety caps.
+func nginxIncludeLooksPHPRelevant(pattern string) bool {
+	low := strings.ToLower(pattern)
+	for _, tok := range []string{
+		"php", "fpm", "fastcgi", "sites-", "sites_", "vhost", "pool",
+		"conf.d", "http.d", "apps.d",
+	} {
+		if strings.Contains(low, tok) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *nginxScanState) recordIncludeUnresolved(r *Report, fromPath, pattern, reason string) {
+	s.initMaps()
+	key := reason + "\x00" + normalizeInstallPath(fromPath) + "\x00" + strings.ToLower(pattern)
+	if s.seenIncludeGapKey[key] {
+		return
+	}
+	s.seenIncludeGapKey[key] = true
+	s.unresolvedIncludes++
+	detail := fmt.Sprintf("include=%s; from=%s; reason=%s; php_relevant_include_not_fully_followed; not_proof_absence_of_php",
+		pattern, fromPath, reason)
+	r.AddEvidence(Evidence{
+		Type:           "nginx_include_unresolved",
+		Name:           filepath.Base(pattern),
+		Source:         "nginx include directive (bounded follow)",
+		Location:       fromPath,
+		Detail:         detail,
+		Interpretation: "PHP_RELEVANT_INCLUDE_NOT_FULLY_FOLLOWED_COVERAGE_INCOMPLETE",
+	})
 }
 
 func (s *nginxScanState) addSite(r *Report, configPath, serverName, root string) {
@@ -513,38 +572,61 @@ func (s *nginxScanState) recordUpstreamServer(name, raw string) {
 func (s *nginxScanState) finalizeUpstream(r *Report, configPath, name string) {
 	s.initMaps()
 	u := s.upstreamsByName[name]
-	if u == nil || s.seenUpstreamKey[name] {
+	if u == nil {
 		return
 	}
-	// Only emit upstream evidence for PHP-named groups. Generic upstreams used by
-	// FastCGI still surface via handler/remote/ambiguous fastcgi_pass rows.
-	if !strings.Contains(strings.ToLower(name), "php") {
-		return
+	if u.configPath == "" {
+		u.configPath = configPath
 	}
-	if s.upstreams >= maxNginxUpstreamEvidence {
-		s.truncated = true
-		return
+	// Defer evidence emission until emitPHPRelatedUpstreams so arbitrarily named
+	// groups can be marked referencedByPHP by later fastcgi_pass lines.
+}
+
+func (s *nginxScanState) emitPHPRelatedUpstreams(r *Report) {
+	s.initMaps()
+	for name, u := range s.upstreamsByName {
+		if u == nil {
+			continue
+		}
+		phpNamed := strings.Contains(strings.ToLower(name), "php")
+		if !phpNamed && !u.referencedByPHP {
+			continue // unrelated proxy upstreams stay silent
+		}
+		if s.seenUpstreamKey[name] {
+			continue
+		}
+		if s.upstreams >= maxNginxUpstreamEvidence {
+			s.truncated = true
+			return
+		}
+		s.seenUpstreamKey[name] = true
+		s.upstreams++
+		detail := fmt.Sprintf("upstream=%s; servers=%s", name, strings.Join(u.servers, ","))
+		if u.referencedByPHP && !phpNamed {
+			detail += "; referenced_by_php_fastcgi_pass"
+		}
+		interp := "CONFIGURED_UPSTREAM_NOT_PROOF_PHP_RUNTIME"
+		if u.mixed {
+			detail += "; scope=mixed_local_remote; ambiguous"
+			s.ambiguousBackends++
+		} else if u.remote && !u.local {
+			detail += "; scope=remote; not_a_local_php_install"
+		} else if u.local && !u.remote {
+			detail += "; scope=local_candidate"
+		}
+		loc := u.configPath
+		if loc == "" {
+			loc = "nginx upstream"
+		}
+		r.AddEvidence(Evidence{
+			Type:           "nginx_php_upstream_config",
+			Name:           name,
+			Source:         "nginx upstream block (static text)",
+			Location:       loc,
+			Detail:         detail,
+			Interpretation: interp,
+		})
 	}
-	s.seenUpstreamKey[name] = true
-	s.upstreams++
-	detail := fmt.Sprintf("upstream=%s; servers=%s", name, strings.Join(u.servers, ","))
-	interp := "CONFIGURED_UPSTREAM_NOT_PROOF_PHP_RUNTIME"
-	if u.mixed {
-		detail += "; scope=mixed_local_remote; ambiguous"
-		s.ambiguousBackends++
-	} else if u.remote && !u.local {
-		detail += "; scope=remote; not_a_local_php_install"
-	} else if u.local && !u.remote {
-		detail += "; scope=local_candidate"
-	}
-	r.AddEvidence(Evidence{
-		Type:           "nginx_php_upstream_config",
-		Name:           name,
-		Source:         "nginx upstream block (static text)",
-		Location:       configPath,
-		Detail:         detail,
-		Interpretation: interp,
-	})
 }
 
 func (s *nginxScanState) handleFastCGIPass(r *Report, configPath, target, serverName, docRoot string) {
@@ -554,6 +636,11 @@ func (s *nginxScanState) handleFastCGIPass(r *Report, configPath, target, server
 		return
 	}
 	target = unquoteNginx(strings.TrimSpace(target))
+	if name := bareNginxUpstreamName(target); name != "" {
+		if u := s.upstreamsByName[name]; u != nil {
+			u.referencedByPHP = true
+		}
+	}
 	backend, kind := normalizeNginxFastCGITarget(target, s.upstreamsByName)
 	key := kind + "\x00" + backend + "\x00" + strings.ToLower(serverName)
 	if s.seenHandlerKey[key] {
@@ -620,6 +707,22 @@ func (s *nginxScanState) handleFastCGIPass(r *Report, configPath, target, server
 
 func nginxTargetHasVariable(target string) bool {
 	return strings.Contains(target, "$")
+}
+
+// bareNginxUpstreamName returns a named upstream reference token, or empty when the
+// target is a unix/TCP/variable endpoint rather than an upstream group name.
+func bareNginxUpstreamName(target string) string {
+	target = strings.TrimSpace(target)
+	if target == "" || nginxTargetHasVariable(target) {
+		return ""
+	}
+	if strings.HasPrefix(strings.ToLower(target), "unix:") {
+		return ""
+	}
+	if strings.Contains(target, "/") || strings.Contains(target, ":") {
+		return ""
+	}
+	return target
 }
 
 func normalizeNginxFastCGITarget(target string, upstreams map[string]*nginxUpstream) (backend, kind string) {

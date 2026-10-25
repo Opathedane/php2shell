@@ -49,10 +49,13 @@ Identify PHP FastCGI wiring from nginx and local PHP-FPM pool configs with the s
 | Non-loopback host:port | `nginx_remote_php_backend` | `nginx_configuration=INCOMPLETE` |
 | Named `upstream` with only remote servers | remote | INCOMPLETE |
 | Named upstream mixed / unresolved name | ambiguous | INCOMPLETE |
+| Arbitrarily named upstream referenced by PHP `fastcgi_pass` (e.g. `backend`) | Handler + `nginx_php_upstream_config` with `referenced_by_php_fastcgi_pass` | Classification preserved; runtime unverified |
+| Unrelated proxy upstream (never referenced by PHP FastCGI) | Not emitted as PHP upstream evidence | No false PHP |
 | `fastcgi_pass` containing `$…` | variable_unresolved (not local) | INCOMPLETE |
-| Broken/cyclic/out-of-root include | Skip | No hang; out-of-root not followed |
+| Broken/cyclic include | Skip / bounded | No hang |
+| PHP-relevant include blocked (allowlist / depth / `..`) | `nginx_include_unresolved` | Coverage `INCOMPLETE`; blocks soft “no PHP within coverage” |
+| Irrelevant include blocked (e.g. out-of-root `mime.types`) | Silent | No incomplete noise |
 | Unreadable / rejected config file | `nginx_config_skip` / `php_fpm_config_skip` | Coverage `INCOMPLETE`; blocks soft “no PHP within coverage” |
-| Non-PHP-named upstream blocks | Not emitted as `nginx_php_upstream_config` | Handler rows still record FastCGI use |
 
 ## Test classification
 

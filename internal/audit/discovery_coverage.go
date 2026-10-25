@@ -153,7 +153,7 @@ func classifyPHPDiscovery(r *Report) string {
 			iniCandidates++
 		case "configuration_observation", "php_webroot_filename":
 			artifacts = true
-		case "php_ini_skip", "nginx_config_skip", "php_fpm_config_skip":
+		case "php_ini_skip", "nginx_config_skip", "php_fpm_config_skip", "nginx_include_unresolved":
 			artifacts = true
 			iniSkips++
 		}
