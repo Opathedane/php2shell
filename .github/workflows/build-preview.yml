@@ -8,7 +8,7 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version: '1.27.3'
@@ -36,7 +36,7 @@ jobs:
           bash scripts/build-windows-legacy.sh
           (cd dist && sha256sum php2shell-* > SHA256SUMS)
       - name: Upload preview artifact – unsigned and not production approved
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: php2shell-native-unsigned-preview
           path: dist/
