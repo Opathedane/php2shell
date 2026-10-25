@@ -1,9 +1,13 @@
-## Unreleased (toward v2.8.0)
+## Unreleased
 
-- Feature (draft): Bounded nginx / PHP-FPM configuration discovery on Unix well-known paths; config correlation never attests active HTTP runtime or patch state (`EffectiveWebRuntime` stays `NOT_VERIFIED` from config alone).
-- Test (draft): LIVE_DOCKER eight-scenario labs + offline ground-truth contracts; readiness evidence under `docs/pr-assets/v2.8.0-nginx-fpm-live/`.
-- Docs (draft): [docs/releases/v2.8.0.md](docs/releases/v2.8.0.md) — **do not tag/publish** until explicit approval; latest public remains **v2.7.5**.
-- Out of scope: Homebrew expansion, RPM/dnf, Docker runtime product discovery, CTI.
+## v2.8.0 — 2026-10-25
+
+- Feature: Bounded nginx / PHP-FPM configuration discovery on Unix well-known paths (local/remote/ambiguous/variable FastCGI classification, pool correlation, skip/incomplete honesty).
+- Honesty: configuration correlation never attests the active HTTP-serving PHP runtime or its patch state (`EffectiveWebRuntime` stays `NOT_VERIFIED` from config alone).
+- Test: LIVE_DOCKER eight-scenario labs + offline ground-truth contracts; evidence under `docs/pr-assets/v2.8.0-nginx-fpm-live/`.
+- Scope: no Homebrew expansion, RPM/dnf, Docker runtime product discovery, CTI, or CVE threshold changes; exit codes / status JSON / CSV / fleet contracts unchanged.
+- Docs: [docs/releases/v2.8.0.md](docs/releases/v2.8.0.md).
+- Field: interactive Windows PowerShell 5.1 / Windows Terminal ANSI matrix **NOT TESTED** at publish; automated CI (incl. Windows + legacy Go 1.20.14 cross-build) and LIVE_DOCKER 8/8 passed.
 
 ## v2.7.5 — 2026-10-25
 

@@ -2,13 +2,13 @@
 
 # Advanced usage — PHP2Shell Assessment
 
-Latest public release: **v2.7.5** (Unix PHP symlink discovery). Development trees may include unreleased **2.8.0** (nginx/PHP-FPM config discovery draft). Confirm `php2shell version`.
+Latest public release: **v2.8.0** (bounded nginx/PHP-FPM configuration discovery). Confirm `php2shell version`.
 
 PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory, evidence-qualified patch review, and offline compromise investigation assist for CVE-2026-109618 / CVE-2026-109619.
 
 ## Download
 
-Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.7.5** (latest public until v2.8.0 is approved and tagged), and download the archive for the destination OS/CPU (use `php2shell-windows-legacy-amd64` only for Server 2012 R2 testing). Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.7.5`, …).
+Open [Releases](https://github.com/Opathedane/php2shell/releases), choose **v2.8.0**, and download the archive for the destination OS/CPU (use `php2shell-windows-legacy-amd64` only for Server 2012 R2 testing). Binaries are **not code-signed**. Maintainers publish via `.github/workflows/release.yml` after tagging `vX.Y.Z`. Never overwrite existing tags (`v2.3.0`–`v2.8.0`, …).
 
 ## Scan output pair
 
