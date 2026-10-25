@@ -1,41 +1,41 @@
 # PHP2Shell roadmap
 
-**Latest public release: [v2.7.0](https://github.com/Opathedane/php2shell/releases/tag/v2.7.0).** Compromise investigation: [releases/v2.7.0.md](releases/v2.7.0.md) and [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md). Inventory follow-ups that remain after IR: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md).
+**Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0)** (bounded nginx / PHP-FPM configuration discovery). Notes: [releases/v2.8.0.md](releases/v2.8.0.md).
+
+This file lists **open** product directions. It is not a commitment calendar. Honesty rules stay fixed: installed ≠ configured ≠ actively serving; config never attests patch posture of the live HTTP SAPI.
 
 ## Shipped recently
 
-### v2.7.0
+### v2.8.0
 
-- Offline access/error-log investigation  
-- Offline MDE / Sysmon / auditd / Elastic ECS process telemetry  
-- Passive webroot metadata investigation  
-- Cross-source ±15m correlation (proximity ≠ causality)  
-- Independent exploitation / possible-compromise / coverage statuses  
-- Fleet CSV `php2shell-fleet-csv/v3` + v1–v3 rollup  
+- Bounded nginx + PHP-FPM well-known configuration discovery  
+- Local / remote / ambiguous / variable FastCGI classification + pool correlation  
+- LIVE_DOCKER eight-scenario validation  
+- Preserved: config correlation ≠ verified active runtime / patch state  
 
-### v2.6.0
+### v2.7.5 – v2.7.3
 
-- Optional `--deep-root` Deep Discovery (off by default; bounded recursive roots)  
-- Expanded well-known binary globs (WAMP/Laragon/tools; Remi/cPanel FPM; `/usr/local/php*`; `/opt/php/*`)  
-- Preserved v2.5.1 multi-install, PATH/junction, `--php-ini` / `--config-root`  
+- Unix PHP executable symlink discovery  
+- Console / HTML UX reliability  
+- OS-aware no-PHP reporting  
 
-### v2.5.1
+### v2.7.2 – v2.7.0
 
-- Bounded PATH / Programs\PHP junction resolve for names like `current`  
-- Multi-install retention (PATH + IIS/Apache + `--config-root`); independent patch thresholds  
-- `--php-ini` / `--config-root`; config-only and skip coverage in HTML+CSV  
+- CVE-2026-115560 informational advisory (static php.ini text)  
+- Enterprise QA / Apache-2.0  
+- Compromise investigation assist; fleet CSV v3  
+- Windows Server 2012 R2 legacy artifact (Go 1.20.14)  
 
-### v2.5.0
+### v2.6.0 – v2.4.0
 
-- Bounded Windows/Linux `php.ini` discovery (sidecars, env, web-server path refs)  
-- Fleet CSV `php2shell-fleet-csv/v2` configuration columns  
-- Preserved HTML+CSV pairs, rollup, IIS/Apache inventory, Windows version inference  
+- Optional `--deep-root` Deep Discovery  
+- Expanded well-known paths; php.ini discovery; HTML+CSV pairs; IIS/Apache inventory  
 
 ## Planned for a later release (not scheduled)
 
-### Inventory accuracy (was “ROADMAP-2.7.0 proposal”)
+### Inventory accuracy
 
-Gap analysis: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md). Remaining after IR ships:
+Gap analysis retained in [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md):
 
 - Package ownership correlation (dpkg file lists; later RPM)  
 - PHP support lifecycle calendar + fleet CSV schema evolution  
@@ -45,15 +45,21 @@ Gap analysis: [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md). Remaining after IR ships:
 
 Read-only RPM DB inventory (no `rpm`/`dnf` subprocess) with careful NEVRA handling. Never treat vendor release/epoch tags as upstream CVE clearance.
 
-### Advanced webserver ↔ runtime correlation
+### Deeper webserver ↔ runtime correlation
 
-Richer FPM `listen` ↔ ProxyPassMatch / multi-install binding. Preserve: installed ≠ configured ≠ actively serving. No active-SAPI attestation from config alone.
+Richer binding across FPM / reverse-proxy layouts **without** claiming active-SAPI attestation from configuration alone. Homebrew / custom-prefix expansion remains a separate, bounded design problem.
+
+### Explicitly not near-term product goals
+
+- Docker/container runtime inventory as a product feature  
+- CTI / validated PHP2Shell-specific IOC packs as a default ship item  
+- Authenticode / notarization (process tracked under deployment docs; not required for unsigned+SHA256SUMS releases)
 
 ## Repository / supply chain (process)
 
-- Pin GitHub Actions to full commit SHAs  
+- Broader SHA-pinning of GitHub Actions beyond release workflows  
 - Detached signature over `SHA256SUMS`; Authenticode / notarization decisions  
 - Open-source license: **Apache-2.0** (`LICENSE`) — done  
+- Branch protection / Dependabot / docs archive hygiene — see professionalization audit follow-ups  
 
-
-Historical filename: [ROADMAP-2.5.0.md](ROADMAP-2.5.0.md) (redirect stub).
+Historical stubs: [ROADMAP-2.5.0.md](ROADMAP-2.5.0.md), [ROADMAP-2.7.0.md](ROADMAP-2.7.0.md).
