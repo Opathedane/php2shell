@@ -62,10 +62,15 @@ func windowsWellKnownPHPGlobs() []string {
 	return patterns
 }
 
-// discoverPHPBinsFromPATHEnv finds php.exe / php-cgi.exe sitting directly in PATH directories.
+// discoverPHPBinsFromPATHEnv finds PHP executables sitting directly in PATH directories.
 // It never executes candidates and does not recurse into PATH entries.
 // Directory junctions/symlinks (e.g. ...\PHP\current) are resolved with a bounded
 // reparse follow so PATH entries that PowerShell resolves via Get-Command are not skipped.
+//
+// On Windows, only regular files named php.exe / php-cgi.exe are accepted (file symlinks
+// remain rejected). On Unix, phpBin-matching names (php, php8.3, php-fpm, …) may be
+// regular files or bounded file-symlink chains; candidates are returned as the original
+// PATH entry path for addPath to resolve and deduplicate.
 func discoverPHPBinsFromPATHEnv(pathEnv string, limit int) []string {
 	if limit <= 0 {
 		return nil
@@ -77,6 +82,38 @@ func discoverPHPBinsFromPATHEnv(pathEnv string, limit int) []string {
 	var out []string
 	seen := map[string]bool{}
 	dirs := 0
+	addCandidate := func(candidate string) bool {
+		if !phpBin.MatchString(filepath.Base(candidate)) {
+			return false
+		}
+		var dedupeKey string
+		if runtime.GOOS == "windows" {
+			if !isSafeRegularFile(candidate) {
+				return false
+			}
+			dedupeKey = normalizeInstallPath(candidate)
+		} else {
+			res, err := resolvePHPBinCandidate(candidate)
+			if err != nil {
+				gap := classifyPHPBinResolveErr(err)
+				if gap == phpBinResolveGapIrrelevant {
+					return false
+				}
+				// Access / hop-budget gaps must reach addPath for coverage honesty.
+				dedupeKey = "unresolved:" + normalizeInstallPath(candidate)
+			} else {
+				// Keep each operator-facing alias; install dedupe + also_via happens in addPath.
+				dedupeKey = "orig:" + normalizeInstallPath(res.Original)
+				candidate = res.Original
+			}
+		}
+		if seen[dedupeKey] {
+			return false
+		}
+		seen[dedupeKey] = true
+		out = append(out, candidate)
+		return len(out) >= limit
+	}
 	for _, dir := range strings.Split(pathEnv, sep) {
 		dir = strings.TrimSpace(dir)
 		if dir == "" {
@@ -90,28 +127,32 @@ func discoverPHPBinsFromPATHEnv(pathEnv string, limit int) []string {
 		if !ok {
 			continue
 		}
-		for _, name := range []string{"php.exe", "php-cgi.exe", "php", "php-cgi"} {
-			if runtime.GOOS == "windows" && !strings.HasSuffix(strings.ToLower(name), ".exe") {
+		if runtime.GOOS == "windows" {
+			for _, name := range []string{"php.exe", "php-cgi.exe"} {
+				if addCandidate(filepath.Join(plan.Inspect, name)) {
+					return out
+				}
+			}
+			continue
+		}
+		// Unix: list the PATH directory (non-recursive) for phpBin names so versioned
+		// aliases (php8.2, php-fpm, …) are visible without new well-known globs.
+		entries, err := os.ReadDir(plan.Inspect)
+		if err != nil {
+			continue
+		}
+		for i, ent := range entries {
+			if i >= maxPATHDirEntries {
+				break
+			}
+			if ent.IsDir() {
 				continue
 			}
-			if runtime.GOOS != "windows" && strings.HasSuffix(strings.ToLower(name), ".exe") {
+			name := ent.Name()
+			if !phpBin.MatchString(name) {
 				continue
 			}
-			// Prefer the resolved plain directory for Lstat (regular file check).
-			candidate := filepath.Join(plan.Inspect, name)
-			if !phpBin.MatchString(filepath.Base(candidate)) {
-				continue
-			}
-			if !isSafeRegularFile(candidate) {
-				continue
-			}
-			key := normalizeInstallPath(candidate)
-			if seen[key] {
-				continue
-			}
-			seen[key] = true
-			out = append(out, candidate)
-			if len(out) >= limit {
+			if addCandidate(filepath.Join(plan.Inspect, name)) {
 				return out
 			}
 		}
@@ -180,7 +221,52 @@ func discoverPHPBinsUnderProgramsPHP(root string, limit int) ([]string, string) 
 			}
 			if info.Mode()&os.ModeSymlink != 0 {
 				if !d.IsDir() {
-					return nil // file symlink: never follow
+					// Windows: never follow file symlinks. Unix: resolve phpBin-named
+					// file symlinks within hop budget (Homebrew/config-root aliases).
+					if runtime.GOOS == "windows" || !phpBin.MatchString(d.Name()) {
+						return nil
+					}
+					res, rerr := resolvePHPBinCandidate(path)
+					if rerr != nil {
+						gap := classifyPHPBinResolveErr(rerr)
+						if gap == phpBinResolveGapIrrelevant {
+							return nil
+						}
+						bkey := "unresolved:" + normalizeInstallPath(path)
+						if seenBin[bkey] {
+							return nil
+						}
+						seenBin[bkey] = true
+						out = append(out, path)
+						if len(out) >= limit {
+							warn = "Programs PHP discovery truncated"
+							return fs.SkipAll
+						}
+						return nil
+					}
+					bkey := normalizeInstallPath(res.Resolved)
+					if seenBin[bkey] {
+						// Still surface distinct alias paths for also_via evidence.
+						okey := "orig:" + normalizeInstallPath(res.Original)
+						if seenBin[okey] {
+							return nil
+						}
+						seenBin[okey] = true
+						out = append(out, res.Original)
+						if len(out) >= limit {
+							warn = "Programs PHP discovery truncated"
+							return fs.SkipAll
+						}
+						return nil
+					}
+					seenBin[bkey] = true
+					seenBin["orig:"+normalizeInstallPath(res.Original)] = true
+					out = append(out, res.Original)
+					if len(out) >= limit {
+						warn = "Programs PHP discovery truncated"
+						return fs.SkipAll
+					}
+					return nil
 				}
 				// Bounded one-shot resolve of a directory junction (e.g. current).
 				resolved, _, rerr := resolvePlainDir(path)

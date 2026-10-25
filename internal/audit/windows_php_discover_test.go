@@ -96,21 +96,23 @@ func TestWindowsAppDataPHP8424BelowUpstreamFix(t *testing.T) {
 }
 
 func TestDiscoverSkipsSymlinkBinaries(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("symlink creation often requires elevation on Windows")
+	// Windows PATH discovery still rejects file symlinks via isSafeRegularFile.
+	// Unix resolves phpBin file symlinks — see unix_php_symlink_discover_test.go.
+	if runtime.GOOS != "windows" {
+		t.Skip("Unix PATH resolves PHP file symlinks; Windows policy covered below when symlinks are available")
 	}
 	root := t.TempDir()
-	real := filepath.Join(root, "real-php")
+	real := filepath.Join(root, "real-php.exe")
 	if err := os.WriteFile(real, []byte("PHP Version 8.4.24"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	link := filepath.Join(root, "php")
+	link := filepath.Join(root, "php.exe")
 	if err := os.Symlink(real, link); err != nil {
-		t.Fatal(err)
+		t.Skipf("symlink creation often requires elevation on Windows: %v", err)
 	}
 	got := discoverPHPBinsFromPATHEnv(root, 10)
 	if len(got) != 0 {
-		t.Fatalf("symlink should be skipped: %v", got)
+		t.Fatalf("Windows PATH must skip file symlink binaries: %v", got)
 	}
 }
 

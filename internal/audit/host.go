@@ -55,16 +55,50 @@ func scanBinaries(r *Report, opts HostScanOptions) []deepDiscoverOutcome {
 			return false
 		}
 		path = filepath.Clean(path)
-		key := normalizeInstallPath(path)
-		if !phpBin.MatchString(filepath.Base(path)) || seen[key] {
+		if !phpBin.MatchString(filepath.Base(path)) {
 			return true
 		}
-		if !isSafeRegularFile(path) {
+		// Windows: keep rejecting file symlinks (isSafeRegularFile). Unix: resolve a
+		// bounded file-symlink chain to a regular file so Homebrew/alternatives aliases
+		// are not false negatives. Deduplicate by resolved path. Relevant resolve gaps
+		// (access / hop budget) are recorded so coverage cannot claim "no PHP".
+		inspectPath := path
+		reportName := filepath.Base(path)
+		reportSource := source
+		if runtime.GOOS == "windows" {
+			if !isSafeRegularFile(path) {
+				return true
+			}
+		} else {
+			res, err := resolvePHPBinCandidate(path)
+			if err != nil {
+				gap := classifyPHPBinResolveErr(err)
+				if gap == phpBinResolveGapAccess || gap == phpBinResolveGapBound {
+					ukey := "unresolved:" + normalizeInstallPath(path)
+					if !seen[ukey] {
+						seen[ukey] = true
+						found++
+						recordUnresolvedPHPBinCandidate(r, path, source, phpBinResolveGapReason(gap, err))
+					}
+				}
+				return true
+			}
+			inspectPath = res.Resolved
+			reportName = filepath.Base(res.Original)
+			if res.ViaSymlink {
+				reportSource = fmt.Sprintf("%s (via symlink %s)", source, res.Original)
+			}
+		}
+		key := normalizeInstallPath(inspectPath)
+		if seen[key] {
+			if runtime.GOOS != "windows" && normalizeInstallPath(path) != key {
+				noteResolvedPHPBinAliasPath(r, inspectPath, path)
+			}
 			return true
 		}
 		seen[key] = true
 		found++
-		AddBinaryVersionEvidence(r, path, filepath.Base(path), source)
+		AddBinaryVersionEvidence(r, inspectPath, reportName, reportSource)
 		return true
 	}
 
