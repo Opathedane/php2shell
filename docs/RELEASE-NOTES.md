@@ -1,11 +1,12 @@
 # PHP2Shell release notes
 
-**Latest public release: [v2.7.5](https://github.com/Opathedane/php2shell/releases/tag/v2.7.5)** (25 October 2026).
+**Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0)** (25 October 2026).
 
 Version-specific GitHub Release bodies live under [`docs/releases/`](releases/). The publish workflow uses **only** the matching `docs/releases/vX.Y.Z.md` file — never this index.
 
 | Version | Notes |
 | --- | --- |
+| [v2.8.0](releases/v2.8.0.md) | Bounded nginx/PHP-FPM config discovery (config ≠ verified runtime/patch; no new CTI/IOC; thresholds unchanged) |
 | [v2.7.5](releases/v2.7.5.md) | Unix PHP symlink discovery (patch; no new CTI/IOC; thresholds unchanged) |
 | [v2.7.4](releases/v2.7.4.md) | Console UX / reliability polish (patch; no new CTI/IOC) |
 | [v2.7.3](releases/v2.7.3.md) | OS-aware no-PHP reporting & HTML usability (patch; no new CTI/IOC) |

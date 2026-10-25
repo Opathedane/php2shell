@@ -4,7 +4,7 @@
 
 PHP2Shell is a **read-only**, offline-friendly scanner for Windows and Linux. It writes a local **HTML + CSV** report pair (plus a small **status JSON** file). It does **not** exploit systems, execute discovered PHP binaries, upload your data, or prove that a host is uncompromised.
 
-**Latest public release: [v2.7.5](https://github.com/Opathedane/php2shell/releases/tag/v2.7.5).** Confirm `php2shell version` matches the binary you run.
+**Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0).** Confirm `php2shell version` matches the binary you run.
 
 | Currently assessed | Detail |
 | --- | --- |
@@ -138,7 +138,7 @@ Exit 0 is **not** a security clearance. Details: [EXIT-CODES-AND-DEPLOYMENT.md](
 | --- | --- |
 | Consultant install notes | [INSTALL-FOR-CONSULTANTS.md](docs/INSTALL-FOR-CONSULTANTS.md) |
 | Official patch guidance notes | [OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md](docs/OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md) |
-| Release notes | [RELEASE-NOTES.md](docs/RELEASE-NOTES.md) · [v2.7.5](docs/releases/v2.7.5.md) · [v2.7.4](docs/releases/v2.7.4.md) · [v2.7.3](docs/releases/v2.7.3.md) |
+| Release notes | [RELEASE-NOTES.md](docs/RELEASE-NOTES.md) · [v2.8.0](docs/releases/v2.8.0.md) · [v2.7.5](docs/releases/v2.7.5.md) · [v2.7.4](docs/releases/v2.7.4.md) |
 | Enterprise QA report | [ENTERPRISE-QA-READINESS-2.7.2.md](docs/ENTERPRISE-QA-READINESS-2.7.2.md) |
 | Final readiness (this phase) | [FINAL-DISTRIBUTION-READINESS-2.7.2.md](docs/FINAL-DISTRIBUTION-READINESS-2.7.2.md) |
 
