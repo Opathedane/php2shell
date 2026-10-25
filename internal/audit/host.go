@@ -60,7 +60,8 @@ func scanBinaries(r *Report, opts HostScanOptions) []deepDiscoverOutcome {
 		}
 		// Windows: keep rejecting file symlinks (isSafeRegularFile). Unix: resolve a
 		// bounded file-symlink chain to a regular file so Homebrew/alternatives aliases
-		// are not false negatives. Deduplicate by resolved path.
+		// are not false negatives. Deduplicate by resolved path. Relevant resolve gaps
+		// (access / hop budget) are recorded so coverage cannot claim "no PHP".
 		inspectPath := path
 		reportName := filepath.Base(path)
 		reportSource := source
@@ -71,6 +72,15 @@ func scanBinaries(r *Report, opts HostScanOptions) []deepDiscoverOutcome {
 		} else {
 			res, err := resolvePHPBinCandidate(path)
 			if err != nil {
+				gap := classifyPHPBinResolveErr(err)
+				if gap == phpBinResolveGapAccess || gap == phpBinResolveGapBound {
+					ukey := "unresolved:" + normalizeInstallPath(path)
+					if !seen[ukey] {
+						seen[ukey] = true
+						found++
+						recordUnresolvedPHPBinCandidate(r, path, source, phpBinResolveGapReason(gap, err))
+					}
+				}
 				return true
 			}
 			inspectPath = res.Resolved
@@ -81,6 +91,9 @@ func scanBinaries(r *Report, opts HostScanOptions) []deepDiscoverOutcome {
 		}
 		key := normalizeInstallPath(inspectPath)
 		if seen[key] {
+			if runtime.GOOS != "windows" && normalizeInstallPath(path) != key {
+				noteResolvedPHPBinAliasPath(r, inspectPath, path)
+			}
 			return true
 		}
 		seen[key] = true

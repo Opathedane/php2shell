@@ -1,7 +1,9 @@
 package audit
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,6 +24,18 @@ type phpBinResolveResult struct {
 	ViaSymlink bool
 	Follows    int
 }
+
+// phpBinResolveGap classifies why resolvePHPBinCandidate failed.
+// Irrelevant gaps (broken/cycle/non-regular) stay silent.
+// Relevant gaps (access / hop bound) must not disappear into "no PHP within coverage".
+type phpBinResolveGap int
+
+const (
+	phpBinResolveGapNone phpBinResolveGap = iota
+	phpBinResolveGapIrrelevant
+	phpBinResolveGapAccess
+	phpBinResolveGapBound
+)
 
 // resolvePHPBinCandidate follows a bounded chain of file symlinks to a regular file.
 // It never executes the target, never walks directory trees, and rejects cycles,
@@ -76,5 +90,95 @@ func resolvePHPBinCandidate(path string) (phpBinResolveResult, error) {
 			ViaSymlink: follows > 0,
 			Follows:    follows,
 		}, nil
+	}
+}
+
+// classifyPHPBinResolveErr distinguishes harmless non-installs from relevant
+// uninspectable PHP executable candidates.
+func classifyPHPBinResolveErr(err error) phpBinResolveGap {
+	if err == nil {
+		return phpBinResolveGapNone
+	}
+	msg := strings.ToLower(err.Error())
+	if os.IsNotExist(err) || errors.Is(err, fs.ErrNotExist) || strings.Contains(msg, "no such file") {
+		return phpBinResolveGapIrrelevant
+	}
+	if strings.Contains(msg, "cycle") {
+		return phpBinResolveGapIrrelevant
+	}
+	if strings.Contains(msg, "not a regular file") || strings.Contains(msg, "empty binary") || strings.Contains(msg, "empty symlink") {
+		return phpBinResolveGapIrrelevant
+	}
+	if strings.Contains(msg, "exceeds") && strings.Contains(msg, "hops") {
+		return phpBinResolveGapBound
+	}
+	if os.IsPermission(err) || errors.Is(err, fs.ErrPermission) ||
+		strings.Contains(msg, "permission denied") || strings.Contains(msg, "access is denied") {
+		return phpBinResolveGapAccess
+	}
+	// Other I/O failures while resolving a phpBin-named path are treated as
+	// uninspectable candidates (not proof of absence).
+	return phpBinResolveGapAccess
+}
+
+func phpBinResolveGapReason(gap phpBinResolveGap, err error) string {
+	switch gap {
+	case phpBinResolveGapBound:
+		return "symlink chain exceeds hop budget"
+	case phpBinResolveGapAccess:
+		if err != nil {
+			return "unreadable or inaccessible symlink target (" + err.Error() + ")"
+		}
+		return "unreadable or inaccessible symlink target"
+	default:
+		return ""
+	}
+}
+
+// recordUnresolvedPHPBinCandidate records a phpBin-named path that could not be
+// inspected so discovery does not conclude NO_PHP_DETECTED_WITHIN_SCAN_COVERAGE.
+func recordUnresolvedPHPBinCandidate(r *Report, path, source, reason string) {
+	if r == nil || path == "" || reason == "" {
+		return
+	}
+	r.AddEvidence(Evidence{
+		Type:           "binary_path",
+		Name:           filepath.Base(path),
+		Source:         source,
+		Location:       path,
+		Detail:         "PHP executable candidate not inspected: " + reason,
+		Interpretation: "PHP_EXECUTABLE_CANDIDATE_UNRESOLVED_NOT_INSPECTED",
+	})
+}
+
+// noteResolvedPHPBinAliasPath records an additional operator-facing symlink alias
+// on an existing install evidence row without creating a duplicate installation.
+func noteResolvedPHPBinAliasPath(r *Report, resolved, alias string) {
+	if r == nil || resolved == "" || alias == "" {
+		return
+	}
+	rkey := normalizeInstallPath(resolved)
+	akey := normalizeInstallPath(alias)
+	if rkey == akey {
+		return
+	}
+	for i := range r.Evidence {
+		e := &r.Evidence[i]
+		if !isBinaryEvidenceType(e.Type) {
+			continue
+		}
+		if normalizeInstallPath(e.Location) != rkey {
+			continue
+		}
+		marker := "also_via_symlink=" + alias
+		if strings.Contains(e.Detail, marker) || strings.Contains(e.Source, alias) {
+			return
+		}
+		if e.Detail == "" {
+			e.Detail = marker
+		} else {
+			e.Detail = e.Detail + "; " + marker
+		}
+		return
 	}
 }

@@ -95,10 +95,17 @@ func discoverPHPBinsFromPATHEnv(pathEnv string, limit int) []string {
 		} else {
 			res, err := resolvePHPBinCandidate(candidate)
 			if err != nil {
-				return false
+				gap := classifyPHPBinResolveErr(err)
+				if gap == phpBinResolveGapIrrelevant {
+					return false
+				}
+				// Access / hop-budget gaps must reach addPath for coverage honesty.
+				dedupeKey = "unresolved:" + normalizeInstallPath(candidate)
+			} else {
+				// Keep each operator-facing alias; install dedupe + also_via happens in addPath.
+				dedupeKey = "orig:" + normalizeInstallPath(res.Original)
+				candidate = res.Original
 			}
-			dedupeKey = normalizeInstallPath(res.Resolved)
-			candidate = res.Original
 		}
 		if seen[dedupeKey] {
 			return false
@@ -221,13 +228,39 @@ func discoverPHPBinsUnderProgramsPHP(root string, limit int) ([]string, string) 
 					}
 					res, rerr := resolvePHPBinCandidate(path)
 					if rerr != nil {
+						gap := classifyPHPBinResolveErr(rerr)
+						if gap == phpBinResolveGapIrrelevant {
+							return nil
+						}
+						bkey := "unresolved:" + normalizeInstallPath(path)
+						if seenBin[bkey] {
+							return nil
+						}
+						seenBin[bkey] = true
+						out = append(out, path)
+						if len(out) >= limit {
+							warn = "Programs PHP discovery truncated"
+							return fs.SkipAll
+						}
 						return nil
 					}
 					bkey := normalizeInstallPath(res.Resolved)
 					if seenBin[bkey] {
+						// Still surface distinct alias paths for also_via evidence.
+						okey := "orig:" + normalizeInstallPath(res.Original)
+						if seenBin[okey] {
+							return nil
+						}
+						seenBin[okey] = true
+						out = append(out, res.Original)
+						if len(out) >= limit {
+							warn = "Programs PHP discovery truncated"
+							return fs.SkipAll
+						}
 						return nil
 					}
 					seenBin[bkey] = true
+					seenBin["orig:"+normalizeInstallPath(res.Original)] = true
 					out = append(out, res.Original)
 					if len(out) >= limit {
 						warn = "Programs PHP discovery truncated"

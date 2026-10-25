@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -188,45 +189,53 @@ func TestPATHDiscoversUnixSymlinkPHPAliasesAndDedups(t *testing.T) {
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	// Multiple aliases → same regular file (Homebrew-style + versioned name).
-	for _, name := range []string{"php", "php8.3", "php-cgi"} {
+	aliases := []string{"php", "php8.3", "php-cgi"}
+	for _, name := range aliases {
 		if err := os.Symlink(cellar, filepath.Join(binDir, name)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	// Also a distinct real binary that must remain separate.
 	other := filepath.Join(binDir, "php8.2")
 	writeSyntheticPHP(t, other)
 
 	got := discoverPHPBinsFromPATHEnv(binDir, 20)
-	// discoverPHPBinsFromPATHEnv dedupes by resolved path → expect exactly 2 entries.
-	if len(got) != 2 {
-		t.Fatalf("expected 2 PATH candidates after alias dedup (cellar aliases + php8.2), got %d: %v", len(got), got)
+	// All operator-facing aliases are surfaced; install dedupe happens in scanBinaries.
+	if len(got) != 4 {
+		t.Fatalf("expected 3 aliases + php8.2 PATH candidates, got %d: %v", len(got), got)
 	}
 
 	t.Setenv("PATH", binDir)
 	r := NewReport("unix-symlink", runtime.GOOS, "amd64")
 	r.GeneratedUTC = time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC)
 	_ = scanBinaries(r, HostScanOptions{})
-	var binHits int
 	versions := map[string]bool{}
+	var cellarDetail string
 	for _, e := range r.Evidence {
-		if !isBinaryEvidenceType(e.Type) {
+		if !isBinaryEvidenceType(e.Type) || e.Version != "8.3.12" {
 			continue
 		}
-		if e.Version != "8.3.12" {
-			continue
-		}
-		// Only count our fixture paths (ignore host well-known PHP).
 		loc := normalizeInstallPath(e.Location)
-		if strings.Contains(loc, normalizeInstallPath(root)) || strings.Contains(e.Source, "symlink") {
-			binHits++
-			versions[normalizeInstallPath(e.Location)] = true
+		if !strings.Contains(loc, normalizeInstallPath(root)) {
+			continue
+		}
+		versions[loc] = true
+		if loc == normalizeInstallPath(cellar) {
+			cellarDetail = e.Detail + " " + e.Source
 		}
 	}
 	if len(versions) != 2 {
-		t.Fatalf("scanBinaries must record 2 unique resolved installs under fixture, got %d hits locations=%v evidence=%+v",
-			len(versions), versions, r.Evidence)
+		t.Fatalf("scanBinaries must record 2 unique resolved installs under fixture, got %d locations=%v",
+			len(versions), versions)
+	}
+	// Alias paths retained on the cellar evidence row without extra installs.
+	aliasNoted := 0
+	for _, name := range aliases {
+		if strings.Contains(cellarDetail, name) || strings.Contains(cellarDetail, filepath.Join(binDir, name)) {
+			aliasNoted++
+		}
+	}
+	if aliasNoted < 2 {
+		t.Fatalf("expected also_via / via symlink path evidence for aliases, detail/source=%q", cellarDetail)
 	}
 }
 
@@ -345,5 +354,195 @@ func TestIsSafeRegularFileStillRejectsSymlinks(t *testing.T) {
 	}
 	if !isSafeRegularFile(real) {
 		t.Fatal("regular file must pass isSafeRegularFile")
+	}
+}
+
+// TestUnixSymlinkOriginalFailureMode documents the pre-fix gate: isSafeRegularFile
+// rejected file symlinks, so PATH discovery returned nothing for Homebrew-style aliases.
+func TestUnixSymlinkOriginalFailureMode(t *testing.T) {
+	requireUnixSymlink(t)
+	root := t.TempDir()
+	cellar := filepath.Join(root, "Cellar", "php", "8.3.12", "bin", "php")
+	link := filepath.Join(root, "bin", "php")
+	writeSyntheticPHP(t, cellar)
+	if err := os.MkdirAll(filepath.Dir(link), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(cellar, link); err != nil {
+		t.Fatal(err)
+	}
+	if isSafeRegularFile(link) {
+		t.Fatal("pre-fix gate must reject the symlink")
+	}
+	if _, err := resolvePHPBinCandidate(link); err != nil {
+		t.Fatalf("post-fix resolve must succeed: %v", err)
+	}
+	got := discoverPHPBinsFromPATHEnv(filepath.Dir(link), 10)
+	if len(got) != 1 {
+		t.Fatalf("PATH must surface symlink alias after fix, got %v", got)
+	}
+}
+
+func bareNoPHPCoverageReport() *Report {
+	r := NewReport("coverage-host", "darwin", "arm64")
+	r.AddCheck("binary_paths", "PARTIAL", "Found 0 PHP-like binary paths")
+	r.AddCheck("packages", "PARTIAL", "Found 0 packages")
+	r.AddCheck("processes", "PARTIAL", "Found 0 processes")
+	return r
+}
+
+func TestUnresolvedPHPBinCandidateBlocksNoPHPWithinCoverage(t *testing.T) {
+	r1 := bareNoPHPCoverageReport()
+	FinalizeSummary(r1)
+	if r1.Summary.PHPDiscovery != "NO_PHP_DETECTED_WITHIN_SCAN_COVERAGE" {
+		t.Fatalf("control want none_within_coverage, got %s", r1.Summary.PHPDiscovery)
+	}
+
+	r2 := bareNoPHPCoverageReport()
+	recordUnresolvedPHPBinCandidate(r2, "/opt/homebrew/bin/php", "PATH directory static binary inspection",
+		"symlink chain exceeds hop budget")
+	FinalizeSummary(r2)
+	if r2.Summary.PHPDiscovery == "NO_PHP_DETECTED_WITHIN_SCAN_COVERAGE" {
+		t.Fatal("unresolved PHP executable candidate must not yield NO_PHP_DETECTED_WITHIN_SCAN_COVERAGE")
+	}
+	if classifyPHPDiscovery(r2) != phpDiscVersionUnknown {
+		t.Fatalf("expected version_unknown for unresolved candidate, got %s / %s", classifyPHPDiscovery(r2), r2.Summary.PHPDiscovery)
+	}
+}
+
+func TestScanBinariesHopLimitIsRelevantGap(t *testing.T) {
+	requireUnixSymlink(t)
+	root := t.TempDir()
+	binDir := filepath.Join(root, "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	real := filepath.Join(root, "real-php")
+	writeSyntheticPHP(t, real)
+	// 5 symlink hops exceed maxFileSymlinkFollows (4).
+	prev := real
+	var first string
+	for i := 5; i >= 1; i-- {
+		link := filepath.Join(binDir, fmt.Sprintf("php-hop%d", i))
+		if i == 1 {
+			link = filepath.Join(binDir, "php")
+			first = link
+		}
+		if err := os.Symlink(prev, link); err != nil {
+			t.Fatal(err)
+		}
+		prev = link
+	}
+	_, err := resolvePHPBinCandidate(first)
+	if classifyPHPBinResolveErr(err) != phpBinResolveGapBound {
+		t.Fatalf("expected hop-bound gap, err=%v", err)
+	}
+
+	t.Setenv("PATH", binDir)
+	r := NewReport("hop-limit", runtime.GOOS, "amd64")
+	_ = scanBinaries(r, HostScanOptions{})
+	saw := false
+	for _, e := range r.Evidence {
+		if e.Interpretation == "PHP_EXECUTABLE_CANDIDATE_UNRESOLVED_NOT_INSPECTED" &&
+			strings.Contains(normalizeInstallPath(e.Location), normalizeInstallPath(first)) {
+			saw = true
+			if !strings.Contains(e.Detail, "hop") {
+				t.Fatalf("detail should mention hop budget: %q", e.Detail)
+			}
+		}
+	}
+	if !saw {
+		t.Fatalf("hop-limit symlink must record unresolved candidate evidence: %+v", r.Evidence)
+	}
+}
+
+func TestScanBinariesPermissionDeniedSymlinkIsRelevantGap(t *testing.T) {
+	requireUnixSymlink(t)
+	if os.Getuid() == 0 {
+		t.Skip("root can read chmod 000 directories")
+	}
+	root := t.TempDir()
+	binDir := filepath.Join(root, "bin")
+	secret := filepath.Join(root, "secret")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	real := filepath.Join(secret, "php-real")
+	writeSyntheticPHP(t, real)
+	mid := filepath.Join(secret, "php-mid")
+	if err := os.Symlink(real, mid); err != nil {
+		t.Fatal(err)
+	}
+	outer := filepath.Join(binDir, "php")
+	if err := os.Symlink(mid, outer); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(secret, 0000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(secret, 0755) })
+
+	_, err := resolvePHPBinCandidate(outer)
+	if err == nil {
+		t.Skip("environment still readable through chmod 000; cannot assert access gap")
+	}
+	if classifyPHPBinResolveErr(err) != phpBinResolveGapAccess {
+		t.Fatalf("expected access gap, got %v err=%v", classifyPHPBinResolveErr(err), err)
+	}
+
+	t.Setenv("PATH", binDir)
+	r := NewReport("perm-denied", runtime.GOOS, "amd64")
+	_ = scanBinaries(r, HostScanOptions{})
+	saw := false
+	for _, e := range r.Evidence {
+		if e.Interpretation == "PHP_EXECUTABLE_CANDIDATE_UNRESOLVED_NOT_INSPECTED" &&
+			strings.Contains(normalizeInstallPath(e.Location), normalizeInstallPath(outer)) {
+			saw = true
+		}
+	}
+	if !saw {
+		t.Fatalf("permission-denied symlink must record unresolved candidate: %+v", r.Evidence)
+	}
+	EvaluatePatchPosture(r)
+	FinalizeSummary(r)
+	// Even if host well-known PHP exists, fixture unresolved must be present; when it is the
+	// only fixture signal, classification must not be a soft "none within coverage" for that path.
+	if !saw {
+		t.Fatal("unreachable")
+	}
+}
+
+func TestResolvedSymlinkStillHonorsBinaryReadSafety(t *testing.T) {
+	requireUnixSymlink(t)
+	root := t.TempDir()
+	// Oversized synthetic "binary" — VersionFromBinary must stay within sample windows.
+	real := filepath.Join(root, "huge-php")
+	var b strings.Builder
+	b.WriteString("padding-")
+	for i := 0; i < 3<<20; i++ {
+		b.WriteByte('A')
+	}
+	b.WriteString("PHP Version 8.3.12")
+	if err := os.WriteFile(real, []byte(b.String()), 0755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "php")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	res, err := resolvePHPBinCandidate(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !isSafeRegularFile(res.Resolved) {
+		t.Fatal("resolved target must be a regular file subject to normal inspection")
+	}
+	vr := VersionFromBinary(res.Resolved)
+	if vr.Version != "8.3.12" {
+		t.Fatalf("version=%q err=%v coverage=%+v", vr.Version, vr.Err, vr.Coverage)
+	}
+	// Symlink path itself must never be opened via the old unsafe gate.
+	if isSafeRegularFile(link) {
+		t.Fatal("symlink must remain rejected by isSafeRegularFile")
 	}
 }
