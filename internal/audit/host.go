@@ -55,16 +55,37 @@ func scanBinaries(r *Report, opts HostScanOptions) []deepDiscoverOutcome {
 			return false
 		}
 		path = filepath.Clean(path)
-		key := normalizeInstallPath(path)
-		if !phpBin.MatchString(filepath.Base(path)) || seen[key] {
+		if !phpBin.MatchString(filepath.Base(path)) {
 			return true
 		}
-		if !isSafeRegularFile(path) {
+		// Windows: keep rejecting file symlinks (isSafeRegularFile). Unix: resolve a
+		// bounded file-symlink chain to a regular file so Homebrew/alternatives aliases
+		// are not false negatives. Deduplicate by resolved path.
+		inspectPath := path
+		reportName := filepath.Base(path)
+		reportSource := source
+		if runtime.GOOS == "windows" {
+			if !isSafeRegularFile(path) {
+				return true
+			}
+		} else {
+			res, err := resolvePHPBinCandidate(path)
+			if err != nil {
+				return true
+			}
+			inspectPath = res.Resolved
+			reportName = filepath.Base(res.Original)
+			if res.ViaSymlink {
+				reportSource = fmt.Sprintf("%s (via symlink %s)", source, res.Original)
+			}
+		}
+		key := normalizeInstallPath(inspectPath)
+		if seen[key] {
 			return true
 		}
 		seen[key] = true
 		found++
-		AddBinaryVersionEvidence(r, path, filepath.Base(path), source)
+		AddBinaryVersionEvidence(r, inspectPath, reportName, reportSource)
 		return true
 	}
 
