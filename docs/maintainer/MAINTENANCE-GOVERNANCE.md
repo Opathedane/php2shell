@@ -1,6 +1,6 @@
-# Maintainer governance checklist (Phase 1 — settings not changed)
+# Maintainer governance checklist (settings not applied until approved)
 
-Practical checklist for a **solo maintainer**. Apply in the GitHub UI only with separate approval. Avoid self-review deadlocks.
+Practical checklist for a **solo maintainer** entering maintenance mode. Apply in the GitHub UI only with separate approval. Avoid self-review deadlocks.
 
 ## Protect `main` without locking yourself out
 
@@ -67,10 +67,8 @@ Issue templates already exist under `.github/ISSUE_TEMPLATE/`.
 - Never overwrite existing release assets  
 - Latest public remains **v2.8.0** until a future GO  
 
-## Explicitly deferred (need separate GO)
+## Related proposals (separate approval)
 
-- Deleting the 33 merged remote branches  
-- Closing draft release `test-build-2.7.3-field`  
-- Applying About/topics from [GITHUB-PRESENTATION-PROPOSAL.md](GITHUB-PRESENTATION-PROPOSAL.md)  
-- Moving files per [DOCS-ARCHIVE-PLAN.md](DOCS-ARCHIVE-PLAN.md)  
-- Enabling/disabling Wiki or Projects  
+- About / topics: [GITHUB-PRESENTATION-PROPOSAL.md](GITHUB-PRESENTATION-PROPOSAL.md)  
+- Historical docs moves: [DOCS-ARCHIVE-PLAN.md](DOCS-ARCHIVE-PLAN.md)  
+

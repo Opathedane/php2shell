@@ -2,7 +2,7 @@
 
 **Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0).** Start with the [repository README](../README.md) for download and quick start.
 
-This index is the map of **current** documentation. Historical release gates, PR drafts, and point-in-time audits remain in-tree for provenance but are not the day-to-day user path. Proposed future moves: [maintainer/DOCS-ARCHIVE-PLAN.md](maintainer/DOCS-ARCHIVE-PLAN.md) (**not applied in Phase 1**).
+This index is the map of **current** documentation. Historical release gates, PR drafts, and point-in-time audits remain in-tree for provenance but are not the day-to-day user path. Proposed archive moves (not applied yet): [maintainer/DOCS-ARCHIVE-PLAN.md](maintainer/DOCS-ARCHIVE-PLAN.md).
 
 ## Authoritative guides
 
@@ -37,8 +37,8 @@ This index is the map of **current** documentation. Historical release gates, PR
 | Licensing | [LICENSING.md](LICENSING.md) · [../LICENSE](../LICENSE) |
 | Contributing | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Maintainer governance | [GOVERNANCE.md](GOVERNANCE.md) |
-| Phase 1 GitHub About/topics proposal | [maintainer/GITHUB-PRESENTATION-PROPOSAL.md](maintainer/GITHUB-PRESENTATION-PROPOSAL.md) |
-| Phase 1 settings checklist (not applied) | [maintainer/PHASE1-GOVERNANCE-CHECKLIST.md](maintainer/PHASE1-GOVERNANCE-CHECKLIST.md) |
+| GitHub About/topics proposal | [maintainer/GITHUB-PRESENTATION-PROPOSAL.md](maintainer/GITHUB-PRESENTATION-PROPOSAL.md) |
+| Governance settings checklist (not applied) | [maintainer/MAINTENANCE-GOVERNANCE.md](maintainer/MAINTENANCE-GOVERNANCE.md) |
 | Living release checklist | [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) |
 | Roadmap | [ROADMAP.md](ROADMAP.md) |
 

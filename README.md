@@ -63,9 +63,9 @@ chmod +x php2shell-darwin-arm64   # or php2shell-darwin-amd64
 
 Open the newest `php2shell-*.html` in a browser. Start with **Patch assessment**, then coverage / “what could not be verified.” Full guide: [Understanding reports](docs/UNDERSTANDING-REPORTS.md).
 
-![Example HTML report — patch assessment (synthetic lab host)](docs/assets/report-example-patch-assessment.png)
+![Representative HTML report — patch assessment (synthetic lab data)](docs/assets/report-example-patch-assessment.png)
 
-*Synthetic example only (lab host label, no customer data). Matching HTML: [docs/assets/report-example-patch-assessment.html](docs/assets/report-example-patch-assessment.html).*
+*Representative screenshot only — synthetic lab data (host label `old-php`), not a customer report. Layout remains valid for v2.8.0; CVE thresholds unchanged. Matching HTML: [docs/assets/report-example-patch-assessment.html](docs/assets/report-example-patch-assessment.html).*
 
 **Automation:** add `--quiet` so progress is suppressed; errors and the status line still go to stderr, and `.status.json` remains machine-readable.
 
