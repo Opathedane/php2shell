@@ -1,6 +1,8 @@
 # Field retest plan — v2.7.3 no-PHP (Windows)
 
-Use **after** PR #28 is approved and merged. Do **not** treat this as a published release.
+**Status (as of v2.7.3 publish decision):** original Windows no-PHP host retest is **NOT TESTED** — not PASS. Automated tests/CI are green; this document remains the retest procedure after stable publish if needed.
+
+Use on the same Windows machine that previously produced misleading v2.7.2 no-PHP inventory warnings.
 
 ## Build a local test binary (post-merge)
 

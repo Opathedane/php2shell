@@ -18,11 +18,11 @@
 - [x] `bash scripts/check-release-docs.sh --for-tag v2.7.3` passes on this branch
 - [x] Public `main` still documents latest public as **v2.7.2** until this branch merges
 
-## Field gate (required)
+## Field gate
 
-- [ ] Windows field retest PASS on the same host used for misleading v2.7.2 no-PHP results  
-  Follow [FIELD-TEST-V2.7.3-NO-PHP.md](FIELD-TEST-V2.7.3-NO-PHP.md)  
-  Expect: no PHP within completed coverage; 0 installs; no Linux package noise; no remediation dump; honest gaps if incomplete
+- [x] Maintainer GO to publish **without** waiting for Windows field retest (2026-10-25)
+- [ ] Windows retest on the original no-PHP host — status: **NOT TESTED** (outstanding; must not be recorded as PASS)  
+  Follow [FIELD-TEST-V2.7.3-NO-PHP.md](FIELD-TEST-V2.7.3-NO-PHP.md) when convenient
 
 ## After explicit GO (maintainer)
 
