@@ -90,34 +90,37 @@ func ApplyNginxRootsInventory(r *Report, roots []string) {
 		}
 	}
 	status := "PARTIAL"
-	if state.remoteBackends > 0 || state.ambiguousBackends > 0 {
+	if state.remoteBackends > 0 || state.ambiguousBackends > 0 || state.skippedFiles > 0 || state.variableBackends > 0 {
 		status = "INCOMPLETE"
 	}
 	if state.truncated {
 		status = "TRUNCATED"
 	}
 	r.AddCheck("nginx_configuration", status, fmt.Sprintf(
-		"Read %d nginx config files under %d well-known root(s); %d server/root rows; %d PHP-related fastcgi_pass rows; %d upstream blocks; %d remote PHP backends (not local installs); %d ambiguous backends; active serving runtime unverified; Includes limited to depth %d within allowlisted roots; no network probes; LiteSpeed/OpenResty-only layouts not targeted",
-		state.inspectedFiles, len(roots), state.sites, state.handlers, state.upstreams, state.remoteBackends, state.ambiguousBackends, maxNginxIncludeDepth,
+		"Read %d nginx config files under %d allowlisted root(s); %d server/root rows; %d PHP-related fastcgi_pass rows; %d upstream blocks; %d remote PHP backends (not local installs); %d ambiguous/variable backends; %d skipped unreadable/symlink-out-of-root/oversized files; active serving runtime unverified; Includes limited to depth %d within allowlisted roots; no network probes; LiteSpeed/OpenResty-only layouts not targeted",
+		state.inspectedFiles, len(roots), state.sites, state.handlers, state.upstreams, state.remoteBackends, state.ambiguousBackends+state.variableBackends, state.skippedFiles, maxNginxIncludeDepth,
 	))
 }
 
 type nginxScanState struct {
-	roots              []string
-	rootSet            map[string]bool
-	seenFile           map[string]bool
-	inspectedFiles     int
-	sites              int
-	handlers           int
-	upstreams          int
-	remoteBackends     int
-	ambiguousBackends  int
-	truncated           bool
-	seenHandlerKey     map[string]bool
-	seenSiteKey        map[string]bool
-	seenRemoteKey      map[string]bool
-	seenUpstreamKey    map[string]bool
-	upstreamsByName    map[string]*nginxUpstream
+	roots             []string
+	rootSet           map[string]bool
+	seenFile          map[string]bool
+	seenSkipKey       map[string]bool
+	inspectedFiles    int
+	skippedFiles      int
+	sites             int
+	handlers          int
+	upstreams         int
+	remoteBackends    int
+	ambiguousBackends int
+	variableBackends  int
+	truncated          bool
+	seenHandlerKey    map[string]bool
+	seenSiteKey       map[string]bool
+	seenRemoteKey     map[string]bool
+	seenUpstreamKey   map[string]bool
+	upstreamsByName   map[string]*nginxUpstream
 }
 
 type nginxUpstream struct {
@@ -139,6 +142,7 @@ type nginxParseCtx struct {
 func (s *nginxScanState) initMaps() {
 	if s.seenFile == nil {
 		s.seenFile = map[string]bool{}
+		s.seenSkipKey = map[string]bool{}
 		s.seenHandlerKey = map[string]bool{}
 		s.seenSiteKey = map[string]bool{}
 		s.seenRemoteKey = map[string]bool{}
@@ -171,7 +175,7 @@ func (s *nginxScanState) readConfigFile(r *Report, path string, depth int) {
 	s.initMaps()
 	path = filepath.Clean(path)
 	key := normalizeInstallPath(path)
-	if s.seenFile[key] {
+	if s.seenFile[key] || s.seenSkipKey[key] {
 		return
 	}
 	if s.inspectedFiles >= maxNginxConfigFiles {
@@ -181,13 +185,90 @@ func (s *nginxScanState) readConfigFile(r *Report, path string, depth int) {
 	if !s.pathAllowed(path) {
 		return
 	}
-	b, err := ReadRegular(path, maxNginxConfigBytes)
+	b, readPath, err := s.readNginxConfigBytes(path)
 	if err != nil {
+		s.recordConfigSkip(r, path, err)
 		return
 	}
 	s.seenFile[key] = true
+	// Also mark resolved path so sites-enabled symlink + sites-available target share one parse.
+	if rp := normalizeInstallPath(readPath); rp != key {
+		s.seenFile[rp] = true
+	}
 	s.inspectedFiles++
-	s.parseNginxConfig(r, path, string(b), depth)
+	s.parseNginxConfig(r, readPath, string(b), depth)
+}
+
+// readNginxConfigBytes reads a regular config file. For a single-level symlink whose
+// target remains inside an allowlisted root (Debian sites-enabled → sites-available),
+// the target is read instead. Escaping or multi-hop links are skipped, not followed.
+func (s *nginxScanState) readNginxConfigBytes(path string) (data []byte, readPath string, err error) {
+	b, err := ReadRegular(path, maxNginxConfigBytes)
+	if err == nil {
+		return b, path, nil
+	}
+	fi, lerr := os.Lstat(path)
+	if lerr != nil || fi.Mode()&os.ModeSymlink == 0 {
+		return nil, path, err
+	}
+	target, rerr := os.Readlink(path)
+	if rerr != nil {
+		return nil, path, rerr
+	}
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(path), target)
+	}
+	target = filepath.Clean(target)
+	if !s.pathAllowed(target) {
+		return nil, path, fmt.Errorf("symlink target outside allowlisted nginx roots: %s", target)
+	}
+	// Reject nested symlinks: target must be a regular file.
+	b, err = ReadRegular(target, maxNginxConfigBytes)
+	if err != nil {
+		return nil, path, err
+	}
+	return b, target, nil
+}
+
+func (s *nginxScanState) recordConfigSkip(r *Report, path string, cause error) {
+	s.initMaps()
+	key := normalizeInstallPath(path)
+	if s.seenSkipKey[key] {
+		return
+	}
+	s.seenSkipKey[key] = true
+	s.skippedFiles++
+	reason := "unreadable_or_rejected"
+	msg := ""
+	if cause != nil {
+		msg = cause.Error()
+		low := strings.ToLower(msg)
+		switch {
+		case strings.Contains(low, "symbolic link") || strings.Contains(low, "symlink"):
+			reason = "symlink_rejected_or_out_of_root"
+		case strings.Contains(low, "exceeds") || strings.Contains(low, "exceeded"):
+			reason = "oversized"
+		case strings.Contains(low, "permission") || strings.Contains(low, "denied"):
+			reason = "unreadable"
+		case strings.Contains(low, "no such file"):
+			// Glob race / disappeared — do not invent incomplete noise for missing optional globs.
+			s.skippedFiles--
+			delete(s.seenSkipKey, key)
+			return
+		}
+	}
+	detail := fmt.Sprintf("path=%s; reason=%s; not_inspected; secrets_not_reported", path, reason)
+	if msg != "" {
+		detail += "; detail=" + msg
+	}
+	r.AddEvidence(Evidence{
+		Type:           "nginx_config_skip",
+		Name:           filepath.Base(path),
+		Source:         "nginx configuration candidate (not inspected)",
+		Location:       path,
+		Detail:         detail,
+		Interpretation: "CONFIG_CANDIDATE_NOT_INSPECTED",
+	})
 }
 
 func (s *nginxScanState) parseNginxConfig(r *Report, path, content string, depth int) {
@@ -242,21 +323,7 @@ func (s *nginxScanState) parseNginxConfig(r *Report, path, content string, depth
 				cur = nginxParseCtx{}
 			}
 			if rest != "" {
-				inline := rest
-				if strings.Contains(inline, "}") {
-					inline = strings.ReplaceAll(inline, "}", " ; } ; ")
-				}
-				for _, part := range splitNginxStatements(inline) {
-					part = strings.TrimSpace(part)
-					if part == "" {
-						continue
-					}
-					if part == "}" {
-						s.closeNginxBlock(r, path, &stack, &cur, flushServer)
-						continue
-					}
-					s.handleNginxInnerLine(r, path, part, depth, &cur)
-				}
+				s.consumeNginxInline(r, path, rest, depth, &stack, &cur, flushServer)
 			}
 			continue
 		}
@@ -269,6 +336,54 @@ func (s *nginxScanState) parseNginxConfig(r *Report, path, content string, depth
 	// Unclosed server at EOF still counts if we saw markers.
 	if cur.inServer {
 		flushServer()
+	}
+}
+
+// consumeNginxInline parses directives/blocks that appeared after `{` on the same line.
+func (s *nginxScanState) consumeNginxInline(r *Report, path, rest string, depth int, stack *[]nginxParseCtx, cur *nginxParseCtx, flushServer func()) {
+	inline := rest
+	if strings.Contains(inline, "}") {
+		inline = strings.ReplaceAll(inline, "}", " ; } ; ")
+	}
+	for _, part := range splitNginxStatements(inline) {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if part == "}" {
+			s.closeNginxBlock(r, path, stack, cur, flushServer)
+			continue
+		}
+		if m := reNginxBlockOpen.FindStringSubmatch(part); len(m) >= 2 && strings.Contains(part, "{") {
+			kind := strings.ToLower(m[1])
+			args := strings.TrimSpace(m[2])
+			inner := ""
+			if len(m) > 3 {
+				inner = strings.TrimSpace(m[3])
+			}
+			*stack = append(*stack, *cur)
+			switch kind {
+			case "server":
+				*cur = nginxParseCtx{inServer: true}
+			case "location":
+				parent := *cur
+				*cur = parent
+				cur.locPHP = reNginxPHPLocation.MatchString(args)
+			case "upstream":
+				name := unquoteNginx(firstNginxArg(args))
+				*cur = nginxParseCtx{upstream: name}
+				if name != "" && s.upstreamsByName[name] == nil {
+					s.upstreamsByName[name] = &nginxUpstream{name: name}
+				}
+			default:
+				*cur = nginxParseCtx{}
+			}
+			if inner != "" {
+				s.consumeNginxInline(r, path, inner, depth, stack, cur, flushServer)
+			}
+			continue
+		}
+		s.handleNginxInnerLine(r, path, part, depth, cur)
 	}
 }
 
@@ -401,6 +516,11 @@ func (s *nginxScanState) finalizeUpstream(r *Report, configPath, name string) {
 	if u == nil || s.seenUpstreamKey[name] {
 		return
 	}
+	// Only emit upstream evidence for PHP-named groups. Generic upstreams used by
+	// FastCGI still surface via handler/remote/ambiguous fastcgi_pass rows.
+	if !strings.Contains(strings.ToLower(name), "php") {
+		return
+	}
 	if s.upstreams >= maxNginxUpstreamEvidence {
 		s.truncated = true
 		return
@@ -460,18 +580,28 @@ func (s *nginxScanState) handleFastCGIPass(r *Report, configPath, target, server
 			Interpretation: "CONFIGURED_REMOTE_BACKEND_NOT_LOCAL_INSTALL_NOT_RUNTIME_VERIFIED",
 		})
 		r.AddWarning("nginx PHP FastCGI backend appears remote and cannot be assessed as a local installation: " + backend)
-	case "ambiguous":
-		s.ambiguousBackends++
+	case "variable", "ambiguous":
+		if kind == "variable" {
+			s.variableBackends++
+		} else {
+			s.ambiguousBackends++
+		}
 		s.handlers++
-		detail := fmt.Sprintf("directive=fastcgi_pass; backend=%s; scope=ambiguous; site=%s; root=%s; active_runtime_unverified",
-			backend, serverName, docRoot)
+		scope := "ambiguous"
+		interp := "CONFIGURED_HANDLER_AMBIGUOUS_BACKEND_NOT_VERIFIED_SERVING_RUNTIME"
+		if kind == "variable" {
+			scope = "variable_unresolved"
+			interp = "CONFIGURED_HANDLER_VARIABLE_BACKEND_NOT_RESOLVED_NOT_VERIFIED_SERVING_RUNTIME"
+		}
+		detail := fmt.Sprintf("directive=fastcgi_pass; backend=%s; scope=%s; site=%s; root=%s; active_runtime_unverified",
+			backend, scope, serverName, docRoot)
 		r.AddEvidence(Evidence{
 			Type:           "nginx_php_handler_config",
 			Name:           "fastcgi_pass",
 			Source:         "nginx fastcgi_pass (static text)",
 			Location:       configPath,
 			Detail:         detail,
-			Interpretation: "CONFIGURED_HANDLER_AMBIGUOUS_BACKEND_NOT_VERIFIED_SERVING_RUNTIME",
+			Interpretation: interp,
 		})
 	default: // local unix / local tcp
 		s.handlers++
@@ -488,8 +618,16 @@ func (s *nginxScanState) handleFastCGIPass(r *Report, configPath, target, server
 	}
 }
 
+func nginxTargetHasVariable(target string) bool {
+	return strings.Contains(target, "$")
+}
+
 func normalizeNginxFastCGITarget(target string, upstreams map[string]*nginxUpstream) (backend, kind string) {
 	target = strings.TrimSpace(target)
+	// Never guess endpoints that interpolate nginx variables.
+	if nginxTargetHasVariable(target) {
+		return summarizeApacheArgs(target), "variable"
+	}
 	if m := reNginxUnixPass.FindStringSubmatch(target); len(m) == 2 {
 		return "unix:" + m[1], "unix"
 	}
@@ -517,6 +655,9 @@ func normalizeNginxFastCGITarget(target string, upstreams map[string]*nginxUpstr
 		if u.local {
 			// Prefer first local-looking server as backend identity.
 			for _, srv := range u.servers {
+				if nginxTargetHasVariable(srv) {
+					return "upstream:" + name, "variable"
+				}
 				b, k := normalizeNginxFastCGITarget(srv, nil)
 				if k == "unix" || k == "local_tcp" {
 					return b, k
@@ -526,7 +667,7 @@ func normalizeNginxFastCGITarget(target string, upstreams map[string]*nginxUpstr
 		}
 		return "upstream:" + name, "ambiguous"
 	}
-	// Unresolved upstream name or opaque token.
+	// Unresolved upstream name or opaque token — do not invent a local endpoint.
 	if name != "" && !strings.Contains(name, "/") && !strings.Contains(name, ":") {
 		return "upstream:" + name, "ambiguous"
 	}
@@ -581,8 +722,19 @@ func splitNginxStatements(line string) []string {
 	}
 	var out []string
 	start := 0
+	depth := 0
 	for i := 0; i < len(line); i++ {
-		if line[i] == ';' {
+		switch line[i] {
+		case '{':
+			depth++
+		case '}':
+			if depth > 0 {
+				depth--
+			}
+		case ';':
+			if depth != 0 {
+				continue
+			}
 			part := strings.TrimSpace(line[start : i+1])
 			if part != "" {
 				out = append(out, part)

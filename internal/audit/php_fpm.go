@@ -90,20 +90,25 @@ func ApplyFPMPoolRootsInventory(r *Report, roots []string) {
 		}
 	}
 	status := "PARTIAL"
+	if state.skippedFiles > 0 {
+		status = "INCOMPLETE"
+	}
 	if state.truncated {
 		status = "TRUNCATED"
 	}
 	r.AddCheck("php_fpm_configuration", status, fmt.Sprintf(
-		"Read %d PHP-FPM pool/config files under %d well-known root(s); %d pool listen endpoints; active serving runtime unverified; no php-fpm execution; includes limited to depth %d within allowlisted roots",
-		state.inspectedFiles, len(roots), state.pools, maxFPMIncludeDepth,
+		"Read %d PHP-FPM pool/config files under %d allowlisted root(s); %d pool listen endpoints; %d skipped unreadable/symlink/oversized files; active serving runtime unverified; no php-fpm execution; includes limited to depth %d within allowlisted roots",
+		state.inspectedFiles, len(roots), state.pools, state.skippedFiles, maxFPMIncludeDepth,
 	))
 }
 
 type fpmScanState struct {
 	rootSet        map[string]bool
 	seenFile       map[string]bool
+	seenSkipKey    map[string]bool
 	seenPoolKey    map[string]bool
 	inspectedFiles int
+	skippedFiles   int
 	pools          int
 	truncated      bool
 }
@@ -111,6 +116,7 @@ type fpmScanState struct {
 func (s *fpmScanState) initMaps() {
 	if s.seenFile == nil {
 		s.seenFile = map[string]bool{}
+		s.seenSkipKey = map[string]bool{}
 		s.seenPoolKey = map[string]bool{}
 	}
 }
@@ -134,7 +140,7 @@ func (s *fpmScanState) readPoolFile(r *Report, path string, depth int) {
 	s.initMaps()
 	path = filepath.Clean(path)
 	key := normalizeInstallPath(path)
-	if s.seenFile[key] {
+	if s.seenFile[key] || s.seenSkipKey[key] {
 		return
 	}
 	if s.inspectedFiles >= maxFPMPoolFiles {
@@ -146,11 +152,52 @@ func (s *fpmScanState) readPoolFile(r *Report, path string, depth int) {
 	}
 	b, err := ReadRegular(path, maxFPMPoolBytes)
 	if err != nil {
+		s.recordPoolSkip(r, path, err)
 		return
 	}
 	s.seenFile[key] = true
 	s.inspectedFiles++
 	s.parseFPMFile(r, path, string(b), depth)
+}
+
+func (s *fpmScanState) recordPoolSkip(r *Report, path string, cause error) {
+	s.initMaps()
+	key := normalizeInstallPath(path)
+	if s.seenSkipKey[key] {
+		return
+	}
+	s.seenSkipKey[key] = true
+	s.skippedFiles++
+	reason := "unreadable_or_rejected"
+	msg := ""
+	if cause != nil {
+		msg = cause.Error()
+		low := strings.ToLower(msg)
+		switch {
+		case strings.Contains(low, "symbolic link") || strings.Contains(low, "symlink"):
+			reason = "symlink_rejected"
+		case strings.Contains(low, "exceeds") || strings.Contains(low, "exceeded"):
+			reason = "oversized"
+		case strings.Contains(low, "permission") || strings.Contains(low, "denied"):
+			reason = "unreadable"
+		case strings.Contains(low, "no such file"):
+			s.skippedFiles--
+			delete(s.seenSkipKey, key)
+			return
+		}
+	}
+	detail := fmt.Sprintf("path=%s; reason=%s; not_inspected; secrets_not_reported", path, reason)
+	if msg != "" {
+		detail += "; detail=" + msg
+	}
+	r.AddEvidence(Evidence{
+		Type:           "php_fpm_config_skip",
+		Name:           filepath.Base(path),
+		Source:         "PHP-FPM pool configuration candidate (not inspected)",
+		Location:       path,
+		Detail:         detail,
+		Interpretation: "CONFIG_CANDIDATE_NOT_INSPECTED",
+	})
 }
 
 func (s *fpmScanState) parseFPMFile(r *Report, path, content string, depth int) {

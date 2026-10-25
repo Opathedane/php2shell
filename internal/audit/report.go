@@ -233,7 +233,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 			switch e.Type {
 			case "php_ini_candidate", "configuration_observation":
 				cfgCount++
-			case "php_ini_skip":
+			case "php_ini_skip", "nginx_config_skip", "php_fpm_config_skip":
 				skipCount++
 			}
 		}
@@ -243,7 +243,8 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 			b.WriteString(`<table><thead><tr><th>File / setting</th><th>Detail</th><th>Meaning</th></tr></thead><tbody>`)
 			shown := 0
 			for _, e := range r.Evidence {
-				if e.Type != "php_ini_candidate" && e.Type != "configuration_observation" && e.Type != "php_ini_skip" {
+				if e.Type != "php_ini_candidate" && e.Type != "configuration_observation" && e.Type != "php_ini_skip" &&
+					e.Type != "nginx_config_skip" && e.Type != "php_fpm_config_skip" {
 					continue
 				}
 				shown++
@@ -351,7 +352,8 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		b.WriteString(`<p>php.ini candidates are supplementary discovery only. They do not confirm installation, version, or active HTTP runtime. Skipped candidates list path and reason without secrets.</p>`)
 		b.WriteString(`<table><thead><tr><th>Setting / file</th><th>Detail</th><th>Meaning</th></tr></thead><tbody>`)
 		for _, e := range r.Evidence {
-			if e.Type != "configuration_observation" && e.Type != "php_ini_candidate" && e.Type != "php_ini_skip" {
+			if e.Type != "configuration_observation" && e.Type != "php_ini_candidate" && e.Type != "php_ini_skip" &&
+				e.Type != "nginx_config_skip" && e.Type != "php_fpm_config_skip" {
 				continue
 			}
 			count++
