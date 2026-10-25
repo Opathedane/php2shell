@@ -22,7 +22,7 @@
 
 - [x] Maintainer GO to publish **without** waiting for Windows field retest (2026-10-25)
 - [ ] Windows retest on the original no-PHP host — status: **NOT TESTED** (outstanding; must not be recorded as PASS)  
-  Follow [FIELD-TEST-V2.7.3-NO-PHP.md](FIELD-TEST-V2.7.3-NO-PHP.md) when convenient
+  Follow [FIELD-TEST-V2.7.3-NO-PHP.md](../../FIELD-TEST-V2.7.3-NO-PHP.md) when convenient
 
 ## After explicit GO (maintainer)
 

@@ -19,11 +19,11 @@ Machine `vulnerability_status` for empty comparable versions remains schema-stab
 
 ## Before / after HTML
 
-![Before — v2.7.2 no-PHP UX](pr-assets/v2.7.3-no-php/before-no-php.png)
+![Before — v2.7.2 no-PHP UX](../../pr-assets/v2.7.3-no-php/before-no-php.png)
 
-![After — v2.7.3 no PHP within coverage](pr-assets/v2.7.3-no-php/after-no-php.png)
+![After — v2.7.3 no PHP within coverage](../../pr-assets/v2.7.3-no-php/after-no-php.png)
 
-![After — genuine Windows incomplete coverage](pr-assets/v2.7.3-no-php/after-windows-incomplete.png)
+![After — genuine Windows incomplete coverage](../../pr-assets/v2.7.3-no-php/after-windows-incomplete.png)
 
 ## Pre-review checklist
 

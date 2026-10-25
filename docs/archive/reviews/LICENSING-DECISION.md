@@ -5,7 +5,7 @@
 | Item | Decision |
 | --- | --- |
 | SPDX | **Apache-2.0** |
-| File | [`LICENSE`](../LICENSE) |
+| File | [`LICENSE`](../../../LICENSE) |
 | Prior placeholder | `LICENSE.proposed` removed |
 
 GitHub repository “License” metadata should show **Apache-2.0** (set in the GitHub UI if not detected automatically after merge).

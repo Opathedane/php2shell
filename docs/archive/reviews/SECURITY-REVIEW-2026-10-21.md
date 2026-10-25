@@ -1,6 +1,6 @@
 # Security assessment — 2.1.0-alpha.2 (21 October 2026)
 
-> **Historical review** of the alpha codebase. For current limitations and disclosure policy see [`SECURITY.md`](../SECURITY.md) and [`GOVERNANCE.md`](GOVERNANCE.md). Public product release is **v2.3.0**.
+> **Historical review** of the alpha codebase. For current limitations and disclosure policy see [`SECURITY.md`](../../../SECURITY.md) and [`GOVERNANCE.md`](../../GOVERNANCE.md). Public product release is **v2.3.0**.
 
 Scope: original Go source + GitHub workflows. **Developer pre-release; no independent penetration test or customer production validation.**
 

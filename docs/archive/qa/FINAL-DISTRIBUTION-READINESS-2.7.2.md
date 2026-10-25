@@ -28,11 +28,11 @@ Preserved from prior QA (`12b6777` / `ddc9f89`): glued RC rejection, 115560 samp
 **This pass (docs/contract):**
 
 - Interactive README Quick Start **without** `--quiet`
-- [UNDERSTANDING-REPORTS.md](UNDERSTANDING-REPORTS.md)
-- [deployment/INTUNE.md](deployment/INTUNE.md) — clarifies Win32 ≠ Server management
-- [deployment/GPO.md](deployment/GPO.md)
-- [deployment/REPORT-COLLECTION.md](deployment/REPORT-COLLECTION.md)
-- [deployment/DISTRIBUTION-SIGNING.md](deployment/DISTRIBUTION-SIGNING.md)
+- [UNDERSTANDING-REPORTS.md](../../UNDERSTANDING-REPORTS.md)
+- [deployment/INTUNE.md](../../deployment/INTUNE.md) — clarifies Win32 ≠ Server management
+- [deployment/GPO.md](../../deployment/GPO.md)
+- [deployment/REPORT-COLLECTION.md](../../deployment/REPORT-COLLECTION.md)
+- [deployment/DISTRIBUTION-SIGNING.md](../../deployment/DISTRIBUTION-SIGNING.md)
 - PSADT reference: **preserves scanner exit code** by default; stale HTML guard; `-NormalizeSuccessExit` opt-in
 - Licensing resolved: Apache-2.0 (`LICENSE`)
 

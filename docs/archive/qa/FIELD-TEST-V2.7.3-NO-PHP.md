@@ -39,4 +39,4 @@ Copy the EXE to the same Windows machine used for the v2.7.2 no-PHP field test.
 
 ## After field PASS
 
-Release docs are prepared on branch `release/v2.7.3-finalize` (see [RELEASE-FINALIZE-CHECKLIST-2.7.3.md](RELEASE-FINALIZE-CHECKLIST-2.7.3.md)). With explicit GO: merge that branch → `main`, then tag **`v2.7.3`** only (never rewrite `v2.7.2`).
+Release docs are prepared on branch `release/v2.7.3-finalize` (see [RELEASE-FINALIZE-CHECKLIST-2.7.3.md](../../RELEASE-FINALIZE-CHECKLIST-2.7.3.md)). With explicit GO: merge that branch → `main`, then tag **`v2.7.3`** only (never rewrite `v2.7.2`).

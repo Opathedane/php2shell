@@ -30,19 +30,19 @@ Use this checklist on **real Windows / domain / Intune** environments. Do not ma
 2. Verify SHA256 of `php2shell-windows-legacy-amd64.exe`.
 3. Run `doctor` then `scan --output-dir ...` as above.
 4. Confirm HTML/CSV/status written.
-5. Document Go **1.20.14** toolchain security limitations (see [WINDOWS-LEGACY-2012R2.md](WINDOWS-LEGACY-2012R2.md)).
+5. Document Go **1.20.14** toolchain security limitations (see [WINDOWS-LEGACY-2012R2.md](../../WINDOWS-LEGACY-2012R2.md)).
 6. One prior smoke success ≠ full validation — repeat on ≥2 hosts if possible; include a host with PHP and one without.
 
 ---
 
 ## C. PSADT deployment with report collection
 
-1. Stage standard + legacy EXEs beside [PSADT-PHP2Shell-Reference.ps1](../deploy/PSADT-PHP2Shell-Reference.ps1).
+1. Stage standard + legacy EXEs beside [PSADT-PHP2Shell-Reference.ps1](../../../deploy/PSADT-PHP2Shell-Reference.ps1).
 2. Run under SYSTEM (or deployment account) unattended.
 3. Confirm wrapper exit equals scanner exit (**0 / 1 / 2**) unless `-NormalizeSuccessExit`.
 4. On exit 0/2: HTML+CSV present, HTML newer than run start, collection eligible.
 5. On exit 1: do **not** upload prior-run HTML as this execution.
-6. Customer upload step: success of copy ≠ scan success — log both separately ([REPORT-COLLECTION.md](deployment/REPORT-COLLECTION.md)).
+6. Customer upload step: success of copy ≠ scan success — log both separately ([REPORT-COLLECTION.md](../../deployment/REPORT-COLLECTION.md)).
 
 ---
 
@@ -50,7 +50,7 @@ Use this checklist on **real Windows / domain / Intune** environments. Do not ma
 
 **Do not claim Win32 app deployment supports Windows Server.**
 
-1. Package `.intunewin` per [INTUNE.md](deployment/INTUNE.md).
+1. Package `.intunewin` per [INTUNE.md](../../deployment/INTUNE.md).
 2. Install command uses 64-bit PowerShell; runs as SYSTEM.
 3. Detection rule = binary present (or catalog) — **not** “scan succeeded”.
 4. Requirement rules fit OS SKUs you actually target.
@@ -62,7 +62,7 @@ Use this checklist on **real Windows / domain / Intune** environments. Do not ma
 ## E. GPO scheduled-task execution
 
 1. Stage binaries with Domain Computers **Read & execute** only on the share.
-2. Prefer GPP Scheduled Task (Pattern B) over startup for repeats ([GPO.md](deployment/GPO.md)).
+2. Prefer GPP Scheduled Task (Pattern B) over startup for repeats ([GPO.md](../../deployment/GPO.md)).
 3. Task runs as SYSTEM; unique report filenames; lock/skip if concurrent.
 4. Verify with `gpresult /h`, Task Scheduler history, and `schtasks /Query`.
 5. Confirm offline hosts still produce local reports when next online.

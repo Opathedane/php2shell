@@ -23,8 +23,8 @@ Legend: **PASS** · **FAIL** · **NOT TESTED** (with environment note)
 | HTML patch-first executive summary | **PASS** | Hierarchy fix: next steps before optional IR |
 | README first-time onboarding (no `--quiet` in primary Quick Start) | **PASS** | |
 | Intune / GPO / PSADT / collection docs | **PASS** | Reference designs; field pilots still required |
-| Approved redistribution LICENSE | **PASS** | Apache-2.0 (`LICENSE`) — [LICENSING.md](LICENSING.md) |
-| Windows Authenticode | **FAIL** (P0 for broad Win public) | SHA256 published; [AUTHENTICODE-IMPLEMENTATION.md](deployment/AUTHENTICODE-IMPLEMENTATION.md) |
+| Approved redistribution LICENSE | **PASS** | Apache-2.0 (`LICENSE`) — [LICENSING.md](../../LICENSING.md) |
+| Windows Authenticode | **FAIL** (P0 for broad Win public) | SHA256 published; [AUTHENTICODE-IMPLEMENTATION.md](../../deployment/AUTHENTICODE-IMPLEMENTATION.md) |
 | RPM package inventory | **NOT TESTED** / disclosed | Binary discovery still runs; not silent “no PHP” |
 
 **Stabilization readiness (pilots):** **CONDITIONAL GO**  
