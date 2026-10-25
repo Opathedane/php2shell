@@ -1,7 +1,6 @@
 # Documentation archive plan (proposal only — Phase 2+)
 
-**Status:** Proposal. **Do not move or delete files until a separate GO.**  
-**Phase 1:** Files stay in place; [docs/README.md](../README.md) stops promoting them as primary user docs.
+**Status:** Implemented on branch `docs/archive-historical-memos` (Draft PR). Stubs remain at original paths.
 
 ## Goal
 

@@ -39,6 +39,7 @@ This index is the map of **current** documentation. Historical release gates, PR
 | Maintainer governance | [GOVERNANCE.md](GOVERNANCE.md) |
 | GitHub About/topics proposal | [maintainer/GITHUB-PRESENTATION-PROPOSAL.md](maintainer/GITHUB-PRESENTATION-PROPOSAL.md) |
 | Governance settings checklist (not applied) | [maintainer/MAINTENANCE-GOVERNANCE.md](maintainer/MAINTENANCE-GOVERNANCE.md) |
+| Merged-branch deletion list (not executed) | [maintainer/BRANCH-DELETION-LIST.md](maintainer/BRANCH-DELETION-LIST.md) |
 | Living release checklist | [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) |
 | Roadmap | [ROADMAP.md](ROADMAP.md) |
 
@@ -54,6 +55,6 @@ Index: [RELEASE-NOTES.md](RELEASE-NOTES.md). Version bodies: [releases/](release
 | LIVE_DOCKER validation | [design/nginx-fpm-integration-validation.md](design/nginx-fpm-integration-validation.md) |
 | v2.8.0 readiness evidence | [releases/v2.8.0-readiness.md](releases/v2.8.0-readiness.md) · [pr-assets/v2.8.0-nginx-fpm-live/](pr-assets/v2.8.0-nginx-fpm-live/) |
 
-## Historical / process artifacts (not primary user docs)
+## Historical / process artifacts
 
-Per-version finalize checklists (`RELEASE-FINALIZE-CHECKLIST-*.md`), enterprise QA gates (`*-2.7.2.md`, `AUDIT-PRODUCTION-READINESS-*.md`), PR drafts (`pr-draft-*.md`), and presentation memos (`GITHUB-PRESENTATION.md`, `PROJECT-PRESENTATION.md`, `*-2026-10-21.md`) are retained for audit trail. Prefer the living [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) and [GOVERNANCE.md](GOVERNANCE.md) for current process. Archive proposal: [maintainer/DOCS-ARCHIVE-PLAN.md](maintainer/DOCS-ARCHIVE-PLAN.md).
+Per-version finalize checklists, enterprise QA gates, PR drafts, and presentation memos live under [archive/](archive/) (stubs remain at original paths). Prefer [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) and [GOVERNANCE.md](GOVERNANCE.md). Plan: [maintainer/DOCS-ARCHIVE-PLAN.md](maintainer/DOCS-ARCHIVE-PLAN.md).
