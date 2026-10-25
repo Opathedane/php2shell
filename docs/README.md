@@ -2,15 +2,17 @@
 
 **Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0).** Start with the [repository README](../README.md) for download and quick start.
 
-This index is the map of **current** documentation. Historical release gates, PR drafts, and point-in-time audits remain in-tree for provenance but are not the day-to-day user path.
+This index is the map of **current** documentation. Historical release gates, PR drafts, and point-in-time audits remain in-tree for provenance but are not the day-to-day user path. Proposed future moves: [maintainer/DOCS-ARCHIVE-PLAN.md](maintainer/DOCS-ARCHIVE-PLAN.md) (**not applied in Phase 1**).
 
 ## Authoritative guides
 
 | Topic | Document |
 | --- | --- |
 | Installation (consultants) | [INSTALL-FOR-CONSULTANTS.md](INSTALL-FOR-CONSULTANTS.md) |
+| Platforms & coverage | [SUPPORTED-COVERAGE.md](SUPPORTED-COVERAGE.md) |
 | Advanced usage / flags | [ADVANCED-USAGE.md](ADVANCED-USAGE.md) |
 | Understanding HTML/CSV reports | [UNDERSTANDING-REPORTS.md](UNDERSTANDING-REPORTS.md) |
+| Example report assets | [assets/](assets/) |
 | Exit codes & deployment contracts | [EXIT-CODES-AND-DEPLOYMENT.md](EXIT-CODES-AND-DEPLOYMENT.md) |
 | Compromise investigation assist | [COMPROMISE-INVESTIGATION.md](COMPROMISE-INVESTIGATION.md) |
 | Fleet CSV schema | [CSV-SCHEMA.md](CSV-SCHEMA.md) |
@@ -35,6 +37,8 @@ This index is the map of **current** documentation. Historical release gates, PR
 | Licensing | [LICENSING.md](LICENSING.md) · [../LICENSE](../LICENSE) |
 | Contributing | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Maintainer governance | [GOVERNANCE.md](GOVERNANCE.md) |
+| Phase 1 GitHub About/topics proposal | [maintainer/GITHUB-PRESENTATION-PROPOSAL.md](maintainer/GITHUB-PRESENTATION-PROPOSAL.md) |
+| Phase 1 settings checklist (not applied) | [maintainer/PHASE1-GOVERNANCE-CHECKLIST.md](maintainer/PHASE1-GOVERNANCE-CHECKLIST.md) |
 | Living release checklist | [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) |
 | Roadmap | [ROADMAP.md](ROADMAP.md) |
 
@@ -52,4 +56,4 @@ Index: [RELEASE-NOTES.md](RELEASE-NOTES.md). Version bodies: [releases/](release
 
 ## Historical / process artifacts (not primary user docs)
 
-Per-version finalize checklists (`RELEASE-FINALIZE-CHECKLIST-*.md`), enterprise QA gates (`*-2.7.2.md`, `AUDIT-PRODUCTION-READINESS-*.md`), PR drafts (`pr-draft-*.md`), and presentation memos (`GITHUB-PRESENTATION.md`, `PROJECT-PRESENTATION.md`, `*-2026-10-21.md`) are retained for audit trail. Prefer the living [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) and [GOVERNANCE.md](GOVERNANCE.md) for current process.
+Per-version finalize checklists (`RELEASE-FINALIZE-CHECKLIST-*.md`), enterprise QA gates (`*-2.7.2.md`, `AUDIT-PRODUCTION-READINESS-*.md`), PR drafts (`pr-draft-*.md`), and presentation memos (`GITHUB-PRESENTATION.md`, `PROJECT-PRESENTATION.md`, `*-2026-10-21.md`) are retained for audit trail. Prefer the living [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) and [GOVERNANCE.md](GOVERNANCE.md) for current process. Archive proposal: [maintainer/DOCS-ARCHIVE-PLAN.md](maintainer/DOCS-ARCHIVE-PLAN.md).

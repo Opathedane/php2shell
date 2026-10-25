@@ -1,89 +1,49 @@
 # PHP2Shell
 
-**Find PHP on a host, compare it to the October 2026 critical security fixes, and see what to do next.**
+[![Release](https://img.shields.io/github/v/release/Opathedane/php2shell?display_name=tag)](https://github.com/Opathedane/php2shell/releases/latest)
+[![License](https://img.shields.io/github/license/Opathedane/php2shell)](LICENSE)
+[![CI](https://github.com/Opathedane/php2shell/actions/workflows/ci.yml/badge.svg)](https://github.com/Opathedane/php2shell/actions/workflows/ci.yml)
 
-PHP2Shell is a **read-only**, offline-friendly **defensive** scanner for Windows, Linux, and macOS. It writes a local **HTML + CSV** report pair (plus a small **status JSON** file). It does **not** exploit systems, execute discovered PHP binaries, upload your data, or prove that a host is uncompromised.
+**Defensive PHP inventory and patch-review for Windows, Linux, and macOS.**
 
-> **Name note:** This repository is the **PHP2Shell assessment tool** — a patch-review and inventory aid. It is **not** an exploit kit and is not affiliated with any vulnerability nickname that may share a similar label.
+PHP2Shell is a **read-only**, offline-friendly scanner that discovers PHP installations (and related web-server configuration), compares **observed** versions to the October 2026 upstream security fixes, and writes a local **HTML + CSV** report pair plus a small **status JSON** for automation.
 
-**Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0).** Confirm `php2shell version` matches the binary you run. Verify downloads against `SHA256SUMS` on the release page.
+It does **not** exploit systems, execute discovered PHP binaries, upload your data, or certify that a host is patched or uncompromised.
 
-| Currently assessed | Detail |
+> **Naming:** This project is the **PHP2Shell assessment tool** (a defensive scanner). It assesses advisories such as CVE-2026-109618 / CVE-2026-109619. It is **not** an exploit toolkit and is not affiliated with any similarly nicknamed vulnerability or offensive tooling.
+
+**Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0).** Confirm `php2shell version` matches the binary you run, and verify files against `SHA256SUMS` on the [Releases](https://github.com/Opathedane/php2shell/releases/latest) page.
+
+| Advisory | How PHP2Shell treats it |
 | --- | --- |
-| **CVE-2026-109618**, **CVE-2026-109619** | Upstream fixes: **8.5.12 / 8.4.27 / 8.3.36 / 8.2.35** (21 Oct 2026) |
-| **CVE-2026-115560** | Informational only — prefer `session.upload_progress.enabled=0`; **no fixed versions invented** |
-
-## Documentation map
-
-| Start here | |
-| --- | --- |
-| **Docs index** | [docs/README.md](docs/README.md) |
-| **Understanding reports** | [docs/UNDERSTANDING-REPORTS.md](docs/UNDERSTANDING-REPORTS.md) |
-| **Enterprise deployment** | [Intune](docs/deployment/INTUNE.md) · [Group Policy](docs/deployment/GPO.md) · [PSADT](deploy/PSADT-PHP2Shell-Reference.ps1) · [Report collection](docs/deployment/REPORT-COLLECTION.md) |
-| **Exit codes** | [docs/EXIT-CODES-AND-DEPLOYMENT.md](docs/EXIT-CODES-AND-DEPLOYMENT.md) |
-| **DFIR / advanced** | [COMPROMISE-INVESTIGATION.md](docs/COMPROMISE-INVESTIGATION.md) · [ADVANCED-USAGE.md](docs/ADVANCED-USAGE.md) |
-| **Security & verification** | SHA256 below · [signing plan](docs/deployment/AUTHENTICODE-IMPLEMENTATION.md) · [Apache-2.0](LICENSE) · [SECURITY.md](SECURITY.md) |
-| **Roadmap** | [docs/ROADMAP.md](docs/ROADMAP.md) |
-| **Troubleshooting** | Exit codes doc · `php2shell doctor` · GitHub Issues |
+| **CVE-2026-109618**, **CVE-2026-109619** | Compare observed versions to upstream fixes **8.5.12 / 8.4.27 / 8.3.36 / 8.2.35** (21 Oct 2026). Vendor backports need your separate verification. |
+| **CVE-2026-115560** | Informational only from observed `php.ini` text — prefer `session.upload_progress.enabled=0`; **no fixed versions invented**. |
 
 ---
 
-## 1. What PHP2Shell does (and does not)
+## Quick start
 
-### Does
+### 1. Download
 
-- **PHP discovery** — packages (dpkg/apk), binaries, PATH/well-known paths, IIS/Apache hints, optional authorized roots
-- **nginx / PHP-FPM configuration discovery** (v2.8.0) — well-known Unix config paths; local/remote/ambiguous FastCGI classification
-- **Vulnerability / patch assessment** — compare observed versions to official upstream thresholds; call out vendor-verification cases
-- **Reporting** — HTML for humans, CSV for fleet rollup, status JSON for automation
-- **Optional compromise investigation** — only when you supply logs / telemetry / webroot / WAF exports
-
-### Does not
-
-- Attest which PHP process is **actually serving HTTP** (nginx/FPM **config correlation is never proof** of the active runtime or its patch state)
-- Prove a **vendor backport** without your vendor evidence
-- Inventory **RPM** package databases in this release (binary discovery still runs)
-- Expand **Homebrew** / custom prefixes beyond well-known paths
-- Declare the host **clean**, **safe**, or **uncompromised**
-
----
-
-## 2. Choose and verify the executable
-
-| Platform | Download |
+| Platform | File |
 | --- | --- |
 | Windows 10 / 11 / Server 2016+ | `php2shell-windows-amd64.zip` |
-| Windows Server **2012 R2** | `php2shell-windows-legacy-amd64.zip` — [WINDOWS-LEGACY-2012R2.md](docs/WINDOWS-LEGACY-2012R2.md) |
+| Windows Server **2012 R2** | `php2shell-windows-legacy-amd64.zip` ([notes](docs/WINDOWS-LEGACY-2012R2.md)) |
 | Linux amd64 / arm64 | `php2shell-linux-amd64.tar.gz` / `php2shell-linux-arm64.tar.gz` |
-| macOS amd64 / arm64 | `php2shell-darwin-amd64.tar.gz` / `php2shell-darwin-arm64.tar.gz` (developer convenience) |
+| macOS amd64 / arm64 | `php2shell-darwin-amd64.tar.gz` / `php2shell-darwin-arm64.tar.gz` |
 
-1. Get files from [GitHub Releases](https://github.com/Opathedane/php2shell/releases/latest).
-2. Verify checksums against `SHA256SUMS` (Windows: `Get-FileHash … -Algorithm SHA256`).
-3. Binaries are **not Authenticode-signed** today — [signing plan](docs/deployment/DISTRIBUTION-SIGNING.md).
+Binaries are **not Authenticode-signed**. Always check `SHA256SUMS`. License: [Apache-2.0](LICENSE).
 
-**Licensing:** [Apache License 2.0](LICENSE) ([docs/LICENSING.md](docs/LICENSING.md)).
+### 2. Run (interactive — do not use `--quiet` the first time)
 
----
-
-## 3. Quick Start (interactive)
-
-Use these commands the first time you try the tool. **Do not use `--quiet` here** — you want progress and a readable summary.
-
-### Windows (PowerShell)
+**Windows (PowerShell)**
 
 ```powershell
 .\php2shell-windows-amd64.exe doctor
 .\php2shell-windows-amd64.exe scan --output-dir $env:ProgramData\PHP2Shell\Reports
 ```
 
-Server 2012 R2:
-
-```powershell
-.\php2shell-windows-legacy-amd64.exe doctor
-.\php2shell-windows-legacy-amd64.exe scan --output-dir $env:ProgramData\PHP2Shell\Reports
-```
-
-### Linux
+**Linux**
 
 ```bash
 chmod +x php2shell-linux-amd64
@@ -91,7 +51,7 @@ chmod +x php2shell-linux-amd64
 ./php2shell-linux-amd64 scan --output-dir "$HOME/.php2shell/reports"
 ```
 
-### macOS
+**macOS**
 
 ```bash
 chmod +x php2shell-darwin-arm64   # or php2shell-darwin-amd64
@@ -99,69 +59,74 @@ chmod +x php2shell-darwin-arm64   # or php2shell-darwin-amd64
 ./php2shell-darwin-arm64 scan --output-dir "$HOME/.php2shell/reports"
 ```
 
-Open the newest `php2shell-*.html` in a browser. Read **Patch assessment** first — [Understanding reports](docs/UNDERSTANDING-REPORTS.md).
+### 3. Open the HTML report
 
-Example HTML report screenshots (from prior UX validation): [docs/pr-assets/v2.7.4-ux/](docs/pr-assets/v2.7.4-ux/).
+Open the newest `php2shell-*.html` in a browser. Start with **Patch assessment**, then coverage / “what could not be verified.” Full guide: [Understanding reports](docs/UNDERSTANDING-REPORTS.md).
 
-### Unattended / automation
+![Example HTML report — patch assessment (synthetic lab host)](docs/assets/report-example-patch-assessment.png)
 
-Add `--quiet` so progress is suppressed; **errors and the status line still go to stderr**, and `.status.json` remains machine-readable:
+*Synthetic example only (lab host label, no customer data). Matching HTML: [docs/assets/report-example-patch-assessment.html](docs/assets/report-example-patch-assessment.html).*
 
-```powershell
-.\php2shell-windows-amd64.exe scan --quiet --output-dir $env:ProgramData\PHP2Shell\Reports
-```
+**Automation:** add `--quiet` so progress is suppressed; errors and the status line still go to stderr, and `.status.json` remains machine-readable.
 
 ---
 
-## 4. Feature overview
+## What you get
 
-| Area | Capabilities |
+| Output | Purpose |
 | --- | --- |
-| **PHP discovery** | dpkg/apk, Windows/Linux well-known + PATH binaries, `--php-ini` / `--config-root` / optional `--deep-root` |
-| **Web server config** | IIS/Apache inventory; **nginx + PHP-FPM** well-known config discovery (v2.8.0) |
-| **Patch assessment** | CVE-2026-109618 / 109619 thresholds; EOL/vendor verification; RC rejection; multi-install grouping |
-| **Additional advisory** | CVE-2026-115560 from observed php.ini text only |
-| **Optional IR** | `--access-log`, `--error-log`, `--process-telemetry`, `--webroot`, `--waf-log` |
-| **Reporting** | HTML + CSV + status JSON; `php2shell rollup` for fleet CSV |
-| **Enterprise** | Exit 0/1/2 contract; Intune / GPO / PSADT guides under `docs/deployment/` |
+| **HTML** | Human-readable assessment for a single host |
+| **CSV** | Same scan for fleet rollup (`php2shell rollup`) |
+| **status JSON** | Small machine-readable completion / path metadata for Intune, GPO, scripts |
 
----
-
-## 5. Exit codes
-
-| Code | Meaning |
+| Exit code | Meaning |
 | --- | --- |
 | **0** | HTML+CSV written |
 | **1** | Fatal (reports often missing) |
 | **2** | HTML+CSV written, coverage incomplete — **still collect** |
 
-Exit 0 is **not** a security clearance. Details: [EXIT-CODES-AND-DEPLOYMENT.md](docs/EXIT-CODES-AND-DEPLOYMENT.md).
+Exit **0 is not a security clearance.** Details: [EXIT-CODES-AND-DEPLOYMENT.md](docs/EXIT-CODES-AND-DEPLOYMENT.md).
 
 ---
 
-## 6. Enterprise deployment
+## Coverage at a glance (v2.8.0)
 
-- [Intune Win32](docs/deployment/INTUNE.md) — **clients**; not a substitute for Server management
-- [Group Policy](docs/deployment/GPO.md) — Server-friendly patterns
-- [PSADT reference](deploy/PSADT-PHP2Shell-Reference.ps1)
-- [Report collection](docs/deployment/REPORT-COLLECTION.md)
+**Does**
+
+- Discover PHP via packages (dpkg/apk), PATH / well-known binaries, IIS/Apache hints, optional `--config-root` / `--deep-root`
+- Discover **nginx / PHP-FPM configuration** on well-known Unix paths (local / remote / ambiguous FastCGI classification)
+- Assess observed versions against upstream thresholds; optional IR when you supply logs / telemetry / webroot / WAF exports
+- Write HTML + CSV + status JSON locally
+
+**Does not**
+
+- Prove complete PHP discovery on every host layout
+- Attest the **active HTTP-serving** PHP runtime or its patch state — including when nginx/FPM configs **correlate** (configuration ≠ verified runtime)
+- Inventory RPM databases or expand Homebrew / custom prefixes in this release
+- Declare the host clean, safe, or uncompromised
+
+Authoritative coverage contract: [docs/SUPPORTED-COVERAGE.md](docs/SUPPORTED-COVERAGE.md). nginx/FPM design: [docs/design/nginx-fpm-discovery.md](docs/design/nginx-fpm-discovery.md).
 
 ---
 
-## 7. More documentation
+## Documentation
 
-| Topic | Doc |
+| Topic | Document |
 | --- | --- |
-| Consultant install notes | [INSTALL-FOR-CONSULTANTS.md](docs/INSTALL-FOR-CONSULTANTS.md) |
-| Official patch guidance notes | [OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md](docs/OFFICIAL-PHP2SHELL-PATCH-GUIDANCE.md) |
-| Release notes | [RELEASE-NOTES.md](docs/RELEASE-NOTES.md) · [v2.8.0](docs/releases/v2.8.0.md) |
-| nginx / PHP-FPM design | [design/nginx-fpm-discovery.md](docs/design/nginx-fpm-discovery.md) |
-| Full docs index | [docs/README.md](docs/README.md) |
-
-Report bugs or incorrect assessments via GitHub Issues. Security issues: [SECURITY.md](SECURITY.md).
+| **Docs index** | [docs/README.md](docs/README.md) |
+| Installation (consultants) | [docs/INSTALL-FOR-CONSULTANTS.md](docs/INSTALL-FOR-CONSULTANTS.md) |
+| Understanding reports | [docs/UNDERSTANDING-REPORTS.md](docs/UNDERSTANDING-REPORTS.md) |
+| Platforms & coverage | [docs/SUPPORTED-COVERAGE.md](docs/SUPPORTED-COVERAGE.md) |
+| Advanced usage | [docs/ADVANCED-USAGE.md](docs/ADVANCED-USAGE.md) |
+| Enterprise (Intune / GPO / collection) | [docs/deployment/](docs/deployment/) |
+| Security / disclosure | [SECURITY.md](SECURITY.md) |
+| Release notes | [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md) · [v2.8.0](docs/releases/v2.8.0.md) |
+| Roadmap | [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ---
 
-## 8. Safety defaults
+## Safety defaults
 
 Read-only local scan · no PHP execution · no automatic upload · no browser open · offline by default.
+
+Authorize every scan. Keep reports inside the engagement boundary. Report product defects via Issues (redact customer data); report scanner security issues privately per [SECURITY.md](SECURITY.md).

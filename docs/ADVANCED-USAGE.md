@@ -2,9 +2,9 @@
 
 # Advanced usage — PHP2Shell Assessment
 
-Latest public release: **v2.8.0** (bounded nginx/PHP-FPM configuration discovery). Confirm `php2shell version`.
+Latest public release: **v2.8.0** (bounded nginx/PHP-FPM configuration discovery). Confirm `php2shell version`. Coverage contract: [SUPPORTED-COVERAGE.md](SUPPORTED-COVERAGE.md).
 
-PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory, evidence-qualified patch review, and offline compromise investigation assist for CVE-2026-109618 / CVE-2026-109619.
+PHP2Shell does **not** certify that a host is patched or uncompromised. It performs authorized, read-only inventory, evidence-qualified patch review, and offline compromise investigation assist for CVE-2026-109618 / CVE-2026-109619. nginx/FPM configuration correlation never proves the active HTTP-serving runtime or its patch state ([design/nginx-fpm-discovery.md](design/nginx-fpm-discovery.md)).
 
 ## Download
 
