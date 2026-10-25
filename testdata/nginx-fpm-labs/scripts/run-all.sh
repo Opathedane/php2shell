@@ -201,6 +201,9 @@ fi
   echo "}"
 } > "$SUMMARY_JSON"
 
+# Ensure the Actions runner can package nobody-owned reports.
+chmod -R a+rX "$RESULTS" 2>/dev/null || true
+
 echo "LIVE labs: pass=$PASS fail=$FAIL skip=$SKIP (summary $SUMMARY_MD)"
 if [[ "$FAIL" -ne 0 || "$SKIP" -ne 0 ]]; then
   exit 1

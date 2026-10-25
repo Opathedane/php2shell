@@ -88,6 +88,18 @@ jobs:
           go test ./... -count=1
           go vet ./...
 
+      - name: Fix artifact permissions
+        if: always()
+        run: |
+          sudo chmod -R a+rX testdata/nginx-fpm-labs/results || chmod -R a+rX testdata/nginx-fpm-labs/results || true
+          ls -laR testdata/nginx-fpm-labs/results | head -80 || true
+          # Surface assert notes in job logs for triage
+          for n in testdata/nginx-fpm-labs/results/*/comparison-notes.txt; do
+            [ -f "$n" ] || continue
+            echo "===== $n ====="
+            cat "$n"
+          done
+
       - name: Upload LIVE_DOCKER artifacts
         if: always()
         uses: actions/upload-artifact@v4
