@@ -333,6 +333,7 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		for _, e := range r.Evidence {
 			if e.Type != "running_process" && e.Type != "iis_php_handler_config" && e.Type != "iis_site_config" &&
 				e.Type != "apache_vhost_config" && e.Type != "apache_php_handler_config" && e.Type != "apache_php_module_config" && e.Type != "apache_remote_php_backend" &&
+				e.Type != "nginx_site_config" && e.Type != "nginx_php_handler_config" && e.Type != "nginx_remote_php_backend" && e.Type != "nginx_php_upstream_config" && e.Type != "php_fpm_pool_config" &&
 				e.Type != "binary_static_version" && e.Type != "binary_path_inferred_version" && e.Type != "binary_path" && e.Type != "operator_reported_web_runtime" {
 				continue
 			}

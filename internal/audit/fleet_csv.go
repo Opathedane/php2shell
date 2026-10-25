@@ -418,7 +418,7 @@ func fleetDiscoveryCompleteness(r *Report) string {
 	unknownOnly := true
 	for _, e := range r.Evidence {
 		switch e.Type {
-		case "binary_path", "binary_static_version", "binary_path_inferred_version", "installed_package", "iis_php_handler_config", "apache_php_handler_config", "apache_php_module_config", "operator_reported_web_runtime", "running_process":
+		case "binary_path", "binary_static_version", "binary_path_inferred_version", "installed_package", "iis_php_handler_config", "apache_php_handler_config", "apache_php_module_config", "nginx_php_handler_config", "php_fpm_pool_config", "operator_reported_web_runtime", "running_process":
 			if e.Type == "running_process" && e.Name == "w3wp.exe" {
 				continue
 			}

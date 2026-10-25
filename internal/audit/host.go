@@ -28,6 +28,9 @@ func ScanHost(r *Report, opts HostScanOptions) {
 	scanProcesses(r)
 	// Web-server config first so PHPIniDir / IIS -c paths can feed php.ini inventory.
 	scanApacheConfiguration(r)
+	scanNginxConfiguration(r)
+	scanPHPFPMConfiguration(r)
+	CorrelateNginxFPMBackends(r)
 	scanWindowsSpecific(r)
 	scanConfigs(r, opts, deepOutcomes)
 	if opts.Webroot != "" {
