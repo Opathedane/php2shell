@@ -6,7 +6,7 @@ import (
 )
 
 const Schema = "php2shell-assessment/v1"
-const Version = "2.8.0"
+const Version = "2.8.1"
 
 type Evidence struct {
 	Type           string `json:"type"`
@@ -57,7 +57,7 @@ type ErrorLogCoverage struct {
 type InvestigationFinding struct {
 	ID           string `json:"id"`
 	Class        string `json:"class"`      // verified_public_pattern | heuristic | correlation
-	Kind         string `json:"kind"`       // e.g. php_oom_unknown_line0, apache_segfault, access_long_post, correlated_attempt
+	Kind         string `json:"kind"`       // e.g. php_oom_unknown_line0, php_zend_mm_heap_corrupted, apache_child_abort, correlated_error_sequence, agentic_section_delimiter
 	Confidence   string `json:"confidence"` // unconfirmed | suspected
 	Source       string `json:"source"`
 	Location     string `json:"location"`

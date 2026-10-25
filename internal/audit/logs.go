@@ -23,6 +23,9 @@ const srcAccessLongPOST = "Heuristic only: POST request-target (URI path/stem+qu
 	"Ordinary Combined/IIS W3C access logs do not expose body bytes or form-field metadata — those require WAF/proxy exports. " +
 	"Weak alone — not proof of exploitation"
 
+const srcAccessPOST5xx = "ReliaQuest Threat Spotlight PHP2Shell (2026-10-22): POST returning 5xx may accompany failed exploit attempts. " +
+	"Correlation-only signal (not a standalone lead); ordinary application errors also return 5xx. No request body retained"
+
 func ScanAccessLog(r *Report, path string) {
 	ScanAccessLogWithIndicators(r, path, nil)
 }
@@ -49,6 +52,7 @@ func ScanAccessLogCollect(r *Report, path string, indicators []rules.Indicator) 
 	var first, last time.Time
 	var iisFields map[string]int
 	iisDetected := false
+	post5xxKept := 0
 	for scanner.Scan() {
 		item.Lines++
 		line := scanner.Text()
@@ -138,6 +142,31 @@ func ScanAccessLogCollect(r *Report, path string, indicators []rules.Indicator) 
 						"Ordinary access logs lack those fields; prefer offline WAF metadata when available. "+
 						"Weak heuristic (confidence=unconfirmed); not proof of exploitation or compromise.",
 					longPOSTTargetRunes, item.Lines,
+				),
+			})
+		}
+		// POST + 5xx: correlation-only (FinalizeInvestigation does not emit as standalone lead).
+		// Cap retained events so large 5xx floods cannot exhaust memory before correlation.
+		if strings.EqualFold(method, "POST") && len(status) == 3 && status[0] == '5' && post5xxKept < 200 {
+			if t.IsZero() {
+				if m := accessTime.FindStringSubmatch(line); len(m) > 1 {
+					t, _ = time.Parse("02/Jan/2006:15:04:05 -0700", strings.TrimSpace(m[1]))
+				}
+			}
+			post5xxKept++
+			anomalies = append(anomalies, InvestigationEvent{
+				Kind:       "access_post_server_error",
+				Class:      "heuristic",
+				Confidence: "unconfirmed",
+				Source:     srcAccessPOST5xx,
+				Location:   path,
+				Time:       t,
+				Line:       item.Lines,
+				Detail: fmt.Sprintf(
+					"POST with HTTP %s at access-log line %d (status only; request-target/body not retained). "+
+						"Correlation-only assist for ReliaQuest-style sequences; ordinary application failures also return 5xx. "+
+						"Not a standalone exploitation lead.",
+					status, item.Lines,
 				),
 			})
 		}

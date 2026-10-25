@@ -14,6 +14,8 @@ const (
 	srcDatadogOOM = "Datadog Security Labs PHP2Shell analysis (2026-10-21): PHP Fatal memory exhausted in Unknown on line 0 — correlate; memory exhaustion alone is not proof of attack"
 	srcDatadogSF  = "Datadog Security Labs PHP2Shell analysis (2026-10-21): Apache AH00052 child Segmentation fault may indicate failed exploit attempts; successful exploits may not crash"
 	srcAWSReview  = "AWS Security Blog PHP2Shell MadPot (2026-10-21): review web server logs for suspicious activity; investigate from at least 2026-10-17"
+	// ReliaQuest Threat Spotlight (2026-10-22; covered in Oct 25 industry reporting): POST 500 + OOM Unknown line 0 + zend_mm_heap corrupted + worker Abort — correlate; not confirmed attribution alone.
+	srcReliaQuestSeq = "ReliaQuest Threat Spotlight PHP2Shell (2026-10-22): zend_mm_heap corrupted and AH00052 Abort alongside OOM Unknown on line 0 — multi-signal sequence; not confirmed exploitation alone"
 )
 
 var (
@@ -23,9 +25,22 @@ var (
 	apacheErrorTime = regexp.MustCompile(`^\[([A-Za-z]{3}\s+[A-Za-z]{3}\s+[0-9]{1,2}\s+[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?\s+[0-9]{4})\]\s*(.*)$`)
 
 	phpOOMUnknown = regexp.MustCompile(`(?i)Allowed memory size of [0-9]+ bytes exhausted.*in Unknown on line 0`)
+	phpZendMMHeap = regexp.MustCompile(`(?i)zend_mm_heap\s+corrupted`)
 	apacheSegfault = regexp.MustCompile(`(?i)AH00052:\s*child pid\s+[0-9]+\s+exit signal Segmentation fault`)
 	apacheSegfaultLoose = regexp.MustCompile(`(?i)exit signal Segmentation fault\s*\(\s*11\s*\)`)
+	apacheAbort = regexp.MustCompile(`(?i)AH00052:\s*child pid\s+[0-9]+\s+exit signal Abort`)
+	apacheAbortLoose = regexp.MustCompile(`(?i)exit signal Abort\s*\(\s*6\s*\)`)
+	// Best-effort worker identity when AH00052 (or equivalent) exposes "child pid N".
+	apacheChildPID = regexp.MustCompile(`(?i)child pid\s+([0-9]+)`)
 )
+
+func extractApacheChildPID(line string) string {
+	m := apacheChildPID.FindStringSubmatch(line)
+	if len(m) != 2 {
+		return ""
+	}
+	return m[1]
+}
 
 // ScanErrorLog reviews one PHP/Apache error log for research-backed patterns.
 // Returns timed investigation events (may be empty). Never stores raw sensitive line text.
@@ -86,9 +101,39 @@ func ScanErrorLog(r *Report, path string) []InvestigationEvent {
 				),
 			})
 		}
+		if phpZendMMHeap.MatchString(rest) || phpZendMMHeap.MatchString(line) {
+			item.MatchedPatterns++
+			events = append(events, InvestigationEvent{
+				Kind:       "php_zend_mm_heap_corrupted",
+				Class:      "verified_public_pattern",
+				Confidence: "suspected",
+				Source:     srcReliaQuestSeq,
+				Location:   path,
+				Time:       t,
+				Line:       item.Lines,
+				Detail: fmt.Sprintf(
+					"PHP zend_mm_heap corrupted message at log line %d. "+
+						"Observed in published PHP2Shell failed-attempt sequences with OOM and worker abort; "+
+						"heap corruption alone is not proof of exploitation or compromise.",
+					item.Lines,
+				),
+			})
+		}
 		if apacheSegfault.MatchString(rest) || apacheSegfault.MatchString(line) ||
 			apacheSegfaultLoose.MatchString(rest) || apacheSegfaultLoose.MatchString(line) {
 			item.MatchedPatterns++
+			pid := extractApacheChildPID(line)
+			if pid == "" {
+				pid = extractApacheChildPID(rest)
+			}
+			detail := fmt.Sprintf(
+				"Apache child segmentation fault (AH00052 or equivalent) at log line %d. "+
+					"May indicate a failed attempt; successful exploitation may leave no crash. Not proof of compromise.",
+				item.Lines,
+			)
+			if pid != "" {
+				detail += fmt.Sprintf(" Worker PID %s observed on this line only — not proof of same-request identity with other log lines.", pid)
+			}
 			events = append(events, InvestigationEvent{
 				Kind:       "apache_child_segfault",
 				Class:      "verified_public_pattern",
@@ -97,11 +142,36 @@ func ScanErrorLog(r *Report, path string) []InvestigationEvent {
 				Location:   path,
 				Time:       t,
 				Line:       item.Lines,
-				Detail: fmt.Sprintf(
-					"Apache child segmentation fault (AH00052 or equivalent) at log line %d. "+
-						"May indicate a failed attempt; successful exploitation may leave no crash. Not proof of compromise.",
-					item.Lines,
-				),
+				Detail:     detail,
+				WorkerPID:  pid,
+			})
+		}
+		if apacheAbort.MatchString(rest) || apacheAbort.MatchString(line) ||
+			apacheAbortLoose.MatchString(rest) || apacheAbortLoose.MatchString(line) {
+			item.MatchedPatterns++
+			pid := extractApacheChildPID(line)
+			if pid == "" {
+				pid = extractApacheChildPID(rest)
+			}
+			detail := fmt.Sprintf(
+				"Apache child Abort (AH00052 / SIGABRT) at log line %d. "+
+					"Published PHP2Shell lab sequences pair Abort with OOM Unknown on line 0 and zend_mm_heap corruption. "+
+					"Not proof of successful exploitation or host compromise.",
+				item.Lines,
+			)
+			if pid != "" {
+				detail += fmt.Sprintf(" Worker PID %s observed on this line only — not proof of same-request identity with other log lines.", pid)
+			}
+			events = append(events, InvestigationEvent{
+				Kind:       "apache_child_abort",
+				Class:      "verified_public_pattern",
+				Confidence: "suspected",
+				Source:     srcReliaQuestSeq + "; " + srcAWSReview,
+				Location:   path,
+				Time:       t,
+				Line:       item.Lines,
+				Detail:     detail,
+				WorkerPID:  pid,
 			})
 		}
 	}

@@ -6,6 +6,7 @@ Version-specific GitHub Release bodies live under [`docs/releases/`](releases/).
 
 | Version | Notes |
 | --- | --- |
+| [v2.8.1](releases/v2.8.1.md) | **Draft** — Oct 25 research detection maintenance (ReliaQuest sequence / Unit 42 agentic markers; no discovery/threshold changes) |
 | [v2.8.0](releases/v2.8.0.md) | Bounded nginx/PHP-FPM config discovery (config ≠ verified runtime/patch; no new CTI/IOC; thresholds unchanged) |
 | [v2.7.5](releases/v2.7.5.md) | Unix PHP symlink discovery (patch; no new CTI/IOC; thresholds unchanged) |
 | [v2.7.4](releases/v2.7.4.md) | Console UX / reliability polish (patch; no new CTI/IOC) |

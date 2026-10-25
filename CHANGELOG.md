@@ -1,4 +1,11 @@
-## Unreleased
+## Unreleased (toward v2.8.1)
+
+- Detection: ReliaQuest-aligned error patterns (`zend_mm_heap corrupted`, AH00052 Abort) and same-file multi-signal `correlated_error_sequence` (OOM Unknown line 0 + heap/crash ≤2m).
+- Evidence integrity: sequence confidence ladder (`suspected` only for ≥3 kinds or shared Apache WorkerPID; two-kind time-only stays `unconfirmed`); cross-file joins refused; duplicate floods collapsed; POST 5xx↔error stays **unconfirmed** (not same-request proof).
+- Detection: POST 5xx access events as **correlation-only** assist (never standalone leads).
+- Detection: Unit 42 agentic section delimiters `==SHELLUSER==` / `==PASSWD==` only under web/PHP parents (exact tokens; content never retained).
+- Docs: draft [docs/releases/v2.8.1.md](docs/releases/v2.8.1.md); [COMPROMISE-INVESTIGATION.md](docs/COMPROMISE-INVESTIGATION.md) pattern table.
+- Scope: security detection maintenance only — no new discovery, thresholds, telemetry sources, or CLI/CSV/fleet contract changes.
 
 ## v2.8.0 — 2026-10-25
 

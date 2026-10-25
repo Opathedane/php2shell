@@ -14,6 +14,86 @@ func TestProcessTelemetryAbsentKeepsPossibleNotAssessed(t *testing.T) {
 	}
 }
 
+func TestOct25Unit42AgenticSectionDelimiter(t *testing.T) {
+	dir := t.TempDir()
+	// Markers in cmdline; content must never appear in findings/HTML.
+	csv := "Timestamp,DeviceName,ActionType,FileName,FolderPath,ProcessId,ProcessCommandLine,InitiatingProcessFileName,InitiatingProcessFolderPath,InitiatingProcessId,ReportId\n" +
+		"2026-10-18T14:06:00Z,win-web-01,ProcessCreated,cmd.exe,C:\\Windows\\System32,5000,cmd.exe /c echo ==SHELLUSER== alice9f3a ==PASSWD== sekrit-token-9f3a,php-cgi.exe,C:\\PHP,4000,rpt-agentic-1\n"
+	path := writeTemp(t, dir, "mde-agentic.csv", csv)
+	r := NewReport("host", "windows", "amd64")
+	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
+	_, leads := ScanProcessTelemetry(r, path)
+	if len(leads) == 0 {
+		t.Fatalf("expected agentic lead, coverage=%+v", r.ProcessTelemetry)
+	}
+	if leads[0].Kind != "agentic_section_delimiter" {
+		t.Fatalf("want agentic_section_delimiter, got %s cmdClass=%s", leads[0].Kind, leads[0].Event.CmdClass)
+	}
+	FinalizeInvestigation(r, InvestigationOptions{Assessing: true, HasProcessTelemetry: true}, nil, nil, leads, nil)
+	html := string(EncodeHTML(r))
+	for _, leak := range []string{"==SHELLUSER==", "==PASSWD==", "alice9f3a", "sekrit-token-9f3a"} {
+		if strings.Contains(html, leak) {
+			t.Fatalf("must not retain agentic marker/secret %q in HTML", leak)
+		}
+	}
+	for _, f := range r.InvestigationFindings {
+		for _, leak := range []string{"==SHELLUSER==", "==PASSWD==", "alice9f3a", "sekrit-token-9f3a"} {
+			if strings.Contains(f.Detail, leak) {
+				t.Fatalf("leak in finding: %s", f.Detail)
+			}
+		}
+	}
+}
+
+func TestOct25AgenticDelimiterNegativeBarePasswd(t *testing.T) {
+	dir := t.TempDir()
+	csv := "Timestamp,DeviceName,ActionType,FileName,FolderPath,ProcessId,ProcessCommandLine,InitiatingProcessFileName,InitiatingProcessFolderPath,InitiatingProcessId,ReportId\n" +
+		"2026-10-18T14:06:00Z,win-web-01,ProcessCreated,cmd.exe,C:\\Windows\\System32,5000,cmd.exe /c type C:\\Windows\\System32\\drivers\\etc\\passwd,php-cgi.exe,C:\\PHP,4000,rpt-neg-1\n"
+	path := writeTemp(t, dir, "mde-neg.csv", csv)
+	r := NewReport("host", "windows", "amd64")
+	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
+	_, leads := ScanProcessTelemetry(r, path)
+	for _, lead := range leads {
+		if lead.Kind == "agentic_section_delimiter" {
+			t.Fatal("bare passwd path must not match agentic delimiter")
+		}
+	}
+	if len(leads) == 0 {
+		t.Fatal("expected generic shell child lead")
+	}
+}
+
+func TestOct25AgenticDelimiterRequiresWebParent(t *testing.T) {
+	dir := t.TempDir()
+	// Exact markers under explorer.exe must not imply PHP2Shell exploitation.
+	csv := "Timestamp,DeviceName,ActionType,FileName,FolderPath,ProcessId,ProcessCommandLine,InitiatingProcessFileName,InitiatingProcessFolderPath,InitiatingProcessId,ReportId\n" +
+		"2026-10-18T14:06:00Z,win-web-01,ProcessCreated,cmd.exe,C:\\Windows\\System32,5000,cmd.exe /c echo ==SHELLUSER== ==PASSWD==,explorer.exe,C:\\Windows,4000,rpt-expl-1\n"
+	path := writeTemp(t, dir, "mde-explorer.csv", csv)
+	r := NewReport("host", "windows", "amd64")
+	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
+	_, leads := ScanProcessTelemetry(r, path)
+	if len(leads) != 0 {
+		t.Fatalf("non-web parent must not yield agentic lead, got %+v", leads)
+	}
+}
+
+func TestOct25AgenticDelimiterCaseAndPartialNegative(t *testing.T) {
+	dir := t.TempDir()
+	csv := "Timestamp,DeviceName,ActionType,FileName,FolderPath,ProcessId,ProcessCommandLine,InitiatingProcessFileName,InitiatingProcessFolderPath,InitiatingProcessId,ReportId\n" +
+		"2026-10-18T14:06:00Z,win-web-01,ProcessCreated,cmd.exe,C:\\Windows\\System32,5001,cmd.exe /c echo ==shelluser== ==passwd==,php-cgi.exe,C:\\PHP,4000,rpt-case-1\n" +
+		"2026-10-18T14:06:01Z,win-web-01,ProcessCreated,cmd.exe,C:\\Windows\\System32,5002,cmd.exe /c echo SHELLUSER PASSWD,php-cgi.exe,C:\\PHP,4000,rpt-case-2\n" +
+		"2026-10-18T14:06:02Z,win-web-01,ProcessCreated,cmd.exe,C:\\Windows\\System32,5003,cmd.exe /c echo ==PASSWD,php-cgi.exe,C:\\PHP,4000,rpt-case-3\n"
+	path := writeTemp(t, dir, "mde-case.csv", csv)
+	r := NewReport("host", "windows", "amd64")
+	r.GeneratedUTC = time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
+	_, leads := ScanProcessTelemetry(r, path)
+	for _, lead := range leads {
+		if lead.Kind == "agentic_section_delimiter" {
+			t.Fatalf("lowercase/partial/similar strings must not match Unit 42 markers: %+v", lead)
+		}
+	}
+}
+
 func TestProcessTelemetryMDEPHPToCmd(t *testing.T) {
 	dir := t.TempDir()
 	csv := "Timestamp,DeviceName,ActionType,FileName,FolderPath,ProcessId,ProcessCommandLine,InitiatingProcessFileName,InitiatingProcessFolderPath,InitiatingProcessId,ReportId\n" +

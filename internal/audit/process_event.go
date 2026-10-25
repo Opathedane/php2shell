@@ -99,6 +99,11 @@ func isWebOrPHPParentName(name, path string) bool {
 }
 
 func classifyCommandLine(cmdline string) string {
+	// Unit 42 (2026-10-22): agentic section delimiters in post-exploitation command streams.
+	// Match exact published markers before lowercasing; never retain the raw line.
+	if hasAgenticSectionDelimiter(cmdline) {
+		return "agentic_section_delimiter"
+	}
 	c := strings.ToLower(strings.TrimSpace(cmdline))
 	if c == "" {
 		return "cmdline_absent"
@@ -122,7 +127,16 @@ func classifyCommandLine(cmdline string) string {
 	}
 }
 
+// hasAgenticSectionDelimiter reports Unit 42-published PHP2Shell agentic output markers.
+// Exact delimited tokens only — never match bare "passwd" / "shelluser".
+func hasAgenticSectionDelimiter(cmdline string) bool {
+	return strings.Contains(cmdline, "==SHELLUSER==") || strings.Contains(cmdline, "==PASSWD==")
+}
+
 func childRiskClass(name, path, cmdClass string) (kind string, ok bool) {
+	if cmdClass == "agentic_section_delimiter" {
+		return "agentic_section_delimiter", true
+	}
 	b := baseNameLower(name)
 	if b == "" {
 		b = baseNameLower(path)

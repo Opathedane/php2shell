@@ -62,7 +62,7 @@ func correlateWAF(r *Report, waf, errors, access []InvestigationEvent, procs []P
 			continue
 		}
 		for _, ev := range errors {
-			if ev.Time.IsZero() || (ev.Kind != "php_oom_unknown_line0" && ev.Kind != "apache_child_segfault") {
+			if ev.Time.IsZero() || !isErrorResearchKind(ev.Kind) {
 				continue
 			}
 			delta := w.Time.Sub(ev.Time)
@@ -91,7 +91,7 @@ func correlateWAF(r *Report, waf, errors, access []InvestigationEvent, procs []P
 			}
 		}
 		for _, ev := range access {
-			if ev.Time.IsZero() || ev.Kind != "access_long_post_target" {
+			if ev.Time.IsZero() || !isAccessCorrelationKind(ev.Kind) {
 				continue
 			}
 			delta := w.Time.Sub(ev.Time)

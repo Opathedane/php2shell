@@ -47,6 +47,19 @@ func detectSuspiciousProcessLeads(events []ProcessEvent) []ProcessLead {
 			ev.SourceRecord,
 			nullDash(ev.ProcessEntityID),
 		)
+		if kind == "agentic_section_delimiter" {
+			detail = fmt.Sprintf(
+				"Web/PHP-related parent %q spawned child %q with Unit 42-published agentic section-delimiter token in command line "+
+					"(class=agentic_section_delimiter; raw command line not retained). "+
+					"Source=%s record=%d entity=%s. "+
+					"Campaign-aligned post-exploitation marker — still not confirmed compromise; credentials/tokens never echoed.",
+				safeProcLabel(ev.ParentName, ev.ParentPath),
+				safeProcLabel(ev.ProcessName, ev.ProcessPath),
+				ev.SourceFormat,
+				ev.SourceRecord,
+				nullDash(ev.ProcessEntityID),
+			)
+		}
 		if ev.ParseNotes != "" {
 			detail += " Parse notes: " + ev.ParseNotes + "."
 		}
