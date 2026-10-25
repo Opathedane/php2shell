@@ -1,11 +1,15 @@
-## Unreleased (toward v2.7.4)
+## Unreleased
+
+## v2.7.4 — 2026-10-25
 
 - Fix: CLI no longer prints Linux dpkg/apk package-DB warnings on Windows (`packages=NOT_SUPPORTED`).
 - Improve: `--no-color` + best-effort Windows VT enablement with plain-text fallback; independent stdout/stderr colour decisions; `NO_COLOR` preserved.
 - Improve: end-of-scan console shows overall priority, recommended next step, and `GroupInstallations` labels aligned with HTML; humanized investigation statuses.
 - Improve: HTML `:focus-visible` on details summaries; clearer mixed multi-install executive detail; `ACCESS_DENIED` write-failure remediation.
-- Test: console/HTML phrase regressions; overwrite `OUTPUT_EXISTS` status JSON; built-binary `version`/`doctor` smoke.
-- Docs: [docs/releases/v2.7.4.md](docs/releases/v2.7.4.md) (draft).
+- Test: console/HTML phrase regressions; overwrite `OUTPUT_EXISTS` status JSON; built-binary `version`/`doctor` smoke; CLI↔HTML parity scenarios.
+- Docs: [docs/releases/v2.7.4.md](docs/releases/v2.7.4.md); PR assets under `docs/pr-assets/v2.7.4-ux/`.
+- Scope: usability/reliability only — no new CTI/IOC packs, discovery features, or CVE threshold changes.
+- Field: interactive Windows PowerShell 5.1 / Windows Terminal ANSI matrix **NOT TESTED** at publish; automated CI (incl. Windows + legacy cross-build) passed.
 
 ## v2.7.3 — 2026-10-25
 

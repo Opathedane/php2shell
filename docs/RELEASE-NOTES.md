@@ -1,12 +1,12 @@
 # PHP2Shell release notes
 
-**Latest public release: [v2.7.3](https://github.com/Opathedane/php2shell/releases/tag/v2.7.3)** (25 October 2026).
+**Latest public release: [v2.7.4](https://github.com/Opathedane/php2shell/releases/tag/v2.7.4)** (25 October 2026).
 
 Version-specific GitHub Release bodies live under [`docs/releases/`](releases/). The publish workflow uses **only** the matching `docs/releases/vX.Y.Z.md` file — never this index.
 
 | Version | Notes |
 | --- | --- |
-| [v2.7.4](releases/v2.7.4.md) | Console UX / reliability polish (draft — do not publish yet) |
+| [v2.7.4](releases/v2.7.4.md) | Console UX / reliability polish (patch; no new CTI/IOC) |
 | [v2.7.3](releases/v2.7.3.md) | OS-aware no-PHP reporting & HTML usability (patch; no new CTI/IOC) |
 | [v2.7.2](releases/v2.7.2.md) | Enterprise QA + CVE-2026-115560 advisory assessment + Apache-2.0 |
 | [v2.7.1](releases/v2.7.1.md) | IR accuracy + Cloudflare WAF + Win2012 R2 legacy artifact + deployment diagnostics |
