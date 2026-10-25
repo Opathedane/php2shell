@@ -1,0 +1,25 @@
+# Dependabot for maintenance-mode dependency hygiene.
+# No auto-merge — upgrades require PR review and CI.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - go
+    # Ignore major bumps by default to avoid surprise breaks; allow via manual Dependabot config later if needed.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
