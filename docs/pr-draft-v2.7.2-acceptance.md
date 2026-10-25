@@ -1,18 +1,7 @@
-## Summary
+# Moved
 
-- Stabilization branch for **v2.7.2**: enterprise QA (assessment accuracy, console/HTML, WAF/status) plus distribution docs (Intune, GPO, PSADT, report collection, licensing/signing gates).
-- Acceptance pass: HTML hierarchy fix (Recommended next steps before optional IR); humanized SAPI card wording; release acceptance checklist + field tests.
-- **Do not merge** until maintainer review. **Do not tag/publish** from this PR automatically.
+This historical document was relocated for documentation hygiene.
 
-## Test plan
+**Current location:** [archive/pr-drafts/pr-draft-v2.7.2-acceptance.md](archive/pr-drafts/pr-draft-v2.7.2-acceptance.md)
 
-- [x] `go test` / `go vet` / release-docs check on branch tip
-- [ ] CI green on Draft PR
-- [ ] Maintainer visual open of `testdata/examples/v2.7.2-qa/*.html`
-- [ ] Field pilots per `docs/FIELD-ACCEPTANCE-TESTS-2.7.2.md` (Windows / Intune / GPO / 2012 R2)
-- [x] Apache-2.0 `LICENSE` applied
-- [ ] Prefer tag **v2.7.2** for stabilization; reserve **v2.8.0** for signing/public binary milestone
-
-## Notes
-
-Reviewed commit must be the exact SHA used for any future `gh release create --target`.
+Living process docs: [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) · [GOVERNANCE.md](GOVERNANCE.md) · [README.md](README.md).
