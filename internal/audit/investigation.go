@@ -14,8 +14,39 @@ var SuggestedInvestigateFromUTC = time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)
 const (
 	longPOSTTargetRunes      = 2048
 	correlationWindow        = 15 * time.Minute
+	// errorSequenceWindow is a tight window for ReliaQuest-style multi-signal error sequences
+	// (OOM + heap corruption + worker crash within seconds). Still not same-worker/PID identity.
+	errorSequenceWindow      = 2 * time.Minute
 	maxInvestigationFindings = 200
 )
+
+// isErrorResearchKind reports whether an error-log event kind is a research-backed
+// exploitation-attempt pattern (Datadog / ReliaQuest). Used for correlation filters.
+func isErrorResearchKind(kind string) bool {
+	switch kind {
+	case "php_oom_unknown_line0", "php_zend_mm_heap_corrupted",
+		"apache_child_segfault", "apache_child_abort":
+		return true
+	default:
+		return false
+	}
+}
+
+// isAccessCorrelationKind reports access-log events eligible for temporal correlation.
+// access_post_server_error is correlation-only (never a standalone attempt lead).
+func isAccessCorrelationKind(kind string) bool {
+	switch kind {
+	case "access_long_post_target", "access_post_server_error":
+		return true
+	default:
+		return false
+	}
+}
+
+// isStandaloneAccessLead reports access events that may surface as individual findings.
+func isStandaloneAccessLead(kind string) bool {
+	return kind == "access_long_post_target"
+}
 
 // InvestigationEvent is a timed signal used while finalizing a scan (not serialized raw).
 type InvestigationEvent struct {
@@ -27,6 +58,9 @@ type InvestigationEvent struct {
 	Time       time.Time // zero if unknown
 	Line       int
 	Detail     string
+	// WorkerPID is optional Apache/worker identity when the source line exposes it
+	// (e.g. AH00052 "child pid N"). Empty means unavailable — never invent PID.
+	WorkerPID string
 }
 
 // InvestigationOptions configures offline investigation (logs + process telemetry).
@@ -252,6 +286,9 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 			appendInvestigationFinding(r, findingFromLogEvent("err", ev))
 		}
 		for _, ev := range inScopeAccess {
+			if !isStandaloneAccessLead(ev.Kind) {
+				continue // e.g. access_post_server_error is correlation-only
+			}
 			attemptHits++
 			appendInvestigationFinding(r, findingFromLogEvent("acc", ev))
 		}
@@ -263,9 +300,11 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		}
 	}
 
+	seqCorr := correlateErrorSequence(r, inScopeError)
 	corr := correlateAccessError(r, inScopeError, inScopeAccess)
 	wafCorr := correlateWAF(r, inScopeWAF, inScopeError, inScopeAccess, inScopeProc)
 	_ = wafCorr
+	_ = seqCorr
 
 	// Process ↔ attempt temporal proximity (not causality).
 	procCorr := 0
@@ -277,7 +316,7 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 			if ev.Time.IsZero() {
 				continue
 			}
-			if ev.Kind != "php_oom_unknown_line0" && ev.Kind != "apache_child_segfault" {
+			if !isErrorResearchKind(ev.Kind) {
 				continue
 			}
 			delta := lead.Event.TimeUTC.Sub(ev.Time)
@@ -309,7 +348,7 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 			break
 		}
 		for _, ev := range inScopeAccess {
-			if ev.Time.IsZero() || ev.Kind != "access_long_post_target" {
+			if ev.Time.IsZero() || !isAccessCorrelationKind(ev.Kind) {
 				continue
 			}
 			delta := lead.Event.TimeUTC.Sub(ev.Time)
@@ -327,7 +366,7 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 					Location:     lead.Event.SourceFile + " + " + ev.Location,
 					TimestampUTC: lead.Event.TimeUTC.UTC().Format(time.RFC3339),
 					Detail: fmt.Sprintf(
-						"Temporal proximity only (Δ=%s ≤ 15m), not causality. Contributing evidence: process lead %s (entity=%s) and access-log %s line %d (request-target length heuristic, not body size). "+
+						"Temporal proximity only (Δ=%s ≤ 15m), not causality. Contributing evidence: process lead %s (entity=%s) and access-log %s line %d. "+
 							"Does not confirm successful exploitation or compromise.",
 						delta.Round(time.Second), lead.Kind, nullDash(lead.Event.ProcessEntityID), ev.Kind, ev.Line,
 					),
@@ -397,7 +436,7 @@ func FinalizeInvestigation(r *Report, opts InvestigationOptions, accessEvents, e
 		if usableAttempt == 0 {
 			r.ExploitationAttemptStatus = "NOT_ASSESSED"
 			r.AddWarning("Exploitation-attempt inputs were requested but not usable; status remains NOT_ASSESSED (unavailable/incomplete evidence — not the same as no matches)")
-		} else if attemptHits > 0 || corr > 0 {
+		} else if attemptHits > 0 || corr > 0 || seqCorr > 0 {
 			r.ExploitationAttemptStatus = "SUSPECTED_ATTEMPTS_REVIEW"
 			r.AddWarning("Suspected exploitation-attempt leads require analyst validation; they are not proof of successful exploitation or host compromise")
 			r.AddWarning("Successful in-process exploitation may produce neither a worker crash nor a suspicious child process; absence of those signals is not a negative finding")
@@ -570,7 +609,7 @@ func correlateWebroot(r *Report, webs []WebrootLead, errors, access []Investigat
 		}
 		wt := w.BirthUTC.UTC()
 		for _, ev := range errors {
-			if ev.Time.IsZero() || (ev.Kind != "php_oom_unknown_line0" && ev.Kind != "apache_child_segfault") {
+			if ev.Time.IsZero() || !isErrorResearchKind(ev.Kind) {
 				continue
 			}
 			delta := wt.Sub(ev.Time)
@@ -600,7 +639,7 @@ func correlateWebroot(r *Report, webs []WebrootLead, errors, access []Investigat
 			}
 		}
 		for _, ev := range access {
-			if ev.Time.IsZero() || ev.Kind != "access_long_post_target" {
+			if ev.Time.IsZero() || !isAccessCorrelationKind(ev.Kind) {
 				continue
 			}
 			delta := wt.Sub(ev.Time)
@@ -680,46 +719,207 @@ func findingFromLogEvent(prefix string, ev InvestigationEvent) InvestigationFind
 	}
 }
 
+// correlateErrorSequence elevates when multiple distinct research-backed error patterns
+// land inside a tight window on the same error-log file (ReliaQuest-style OOM + heap + crash).
+// Temporal proximity is never presented as same-request or same-process proof.
+// Confidence:
+//   - suspected: ≥3 distinct research kinds in-window (ReliaQuest multi-signal), OR
+//     ≥2 PID-bearing crash/abort lines share the same WorkerPID within the cluster
+//   - unconfirmed: two-kind temporal pairs without shared WorkerPID
+// Duplicate identical kind sets from the same file/window emit once.
+func correlateErrorSequence(r *Report, inScopeError []InvestigationEvent) int {
+	corr := 0
+	var timed []InvestigationEvent
+	for _, ev := range inScopeError {
+		if ev.Time.IsZero() || !isErrorResearchKind(ev.Kind) {
+			continue
+		}
+		timed = append(timed, ev)
+	}
+	seen := map[string]bool{}
+	for i := 0; i < len(timed); i++ {
+		a := timed[i]
+		kinds := map[string]bool{a.Kind: true}
+		minLine := a.Line
+		anchor := a
+		pidCounts := map[string]int{}
+		if a.WorkerPID != "" {
+			pidCounts[a.WorkerPID]++
+		}
+		for j := 0; j < len(timed); j++ {
+			if i == j {
+				continue
+			}
+			b := timed[j]
+			// Refuse joining independent error-log files / hosts.
+			if a.Location == "" || b.Location == "" || a.Location != b.Location {
+				continue
+			}
+			delta := a.Time.Sub(b.Time)
+			if delta < 0 {
+				delta = -delta
+			}
+			if delta > errorSequenceWindow {
+				continue
+			}
+			kinds[b.Kind] = true
+			if b.WorkerPID != "" {
+				pidCounts[b.WorkerPID]++
+			}
+			if b.Line < minLine {
+				minLine = b.Line
+				anchor = b
+			}
+		}
+		hasOOM := kinds["php_oom_unknown_line0"]
+		hasCrashOrHeap := kinds["php_zend_mm_heap_corrupted"] || kinds["apache_child_segfault"] || kinds["apache_child_abort"]
+		if !hasOOM || !hasCrashOrHeap {
+			continue
+		}
+		kindList := make([]string, 0, len(kinds))
+		for k := range kinds {
+			kindList = append(kindList, k)
+		}
+		sortStrings(kindList)
+		dedup := a.Location + "|" + strings.Join(kindList, "+") + fmt.Sprintf("|%d", minLine)
+		if seen[dedup] {
+			continue
+		}
+		seen[dedup] = true
+
+		sharedPID := ""
+		for pid, n := range pidCounts {
+			if n >= 2 {
+				sharedPID = pid
+				break
+			}
+		}
+		conf := "unconfirmed"
+		identityNote := "Temporal proximity only (≤2m on the same error-log file) — not proof the lines share one HTTP request or process. "
+		if sharedPID != "" {
+			conf = "suspected"
+			identityNote = fmt.Sprintf(
+				"Same Apache child PID %s observed on ≥2 crash/abort lines in this window (stronger than time-only). "+
+					"PHP OOM/heap lines typically lack worker PID — still not proof every pattern shared that worker or one request. ",
+				sharedPID,
+			)
+		} else if len(kinds) >= 3 {
+			// ReliaQuest-published multi-signal sequence (OOM + heap + crash/abort).
+			conf = "suspected"
+			identityNote += "Worker PID unavailable or unshared across lines — missing PID reduces identity confidence. "
+		} else {
+			identityNote += "Two-pattern temporal pair without shared worker PID — confidence remains unconfirmed. "
+		}
+
+		corr++
+		appendInvestigationFinding(r, InvestigationFinding{
+			ID:           fmt.Sprintf("corr-err-seq-%d", minLine),
+			Class:        "correlation",
+			Kind:         "correlated_error_sequence",
+			Confidence:   conf,
+			Source:       srcReliaQuestSeq + "; php2shell same-file tight temporal proximity (≤2m); not confirmed attribution",
+			Location:     anchor.Location,
+			TimestampUTC: anchor.Time.UTC().Format(time.RFC3339),
+			Detail: fmt.Sprintf(
+				"Multiple research-backed error-log patterns within ≤2m on one file (kinds=%v; earliest line %d). "+
+					"%sAligned with published PHP2Shell failed-attempt sequences when OOM Unknown on line 0 appears with heap/crash. "+
+					"Duplicate identical kind sets are not counted twice. "+
+					"Not confirmed exploitation or host compromise — analyst review required.",
+				kindList, minLine, identityNote,
+			),
+		})
+		if corr >= 10 {
+			return corr
+		}
+	}
+	return corr
+}
+
+func sortStrings(ss []string) {
+	for i := 0; i < len(ss); i++ {
+		for j := i + 1; j < len(ss); j++ {
+			if ss[j] < ss[i] {
+				ss[i], ss[j] = ss[j], ss[i]
+			}
+		}
+	}
+}
+
 func correlateAccessError(r *Report, inScopeError, inScopeAccess []InvestigationEvent) int {
 	corr := 0
+	// Dedup: at most one correlation per (error line, access kind). Repeated POST 5xx
+	// floods must not artificially strengthen findings.
+	seen := map[string]bool{}
 	for _, errEv := range inScopeError {
-		if errEv.Kind != "php_oom_unknown_line0" && errEv.Kind != "apache_child_segfault" {
+		if !isErrorResearchKind(errEv.Kind) {
 			continue
 		}
 		if errEv.Time.IsZero() {
 			continue
 		}
+		bestByAccKind := map[string]InvestigationEvent{}
+		bestDelta := map[string]time.Duration{}
 		for _, accEv := range inScopeAccess {
-			if accEv.Kind != "access_long_post_target" || accEv.Time.IsZero() {
+			if !isAccessCorrelationKind(accEv.Kind) || accEv.Time.IsZero() {
 				continue
 			}
 			delta := errEv.Time.Sub(accEv.Time)
 			if delta < 0 {
 				delta = -delta
 			}
-			if delta <= correlationWindow {
-				corr++
-				appendInvestigationFinding(r, InvestigationFinding{
-					ID:           fmt.Sprintf("corr-%d-%d", errEv.Line, accEv.Line),
-					Class:        "correlation",
-					Kind:         "correlated_attempt_signals",
-					Confidence:   "unconfirmed",
-					Source:       "php2shell temporal proximity (±15m); not causality; not a confirmed PHP2Shell attribution",
-					Location:     errEv.Location + " + " + accEv.Location,
-					TimestampUTC: errEv.Time.UTC().Format(time.RFC3339),
-					Detail: fmt.Sprintf(
-						"Temporal proximity only (Δ=%s ≤ 15m), not causality. Contributing evidence: "+
-							"error-log %s at line %d (%s) and access-log %s at line %d (%s; request-target length heuristic, not body size). "+
-							"Independent sources; two generic errors alone are not correlated. "+
-							"Does not mean confirmed exploitation or host compromise — analyst review required.",
-						delta.Round(time.Second),
-						errEv.Kind, errEv.Line, errEv.Time.UTC().Format(time.RFC3339),
-						accEv.Kind, accEv.Line, accEv.Time.UTC().Format(time.RFC3339),
-					),
-				})
-				if corr >= 20 {
-					return corr
-				}
+			if delta > correlationWindow {
+				continue
+			}
+			prev, ok := bestDelta[accEv.Kind]
+			if !ok || delta < prev {
+				bestDelta[accEv.Kind] = delta
+				bestByAccKind[accEv.Kind] = accEv
+			}
+		}
+		for accKind, accEv := range bestByAccKind {
+			dedup := fmt.Sprintf("%d|%s", errEv.Line, accKind)
+			if seen[dedup] {
+				continue
+			}
+			seen[dedup] = true
+			delta := bestDelta[accKind]
+			// Time-only access↔error pairing stays unconfirmed: ordinary apps emit POST 5xx,
+			// and access logs rarely expose worker PID to prove same-request identity.
+			conf := "unconfirmed"
+			src := "php2shell temporal proximity (±15m); not causality; not same-request/process; not a confirmed PHP2Shell attribution; missing PID/worker identity"
+			detailExtra := "request-target length heuristic, not body size"
+			if accEv.Kind == "access_post_server_error" {
+				detailExtra = "POST with 5xx status (status only; no request body; ordinary application errors also return 5xx)"
+				src = srcReliaQuestSeq + "; " + src
+			}
+			pidNote := "Access and PHP error lines typically lack a shared worker PID — this is time-only correlation."
+			if errEv.WorkerPID != "" {
+				pidNote = fmt.Sprintf(
+					"Error line exposes Apache child PID %s, but the access-log event has no matching worker identity — still not same-request proof.",
+					errEv.WorkerPID,
+				)
+			}
+			corr++
+			appendInvestigationFinding(r, InvestigationFinding{
+				ID:           fmt.Sprintf("corr-%d-%d", errEv.Line, accEv.Line),
+				Class:        "correlation",
+				Kind:         "correlated_attempt_signals",
+				Confidence:   conf,
+				Source:       src,
+				Location:     errEv.Location + " + " + accEv.Location,
+				TimestampUTC: errEv.Time.UTC().Format(time.RFC3339),
+				Detail: fmt.Sprintf(
+					"Temporal proximity only (Δ=%s ≤ 15m), not causality and not proof of one shared request/process. Contributing evidence: "+
+						"error-log %s at line %d (%s) and access-log %s at line %d (%s). "+
+						"%s Duplicate access anomalies of the same kind are collapsed to the nearest event. "+
+						"Does not mean confirmed exploitation or host compromise — analyst review required.",
+					delta.Round(time.Second),
+					errEv.Kind, errEv.Line, errEv.Time.UTC().Format(time.RFC3339),
+					accEv.Kind, accEv.Line, detailExtra, pidNote,
+				),
+			})
+			if corr >= 20 {
+				return corr
 			}
 		}
 	}

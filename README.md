@@ -12,7 +12,7 @@ It does **not** exploit systems, execute discovered PHP binaries, upload your da
 
 > **Naming:** This project is the **PHP2Shell assessment tool** (a defensive scanner). It assesses advisories such as CVE-2026-109618 / CVE-2026-109619. It is **not** an exploit toolkit and is not affiliated with any similarly nicknamed vulnerability or offensive tooling.
 
-**Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0).** Confirm `php2shell version` matches the binary you run, and verify files against `SHA256SUMS` on the [Releases](https://github.com/Opathedane/php2shell/releases/latest) page.
+**Latest public release: [v2.8.0](https://github.com/Opathedane/php2shell/releases/tag/v2.8.0).** Version in this tree: 2.8.1 (unreleased) — detection maintenance draft; do not treat as published. Confirm `php2shell version` matches the binary you run, and verify files against `SHA256SUMS` on the [Releases](https://github.com/Opathedane/php2shell/releases/latest) page.
 
 | Advisory | How PHP2Shell treats it |
 | --- | --- |

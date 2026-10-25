@@ -71,6 +71,7 @@ Suspicious **web/PHP parent → child** relationships (behavioral convergent; no
 | Parent examples | Child examples | Kind |
 | --- | --- | --- |
 | `php.exe`, `php-cgi.exe`, `php-fpm`, `httpd`/`apache2`, `w3wp.exe`, `nginx` | `cmd.exe`, `powershell.exe`, `sh`/`bash`, interpreters, download utilities, temp-path binaries | `web_parent_shell_child` / `_interpreter_child` / `_download_child` / `_temp_path_child` |
+| Same web/PHP parents | Child whose command line contains exact Unit 42 tokens `==SHELLUSER==` or `==PASSWD==` | `agentic_section_delimiter` (cmdline content never retained) |
 
 Ordinary admin activity (e.g. `explorer.exe` → `cmd.exe`) and application-specific shells are **not** treated as compromise. Missing parents, incomplete ancestry, and PID reuse reduce confidence (`unconfirmed`) and never invent relationships.
 
@@ -79,12 +80,17 @@ Ordinary admin activity (e.g. `explorer.exe` → `cmd.exe`) and application-spec
 | Pattern | Class | Max confidence | Notes |
 | --- | --- | --- | --- |
 | PHP Fatal memory exhausted **in Unknown on line 0** | verified_public_pattern | suspected | Datadog; memory exhaustion alone ≠ attack |
+| PHP `zend_mm_heap corrupted` | verified_public_pattern | suspected | ReliaQuest (2026-10-22); alone ≠ confirmed exploitation |
 | Apache `AH00052` / child Segmentation fault | verified_public_pattern | suspected | Datadog; successful exploits may not crash |
+| Apache `AH00052` / child **Abort** (SIGABRT) | verified_public_pattern | suspected | ReliaQuest lab sequences; not confirmed success |
 | Long POST **request-target** (≥2048 characters of URI path/query as logged) | heuristic | unconfirmed | Measures **request-target length only** — not body size, form-field names, or multipart nesting |
+| POST with **5xx** status | heuristic | unconfirmed | **Correlation-only** (not a standalone lead); ordinary app errors also 5xx; no body retained |
 | Cloudflare allowlisted php2shell WAF RuleID | verified_public_pattern | suspected | Attempt assist; **block≠success**; never alone sets possible-compromise |
-| WAF query token `PHP_SESSION_UPLOAD_PROGRESS` (presence) | heuristic | unconfirmed | Value not retained; body multipart fields still unavailable |
-| Error research pattern within ±15 m of long request-target | correlation | unconfirmed | **Temporal proximity only — not causality** |
+| WAF query token `PHP_SESSION_UPLOAD_PROGRESS` (presence) | heuristic | unconfirmed | Value not retained; body multipart / `p2s-rider` values still unavailable |
+| OOM Unknown line 0 + heap/crash within ≤2 m (same error-log file) | correlation | unconfirmed or suspected | **suspected** only for ≥3 distinct research kinds **or** shared Apache WorkerPID on ≥2 crash/abort lines; two-kind time-only stays **unconfirmed**; never same-request proof; cross-file joins refused |
+| Error research pattern within ±15 m of long request-target or POST 5xx | correlation | unconfirmed | **Temporal proximity only — not causality / not same-request**; POST 5xx floods collapse to nearest event per error line; missing PID disclosed |
 | Process lead within ±15 m of error/access lead | correlation | unconfirmed | **Not causality**; does not confirm successful exploitation |
+| Web/PHP parent → child with Unit 42 `==SHELLUSER==` / `==PASSWD==` tokens | behavioral_convergent | suspected | Exact delimited markers only; **raw command line never retained** |
 
 ## Fleet CSV
 
