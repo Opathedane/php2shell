@@ -1,6 +1,7 @@
 # Scan FS has nginx configs only (front-end host view). Remote pool.d is intentionally absent.
 services:
   scan:
+    hostname: lab-03-remote-fpm
     image: debian:bookworm-slim
     user: "65534:65534"
     volumes:

@@ -2,6 +2,7 @@
 # nginx has no PHP FastCGI handler.
 services:
   scan:
+    hostname: lab-05-php-not-configured
     image: php:8.3-cli-bookworm
     user: "65534:65534"
     volumes:

@@ -1,6 +1,7 @@
 # FPM service is never started by the harness for this scenario (see run-all.sh ground-truth-runtime.json).
 services:
   scan:
+    hostname: lab-06-fpm-stopped
     image: debian:bookworm-slim
     user: "65534:65534"
     volumes:

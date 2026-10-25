@@ -7,6 +7,7 @@ services:
     entrypoint: ["/bin/sh", "-c", "exec docker-php-entrypoint php-fpm -F"]
 
   scan:
+    hostname: lab-02-tcp-local
     image: debian:bookworm-slim
     user: "65534:65534"
     volumes:

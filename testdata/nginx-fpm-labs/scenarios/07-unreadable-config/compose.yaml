@@ -8,6 +8,7 @@ services:
     command: ["chmod 000 /fpm/secret.conf && ls -la /fpm"]
 
   scan:
+    hostname: lab-07-unreadable-config
     image: debian:bookworm-slim
     user: "65534:65534"
     depends_on:

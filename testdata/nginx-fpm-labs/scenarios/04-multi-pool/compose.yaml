@@ -1,5 +1,6 @@
 services:
   scan:
+    hostname: lab-04-multi-pool
     image: debian:bookworm-slim
     user: "65534:65534"
     volumes:

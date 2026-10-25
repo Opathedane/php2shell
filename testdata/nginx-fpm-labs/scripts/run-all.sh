@@ -79,7 +79,9 @@ run_scenario() {
   fi
 
   echo "=== LIVE lab: $id ==="
+  set +e
   (
+    set -e
     cd "$scenario"
     docker compose down -v --remove-orphans >/dev/null 2>&1 || true
 
@@ -96,15 +98,10 @@ run_scenario() {
             > "$out/ground-truth-runtime.json"
         else
           echo '{"php_fpm_service_running":false,"note":"fpm profile started but service not running"}' > "$out/ground-truth-runtime.json"
-          echo "FAIL: fpm runtime profile did not stay running for $id" >&2
-          FAIL=$((FAIL+1))
-          ROWS+=("{\"id\":\"$id\",\"result\":\"FAIL\",\"reason\":\"fpm_not_running\"}")
-          docker compose --profile with-runtime down -v --remove-orphans >/dev/null 2>&1 || true
-          return
+          exit 42
         fi
         ;;
       06-fpm-stopped)
-        # Do not start fpm. Confirm no fpm service is running in this project.
         echo '{"php_fpm_service_started":false,"php_fpm_process_observed":false,"note":"fpm service intentionally not started; configs still mounted for scan"}' > "$out/ground-truth-runtime.json"
         ;;
       *)
@@ -117,6 +114,20 @@ run_scenario() {
     docker compose --profile with-runtime down -v --remove-orphans >/dev/null 2>&1 || true
     docker compose down -v --remove-orphans >/dev/null 2>&1 || true
   )
+  compose_rc=$?
+  set -e
+  if [[ "$compose_rc" -eq 42 ]]; then
+    echo "FAIL $id: fpm runtime profile did not stay running" >&2
+    FAIL=$((FAIL+1))
+    ROWS+=("{\"id\":\"$id\",\"result\":\"FAIL\",\"reason\":\"fpm_not_running\"}")
+    return
+  fi
+  if [[ "$compose_rc" -ne 0 ]]; then
+    echo "FAIL $id: compose/scan exited $compose_rc" >&2
+    FAIL=$((FAIL+1))
+    ROWS+=("{\"id\":\"$id\",\"result\":\"FAIL\",\"reason\":\"compose_exit_$compose_rc\"}")
+    return
+  fi
 
   if [[ ! -f "$out/scan-context.txt" ]]; then
     echo "FAIL $id: missing scan-context.txt (scan did not run in-container?)" >&2
