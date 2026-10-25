@@ -20,6 +20,23 @@ func isWindowsLikeOS(osname string) bool {
 	return strings.Contains(o, "windows") || o == "win32" || o == "win64"
 }
 
+// IsWindowsLikeOS reports whether the OS name looks like Windows (for OS-aware messaging).
+func IsWindowsLikeOS(osname string) bool { return isWindowsLikeOS(osname) }
+
+// ShouldWarnPackageDBNotSupported is true when the console/HTML should mention missing
+// dpkg/apk package inventory. False on Windows (packages=NOT_SUPPORTED is expected).
+func ShouldWarnPackageDBNotSupported(r *Report) bool {
+	if r == nil || isWindowsLikeOS(r.OS) {
+		return false
+	}
+	for _, c := range r.Coverage {
+		if c.Name == "packages" && strings.EqualFold(c.Status, "NOT_SUPPORTED") {
+			return true
+		}
+	}
+	return false
+}
+
 // isPHPDiscoveryCheck names coverage rows that matter for PHP presence inventory.
 func isPHPDiscoveryCheck(name string) bool {
 	switch name {

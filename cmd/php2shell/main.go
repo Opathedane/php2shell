@@ -63,6 +63,7 @@ Scan options:
   --status-json PATH     optional execution-status JSON path (default: sibling .status.json beside HTML)
   --accept-incomplete    if HTML+CSV written, exit 0 even when coverage is incomplete (still records SCAN_INCOMPLETE)
   --quiet                unattended: no progress/ANSI; stdout silent on success; errors+status still on stderr
+  --no-color             disable ANSI colours (also respects NO_COLOR); does not change --quiet automation output
   --timeout DURATION     wall-clock budget (e.g. 30m); incomplete scan exits 2 unless --accept-incomplete
   --customer LABEL       optional self-declared label (not authenticated tenancy)
   --runtime-version VER  operator-supplied WEB runtime (with --runtime-sapi and --runtime-source)
@@ -172,6 +173,7 @@ func runScan(args []string) int {
 	statusJSON := fs.String("status-json", "", "execution-status JSON path (default: HTML sibling .status.json)")
 	acceptIncomplete := fs.Bool("accept-incomplete", false, "exit 0 when HTML+CSV written even if coverage incomplete (status still SCAN_INCOMPLETE)")
 	quiet := fs.Bool("quiet", false, "unattended: no progress, no ANSI; stdout silent on success; stderr keeps errors+status")
+	noColor := fs.Bool("no-color", false, "disable ANSI colours (also respects NO_COLOR); does not change --quiet automation output")
 	timeoutStr := fs.String("timeout", "", "wall-clock scan budget (e.g. 30m)")
 	customer := fs.String("customer", "", "optional self-declared label; not authenticated tenant")
 	runtimeVersion := fs.String("runtime-version", "", "operator-supplied WEB runtime PHP version; requires --runtime-sapi and --runtime-source; NOT independently verified")
@@ -267,7 +269,7 @@ func runScan(args []string) int {
 
 	started := time.Now()
 	name, _ := os.Hostname()
-	con := console.New(console.Options{Quiet: *quiet})
+	con := console.New(console.Options{Quiet: *quiet, NoColor: *noColor})
 	con.Banner(audit.Version, runtime.GOOS, runtime.GOARCH, name)
 
 	r := audit.NewReport(name, runtime.GOOS, runtime.GOARCH)

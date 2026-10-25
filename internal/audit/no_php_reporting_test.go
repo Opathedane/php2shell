@@ -170,6 +170,42 @@ func TestMultiplePHPInstallationsReporting(t *testing.T) {
 	if !strings.Contains(html, "Update review required") && !strings.Contains(html, "8.2.34") {
 		t.Fatal("expected multi-install assessment content")
 	}
+	if r.VulnerabilityStatus == "MULTIPLE_RUNTIMES_MIXED_PATCH_LEVELS_REVIEW_REQUIRED" {
+		if !strings.Contains(html, "Multiple PHP installations with mixed patch levels") {
+			t.Fatal("expected mixed-patch executive detail")
+		}
+	}
+	if !strings.Contains(html, ":focus-visible") {
+		t.Fatal("expected focus-visible accessibility styles")
+	}
+	if OverallPriority(r) == "" || !strings.Contains(html, "Overall priority:") {
+		t.Fatal("priority must appear in HTML")
+	}
+}
+
+func TestHTMLPatchedAndBelowThresholdPhrases(t *testing.T) {
+	patched := NewReport("ok", "linux", "amd64")
+	attachCompleteLinuxCoverage(patched)
+	patched.AddEvidence(Evidence{Type: "binary_static_version", Name: "php", Version: "8.4.27", Source: "static", Location: "/usr/bin/php"})
+	EvaluatePatchPosture(patched)
+	FinalizeSummary(patched)
+	htmlOK := string(EncodeHTML(patched))
+	if !strings.Contains(htmlOK, "No below-threshold versions observed") && !strings.Contains(htmlOK, "At or above upstream fix") {
+		t.Fatalf("patched wording missing: status=%s", patched.VulnerabilityStatus)
+	}
+
+	below := NewReport("old", "linux", "amd64")
+	attachCompleteLinuxCoverage(below)
+	below.AddEvidence(Evidence{Type: "binary_static_version", Name: "php", Version: "8.4.24", Source: "static", Location: "/usr/bin/php"})
+	EvaluatePatchPosture(below)
+	FinalizeSummary(below)
+	htmlBelow := string(EncodeHTML(below))
+	if !strings.Contains(htmlBelow, "Update review required") {
+		t.Fatal(htmlBelow)
+	}
+	if !strings.Contains(htmlBelow, "Recommended next steps") {
+		t.Fatal("expected next steps section")
+	}
 }
 
 func TestGenuineWindowsEvidenceSourceFailure(t *testing.T) {

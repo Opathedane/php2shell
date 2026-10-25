@@ -1,0 +1,20 @@
+PHP2Shell Assessment 2.7.4
+Host: win-empty  OS: windows/amd64
+Read-only local scan. No PHP execution. No automatic remediation or data upload.
+· Upstream fix thresholds: 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35 (upstream; vendor backports require separate verification)
+· Advisory rules reviewed: 2026-10-24 (offline; not a live vulnerability feed)
+
+
+Scan summary
+  PHP discovery:     No PHP detected within scan coverage
+  Patch assessment:  No PHP-specific patch assessment
+  Overall priority:  Informational — no PHP detected within scan coverage
+  Serving runtime:   Not applicable — No PHP installation was detected within applicable inventory coverage, so no HTTP-serving PHP runtime was identified. T…
+  Observed versions: none in this scan scope (absence is not proof PHP is missing)
+  Recommended next:  No PHP installation was detected within the applicable scan coverage. No PHP-specific patch remediation was identified. This is not proof that PHP is absent from the host or that the host is safe — custom install path…
+  Duration:          1.2s
+  HTML report:       C:\ProgramData\PHP2Shell\Reports\php2shell-win-empty.html
+  CSV report:        C:\ProgramData\PHP2Shell\Reports\php2shell-win-empty.csv
+
+Process completion is not a vulnerability or compromise clearance.
+Open the HTML report for findings; use CSV for fleet consolidation.

@@ -48,6 +48,15 @@ func HumanPHPDetected(r *Report) (label string, versions []string) { return huma
 // HumanRuntime returns serving-runtime label and detail (never claims verified HTTP SAPI from inventory alone).
 func HumanRuntime(r *Report) (label, detail string) { return humanRuntime(r) }
 
+// OverallPriority returns the administrator-facing overall priority line used in HTML and CLI.
+func OverallPriority(r *Report) string { return overallPriority(r) }
+
+// HumanExploitationAttemptLabel returns an administrator-facing exploitation-attempt status.
+func HumanExploitationAttemptLabel(status string) string { return humanExploitationAttempt(status) }
+
+// HumanPossibleCompromiseLabel returns an administrator-facing possible-compromise status.
+func HumanPossibleCompromiseLabel(status string) string { return humanPossibleCompromise(status) }
+
 // HumanAdvisoryStatusLabel returns an administrator-facing CVE-2026-115560 status.
 func HumanAdvisoryStatusLabel(status string) string {
 	switch status {

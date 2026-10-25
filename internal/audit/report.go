@@ -110,7 +110,7 @@ main{max-width:980px;margin:0 auto}.header{margin-bottom:20px}h1{font-size:clamp
 h2.section{font-size:1.15rem;margin:26px 0 10px;color:var(--accent)}
 table{border-collapse:collapse;width:100%;margin:10px 0 18px;background:var(--card)}th,td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#eef2f6;font-size:.9rem}
 ol.actions{padding-left:1.25rem;margin:8px 0 16px}ol.actions li{margin:10px 0;line-height:1.45}
-details{border:1px solid var(--line);border-radius:8px;background:var(--card);margin:10px 0;padding:0}details>summary{cursor:pointer;padding:12px 14px;font-weight:650;color:var(--accent)}details[open]>summary{border-bottom:1px solid var(--line)}details .body{padding:12px 14px}details table{margin:0}
+details{border:1px solid var(--line);border-radius:8px;background:var(--card);margin:10px 0;padding:0}details>summary{cursor:pointer;padding:12px 14px;font-weight:650;color:var(--accent)}details>summary:focus{outline:2px solid var(--accent);outline-offset:2px}details>summary:focus:not(:focus-visible){outline:none}details>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}details[open]>summary{border-bottom:1px solid var(--line)}details .body{padding:12px 14px}details table{margin:0}
 .footer{margin-top:28px;color:var(--muted);font-size:.85rem}
 @media print{body{background:#fff;padding:0}details{break-inside:avoid}details:not([open]){border-style:dashed}a{color:inherit}}
 @media (max-width:600px){body{padding:16px 12px}.cards{gap:10px}.card{min-height:0;padding:14px}}
@@ -132,6 +132,8 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		b.WriteString(`No PHP-specific remediation was identified for CVE-2026-109618 / CVE-2026-109619 within this scan scope.`)
 	} else if discKind == phpDiscNoneIncomplete {
 		b.WriteString(`Patch status undetermined because relevant PHP inventory was incomplete. Upstream thresholds (` + h(AdvisoryDate) + `): ` + h(OfficialFixThresholdsSummary()) + `.`)
+	} else if r.VulnerabilityStatus == "MULTIPLE_RUNTIMES_MIXED_PATCH_LEVELS_REVIEW_REQUIRED" {
+		b.WriteString(`Multiple PHP installations with mixed patch levels were observed — review each installation below. Upstream thresholds (` + h(AdvisoryDate) + `): ` + h(OfficialFixThresholdsSummary()) + `. Rules reviewed ` + h(AdvisoryRulesReviewedUTC) + `.`)
 	} else {
 		b.WriteString(`Primary outcome for CVE-2026-109618 / CVE-2026-109619. Upstream thresholds (` + h(AdvisoryDate) + `): ` + h(OfficialFixThresholdsSummary()) + `. Rules reviewed ` + h(AdvisoryRulesReviewedUTC) + `.`)
 	}
