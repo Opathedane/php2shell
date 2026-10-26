@@ -164,6 +164,7 @@ func phpIniWellKnownPatterns() []string {
 			`C:\php\php.ini-development`,
 			`C:\xampp\php\php.ini`,
 			`C:\wamp\bin\php\*\php.ini`,
+			`C:\wamp64\bin\php\*\php.ini`,
 			`C:\laragon\bin\php\*\php.ini`,
 			`C:\inetpub\PHP\*\php.ini`,
 			`C:\Program Files\PHP\*\php.ini`,
