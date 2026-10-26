@@ -6,6 +6,7 @@ Version-specific GitHub Release bodies live under [`docs/releases/`](releases/).
 
 | Version | Notes |
 | --- | --- |
+| [v2.8.2](releases/v2.8.2.md) | **Draft / unreleased** — WampServer discovery maintenance (`phpX.Y.Z` path inference, bounded Apache/php.ini roots, verified vs inferred reporting). Latest public remains v2.8.1 |
 | [v2.8.1](releases/v2.8.1.md) | Focused security-detection maintenance (ReliaQuest + Unit 42; conservative confidence; research dates ≠ release date; no discovery/threshold changes) |
 | [v2.8.0](releases/v2.8.0.md) | Bounded nginx/PHP-FPM config discovery (config ≠ verified runtime/patch; no new CTI/IOC; thresholds unchanged) |
 | [v2.7.5](releases/v2.7.5.md) | Unix PHP symlink discovery (patch; no new CTI/IOC; thresholds unchanged) |

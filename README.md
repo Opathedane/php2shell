@@ -12,7 +12,7 @@ It does **not** exploit systems, execute discovered PHP binaries, upload your da
 
 > **Naming:** This project is the **PHP2Shell assessment tool** (a defensive scanner). It assesses advisories such as CVE-2026-109618 / CVE-2026-109619. It is **not** an exploit toolkit and is not affiliated with any similarly nicknamed vulnerability or offensive tooling.
 
-**Latest public release: [v2.8.1](https://github.com/Opathedane/php2shell/releases/tag/v2.8.1).** Confirm `php2shell version` matches the binary you run, and verify files against `SHA256SUMS` on the [Releases](https://github.com/Opathedane/php2shell/releases/latest) page.
+**Latest public release: [v2.8.1](https://github.com/Opathedane/php2shell/releases/tag/v2.8.1).** Version in this tree: 2.8.2 (unreleased) — WampServer discovery maintenance draft; do not treat as published. Confirm `php2shell version` matches the binary you run, and verify files against `SHA256SUMS` on the [Releases](https://github.com/Opathedane/php2shell/releases/latest) page.
 
 | Advisory | How PHP2Shell treats it |
 | --- | --- |
@@ -89,19 +89,20 @@ Exit **0 is not a security clearance.** Details: [EXIT-CODES-AND-DEPLOYMENT.md](
 
 ---
 
-## Coverage at a glance (v2.8.1)
+## Coverage at a glance (v2.8.1; unreleased tree may include v2.8.2)
 
 **Does**
 
 - Discover PHP via packages (dpkg/apk), PATH / well-known binaries, IIS/Apache hints, optional `--config-root` / `--deep-root`
 - Discover **nginx / PHP-FPM configuration** on well-known Unix paths (local / remote / ambiguous FastCGI classification)
+- Infer versions from install-path segments (`X.Y.Z` and WampServer-style `phpX.Y.Z`) as **path-inferred / MEDIUM** when binary markers are absent — not verified metadata and not active-runtime proof (v2.8.2 draft)
 - Assess observed versions against upstream thresholds; optional IR when you supply logs / telemetry / webroot / WAF exports
 - Write HTML + CSV + status JSON locally
 
 **Does not**
 
 - Prove complete PHP discovery on every host layout
-- Attest the **active HTTP-serving** PHP runtime or its patch state — including when nginx/FPM configs **correlate** (configuration ≠ verified runtime)
+- Attest the **active HTTP-serving** PHP runtime or its patch state — including when nginx/FPM configs **correlate** or path versions are inferred (configuration/path ≠ verified runtime)
 - Inventory RPM databases or expand Homebrew / custom prefixes in this release
 - Declare the host clean, safe, or uncompromised
 
@@ -120,7 +121,7 @@ Authoritative coverage contract: [docs/SUPPORTED-COVERAGE.md](docs/SUPPORTED-COV
 | Advanced usage | [docs/ADVANCED-USAGE.md](docs/ADVANCED-USAGE.md) |
 | Enterprise (Intune / GPO / collection) | [docs/deployment/](docs/deployment/) |
 | Security / disclosure | [SECURITY.md](SECURITY.md) |
-| Release notes | [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md) · [v2.8.1](docs/releases/v2.8.1.md) |
+| Release notes | [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md) · [v2.8.1](docs/releases/v2.8.1.md) (public) · [v2.8.2 draft](docs/releases/v2.8.2.md) |
 | Roadmap | [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ---

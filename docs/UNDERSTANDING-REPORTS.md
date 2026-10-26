@@ -13,6 +13,8 @@ Synthetic screenshot + HTML (no customer data): [`assets/report-example-patch-as
 
 **nginx / PHP-FPM (v2.8.0):** configuration evidence may appear under technical / coverage sections. Correlation of `fastcgi_pass` with a local FPM `listen` is **never** proof of the active HTTP-serving PHP runtime or its patch state. See [SUPPORTED-COVERAGE.md](SUPPORTED-COVERAGE.md).
 
+**Path-inferred versions (incl. WampServer `phpX.Y.Z` directories):** when a binary lacks embedded/PE version markers, PHP2Shell may infer `x.y.z` from the install path. That evidence is **`path_inferred` / MEDIUM** — not verified binary metadata, not a confirmed installation certificate, and not proof of the active HTTP-serving runtime. Prefer verified binary metadata when present; treat path-inferred rows as leads requiring manual verification.
+
 ---
 
 ## 1. How to read the HTML (first screen)
