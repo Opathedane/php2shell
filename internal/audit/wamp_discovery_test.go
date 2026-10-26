@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -150,6 +151,8 @@ LoadModule php7_module "` + filepath.ToSlash(filepath.Join(root, "wamp64", "bin"
 func TestASERVER2WampStyleFixtureE2E(t *testing.T) {
 	// Synthetic ASERVER2-style WampServer layout: phpX.Y.Z dirs, marker-free binaries,
 	// Apache conf + php.ini. No PHP execution; no false active-runtime attribution.
+	// Isolate PATH / well-known host trees so Windows CI images (e.g. c:\tools\php) cannot pollute.
+	isolatePHPIniHostDiscovery(t)
 	root := t.TempDir()
 	phpDir := filepath.Join(root, "wamp64", "bin", "php", "php7.4.33")
 	confDir := filepath.Join(root, "wamp64", "bin", "apache", "apache2.4.54.2", "conf")
@@ -193,17 +196,18 @@ PHPIniDir "`+filepath.ToSlash(phpDir)+`"
 	AddBinaryVersionEvidence(r, phpCGI, "php-cgi.exe", src)
 	ParseApacheConfigForTest(r, confDir)
 
-	oldPatterns := phpIniWellKnownPatternsFn
+	// Re-enable only the Wamp64 php.ini glob under the fixture root (isolate cleared well-known).
 	phpIniWellKnownPatternsFn = func() []string {
 		return []string{filepath.Join(root, "wamp64", "bin", "php", "*", "php.ini")}
 	}
-	defer func() { phpIniWellKnownPatternsFn = oldPatterns }()
 	scanConfigs(r, HostScanOptions{}, nil)
 
 	EvaluatePatchPosture(r)
 	FinalizeSummary(r)
 
 	inferred, verified, unknown := 0, 0, 0
+	binLocs := map[string]int{}
+	sawApacheHandler, sawApacheMod, sawIni := false, false, false
 	for _, e := range r.Evidence {
 		switch e.Type {
 		case "binary_path_inferred_version":
@@ -211,26 +215,56 @@ PHPIniDir "`+filepath.ToSlash(phpDir)+`"
 			if e.Version != "7.4.33" {
 				t.Fatalf("inferred version=%q", e.Version)
 			}
+			if !strings.Contains(e.Detail, "provenance=path_inferred") || !strings.Contains(e.Detail, "confidence=MEDIUM") {
+				t.Fatal(e.Detail)
+			}
+			if e.Interpretation != "PATH_INFERRED_VERSION_NOT_BINARY_VERIFIED_NOT_RUNTIME_ATTESTATION" {
+				t.Fatal(e.Interpretation)
+			}
+			binLocs[normalizeInstallPath(e.Location)]++
 		case "binary_static_version":
 			verified++
+			binLocs[normalizeInstallPath(e.Location)]++
 		case "binary_path":
 			unknown++
+			binLocs[normalizeInstallPath(e.Location)]++
+		case "apache_php_handler_config":
+			sawApacheHandler = true
+		case "apache_php_module_config":
+			sawApacheMod = true
+		case "php_ini_candidate":
+			if normalizeInstallPath(e.Location) == normalizeInstallPath(phpIni) {
+				sawIni = true
+			}
 		}
 	}
-	// Well-known discovery yields php.exe + php-cgi.exe; Apache handler follow-up may
-	// re-inspect php-cgi.exe — all remain path_inferred, never verified metadata.
-	if inferred < 2 || verified != 0 || unknown != 0 {
+	// Exactly one inventory row per binary path: well-known discovery records php.exe +
+	// php-cgi.exe; Apache handler follow-up must not duplicate php-cgi.exe.
+	if inferred != 2 || verified != 0 || unknown != 0 {
 		t.Fatalf("inferred=%d verified=%d unknown=%d evidence=%+v", inferred, verified, unknown, r.Evidence)
+	}
+	for loc, n := range binLocs {
+		if n != 1 {
+			t.Fatalf("duplicate binary inventory for %s count=%d", loc, n)
+		}
+	}
+	if !sawApacheHandler || !sawApacheMod {
+		t.Fatalf("apache handler=%v module=%v", sawApacheHandler, sawApacheMod)
+	}
+	if !sawIni {
+		t.Fatal("expected wamp64 php.ini candidate")
 	}
 
 	cov := CountBinaryInstallCoverage(r)
-	if cov.PathInferred < 2 || cov.Verified != 0 || cov.VersionUnknown != 0 || cov.BinaryCandidates < 2 {
+	if cov.BinaryCandidates != 2 || cov.InstallDirs != 1 || cov.PathInferred != 2 || cov.Verified != 0 || cov.VersionUnknown != 0 {
 		t.Fatalf("%+v", cov)
 	}
 
 	if r.VulnerabilityStatus != "LEGACY_PHP_VENDOR_PATCH_VERIFICATION_REQUIRED" {
 		t.Fatalf("status=%s assessments=%+v", r.VulnerabilityStatus, r.PatchAssessments)
 	}
+	installKeys := map[string]struct{}{}
+	assessLocs := map[string]struct{}{}
 	for _, a := range r.PatchAssessments {
 		if a.EvidenceType != "binary_path_inferred_version" || a.Confidence != "MEDIUM" {
 			t.Fatalf("%+v", a)
@@ -241,6 +275,14 @@ PHPIniDir "`+filepath.ToSlash(phpDir)+`"
 		if !strings.Contains(a.Qualification, "PATH-INFERRED") {
 			t.Fatal(a.Qualification)
 		}
+		installKeys[a.InstallKey] = struct{}{}
+		assessLocs[normalizeInstallPath(a.Location)] = struct{}{}
+	}
+	if len(installKeys) != 1 {
+		t.Fatalf("expected one install group for php7.4.33 tree, got %v", installKeys)
+	}
+	if len(assessLocs) != 2 {
+		t.Fatalf("expected two patch rows (php.exe + php-cgi.exe), got %v", assessLocs)
 	}
 
 	rt, _ := humanRuntime(r)
@@ -286,7 +328,7 @@ PHPIniDir "`+filepath.ToSlash(phpDir)+`"
 	}
 	csv := string(csvBytes)
 	if !strings.Contains(csv, "binary_path_inferred_version") || !strings.Contains(csv, "7.4.33") {
-		t.Fatalf("CSV missing inferred evidence: %s", csv[:min(500, len(csv))])
+		t.Fatalf("CSV missing inferred evidence")
 	}
 	if !strings.Contains(csv, "confidence=MEDIUM") || !strings.Contains(csv, "provenance=path_inferred") {
 		t.Fatal("CSV must retain path_inferred MEDIUM provenance detail")
@@ -301,6 +343,21 @@ PHPIniDir "`+filepath.ToSlash(phpDir)+`"
 		t.Fatalf("fleet CSV missing path_inferred/MEDIUM")
 	}
 
+	jsonBytes, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(jsonBytes)
+	if !strings.Contains(js, `"type":"binary_path_inferred_version"`) || !strings.Contains(js, "provenance=path_inferred") {
+		t.Fatal("JSON must retain inferred evidence type and provenance detail")
+	}
+	if !strings.Contains(js, `"schema":"`+Schema+`"`) {
+		t.Fatal("JSON must preserve existing report schema id")
+	}
+	if r.Summary.PHPDiscovery == "" || r.Summary.PatchReview == "" {
+		t.Fatal("summary schema fields must remain populated")
+	}
+
 	// Bare X.Y.Z layout still works alongside phpX.Y.Z.
 	bareDir := filepath.Join(root, "wamp64", "bin", "php", "8.2.28")
 	_ = os.MkdirAll(bareDir, 0755)
@@ -309,5 +366,44 @@ PHPIniDir "`+filepath.ToSlash(phpDir)+`"
 	v, _ := VersionFromInstallPath(bareBin)
 	if v != "8.2.28" {
 		t.Fatalf("bare layout regression: %q", v)
+	}
+}
+
+func TestApacheHandlerFollowUpDoesNotDuplicateExistingBinary(t *testing.T) {
+	root := t.TempDir()
+	phpDir := filepath.Join(root, "wamp64", "bin", "php", "php7.4.33")
+	confDir := filepath.Join(root, "apache", "conf")
+	_ = os.MkdirAll(phpDir, 0755)
+	_ = os.MkdirAll(confDir, 0755)
+	cgi := filepath.Join(phpDir, "php-cgi.exe")
+	_ = os.WriteFile(cgi, []byte("MZ\x00 marker-free"), 0644)
+	_ = os.WriteFile(filepath.Join(confDir, "httpd.conf"), []byte(
+		`Action application/x-httpd-php "`+filepath.ToSlash(cgi)+`"
+`), 0644)
+
+	r := NewReport("dedup", "windows", "amd64")
+	AddBinaryVersionEvidence(r, cgi, "php-cgi.exe", "well-known")
+	if !reportHasBinaryPathEvidence(r, cgi) {
+		t.Fatal("precondition")
+	}
+	ParseApacheConfigForTest(r, confDir)
+
+	inferred := 0
+	for _, e := range r.Evidence {
+		if e.Type == "binary_path_inferred_version" {
+			inferred++
+		}
+	}
+	if inferred != 1 {
+		t.Fatalf("Apache follow-up must not re-add same binary path, got inferred=%d evidence=%+v", inferred, r.Evidence)
+	}
+	sawHandler := false
+	for _, e := range r.Evidence {
+		if e.Type == "apache_php_handler_config" {
+			sawHandler = true
+		}
+	}
+	if !sawHandler {
+		t.Fatal("handler config evidence must still be recorded")
 	}
 }

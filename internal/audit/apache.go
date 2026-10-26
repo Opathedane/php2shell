@@ -450,6 +450,12 @@ func (s *apacheScanState) inspectHandlerBinary(r *Report, configured string) {
 	if !HandlerExecutableLooksLikePHP(target) && !HandlerExecutableLooksLikePHP(configured) {
 		return
 	}
+	// Skip re-inventory when the same path was already recorded (e.g. well-known /
+	// PATH discovery). Handler config evidence still stands; avoid duplicate install
+	// rows and patch assessments for one binary path.
+	if reportHasBinaryPathEvidence(r, target) || reportHasBinaryPathEvidence(r, configured) {
+		return
+	}
 	if !isSafeRegularFile(target) {
 		s.inaccessibleBinaries++
 		r.AddEvidence(Evidence{
@@ -465,6 +471,23 @@ func (s *apacheScanState) inspectHandlerBinary(r *Report, configured string) {
 	}
 	s.inspectedBinaries++
 	AddBinaryVersionEvidence(r, target, filepath.Base(target), "Apache handler static binary inspection")
+}
+
+// reportHasBinaryPathEvidence reports whether inventory already recorded this PHP binary path.
+func reportHasBinaryPathEvidence(r *Report, path string) bool {
+	if r == nil || strings.TrimSpace(path) == "" {
+		return false
+	}
+	key := normalizeInstallPath(path)
+	for _, e := range r.Evidence {
+		switch e.Type {
+		case "binary_path", "binary_static_version", "binary_path_inferred_version":
+			if normalizeInstallPath(e.Location) == key {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // classifyApachePHPBackend extracts backend identity and whether it is remote.
