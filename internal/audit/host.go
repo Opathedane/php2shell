@@ -235,7 +235,7 @@ func scanBinaries(r *Report, opts HostScanOptions) []deepDiscoverOutcome {
 		r.AddCheck("deep_discovery", status, detail)
 	}
 
-	versioned, inferred, partialInspect := 0, 0, 0
+	versioned, inferred, unknownVer, partialInspect := 0, 0, 0, 0
 	distinctDirs := map[string]struct{}{}
 	for _, e := range r.Evidence {
 		switch e.Type {
@@ -249,6 +249,7 @@ func scanBinaries(r *Report, opts HostScanOptions) []deepDiscoverOutcome {
 			inferred++
 			distinctDirs[normalizeInstallPath(filepath.Dir(e.Location))] = struct{}{}
 		case "binary_path":
+			unknownVer++
 			distinctDirs[normalizeInstallPath(filepath.Dir(e.Location))] = struct{}{}
 		}
 	}
@@ -256,7 +257,7 @@ func scanBinaries(r *Report, opts HostScanOptions) []deepDiscoverOutcome {
 	if deepTruncated {
 		status = "TRUNCATED"
 	}
-	detail := fmt.Sprintf("Found %d PHP-like binary paths across %d install director(ies) (%d with verified static version markers, %d path-inferred); no binaries executed", found, len(distinctDirs), versioned, inferred)
+	detail := fmt.Sprintf("Found %d PHP-like binary paths across %d install director(ies) (%d with verified static version markers, %d path-inferred, %d without comparable version); path-inferred versions are not binary-verified and are not proof of the HTTP-serving runtime; no binaries executed", found, len(distinctDirs), versioned, inferred, unknownVer)
 	if runtime.GOOS == "windows" {
 		detail += `; searched well-known dirs, %LOCALAPPDATA%\Programs\PHP (bounded junction resolve), all eligible PATH entries (not only the first match), IIS/Apache handler follow-up when present, operator --config-root, and optional --deep-root`
 	} else {

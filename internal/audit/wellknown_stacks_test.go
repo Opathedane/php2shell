@@ -42,9 +42,11 @@ func TestLinuxWellKnownGlobsIncludeRemiCpanelLocalOpt(t *testing.T) {
 
 func TestWindowsStackFixtureDiscoveryViaGlob(t *testing.T) {
 	// Simulate WAMP/Laragon/tools layouts under a temp drive-like root using Glob semantics.
+	// Includes both bare X.Y.Z and WampServer phpX.Y.Z directory names.
 	root := t.TempDir()
 	layouts := []string{
 		filepath.Join(root, "wamp", "bin", "php", "8.2.28", "php.exe"),
+		filepath.Join(root, "wamp64", "bin", "php", "php7.4.33", "php.exe"),
 		filepath.Join(root, "wamp64", "bin", "php", "8.3.36", "php-cgi.exe"),
 		filepath.Join(root, "laragon", "bin", "php", "8.4.24", "php.exe"),
 		filepath.Join(root, "tools", "php", "8.4.24", "php.exe"),
@@ -55,6 +57,7 @@ func TestWindowsStackFixtureDiscoveryViaGlob(t *testing.T) {
 	}
 	patterns := []string{
 		filepath.Join(root, "wamp", "bin", "php", "*", "php.exe"),
+		filepath.Join(root, "wamp64", "bin", "php", "*", "php.exe"),
 		filepath.Join(root, "wamp64", "bin", "php", "*", "php-cgi.exe"),
 		filepath.Join(root, "laragon", "bin", "php", "*", "php.exe"),
 		filepath.Join(root, "tools", "php", "*", "php.exe"),
@@ -69,8 +72,13 @@ func TestWindowsStackFixtureDiscoveryViaGlob(t *testing.T) {
 			found[normalizeInstallPath(m)] = true
 		}
 	}
-	if len(found) != 4 {
-		t.Fatalf("expected 4 stack binaries via bounded globs, got %d (%v)", len(found), found)
+	if len(found) != 5 {
+		t.Fatalf("expected 5 stack binaries via bounded globs, got %d (%v)", len(found), found)
+	}
+	wampPHP := filepath.Join(root, "wamp64", "bin", "php", "php7.4.33", "php.exe")
+	v, _ := VersionFromInstallPath(wampPHP)
+	if v != "7.4.33" {
+		t.Fatalf("phpX.Y.Z glob hit must still path-infer: %q", v)
 	}
 }
 

@@ -653,6 +653,9 @@ func BuildFocusedNextSteps(r *Report) []string {
 		if kind == phpDiscVersionUnknown {
 			add("PHP-related evidence was observed without a comparable patch version. Inventory the exact active PHP patch versions for production web handlers before assigning vulnerability status.")
 		}
+		if cov := CountBinaryInstallCoverage(r); cov.PathInferred > 0 {
+			add("Manually verify path-inferred PHP version(s) (directory-derived only; not binary metadata). Treat them as inventory leads requiring confirmation — not as confirmed installations or proven vulnerability exposure.")
+		}
 		rtLabel, _ := humanRuntime(r)
 		if rtLabel != "Verified" && rtLabel != "Not applicable" {
 			add("Identify which PHP binary or SAPI actually serves HTTP (FPM pool, Apache module, IIS handler, container entrypoint). Package and CLI versions alone are not sufficient.")

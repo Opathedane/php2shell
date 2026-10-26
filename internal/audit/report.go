@@ -158,11 +158,17 @@ details{border:1px solid var(--line);border-radius:8px;background:var(--card);ma
 		b.WriteString("Only filenames or configuration hints were seen; treat as unconfirmed.")
 	case phpDiscVersionUnknown:
 		b.WriteString("PHP-related evidence was observed, but no comparable release version was extracted.")
+		if covDetail := FormatBinaryInstallCoverageDetail(CountBinaryInstallCoverage(r)); covDetail != "" {
+			b.WriteString(" " + h(covDetail))
+		}
 	default:
 		if len(versions) == 0 {
 			b.WriteString("No comparable PHP release versions were extracted from this scan scope.")
 		} else {
-			b.WriteString("Observed inventory versions (not proof of the HTTP-serving runtime): " + h(strings.Join(versions, ", ")))
+			b.WriteString("Observed inventory versions (not proof of the HTTP-serving runtime): " + h(strings.Join(versions, ", ")) + ".")
+		}
+		if covDetail := FormatBinaryInstallCoverageDetail(CountBinaryInstallCoverage(r)); covDetail != "" {
+			b.WriteString(" " + h(covDetail))
 		}
 	}
 	b.WriteString(`</p></article>`)

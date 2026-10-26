@@ -30,6 +30,13 @@ var apacheConfigRoots = []string{
 	`C:\Program Files (x86)\Apache Software Foundation\Apache2.4\conf`,
 }
 
+// Bounded single-segment globs for WampServer Apache layouts (expanded via filepath.Glob;
+// not recursive host-wide scanning). Presence of config does not prove an active runtime.
+var apacheConfigRootGlobs = []string{
+	`C:\wamp64\bin\apache\*\conf`,
+	`C:\wamp\bin\apache\*\conf`,
+}
+
 var (
 	reApacheDirective = regexp.MustCompile(`(?i)^\s*(DocumentRoot|ServerName|ServerAlias|LoadModule|SetHandler|AddHandler|Action|ProxyPassMatch|ProxyPass|FcgidWrapper|Include|IncludeOptional|PHPIniDir)\s+(.+?)\s*$`)
 	reApacheVHostOpen = regexp.MustCompile(`(?i)^\s*<VirtualHost\b([^>]*)>`)
@@ -57,6 +64,18 @@ func scanApacheConfiguration(r *Report) {
 func accessibleApacheRoots() []string {
 	var out []string
 	seen := map[string]bool{}
+	add := func(resolved string) {
+		fi, err := os.Lstat(resolved)
+		if err != nil || !fi.IsDir() || fi.Mode()&os.ModeSymlink != 0 {
+			return
+		}
+		key := normalizeInstallPath(resolved)
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		out = append(out, resolved)
+	}
 	for _, raw := range apacheConfigRoots {
 		resolved := raw
 		if runtime.GOOS != "windows" && isWindowsDrivePath(strings.ReplaceAll(raw, `\`, `/`)) {
@@ -65,16 +84,20 @@ func accessibleApacheRoots() []string {
 		if runtime.GOOS == "windows" {
 			resolved = filepath.Clean(os.ExpandEnv(raw))
 		}
-		fi, err := os.Lstat(resolved)
-		if err != nil || !fi.IsDir() || fi.Mode()&os.ModeSymlink != 0 {
+		add(resolved)
+	}
+	for _, pat := range apacheConfigRootGlobs {
+		if runtime.GOOS != "windows" && isWindowsDrivePath(strings.ReplaceAll(pat, `\`, `/`)) {
 			continue
 		}
-		key := normalizeInstallPath(resolved)
-		if seen[key] {
-			continue
+		pattern := pat
+		if runtime.GOOS == "windows" {
+			pattern = filepath.Clean(os.ExpandEnv(pat))
 		}
-		seen[key] = true
-		out = append(out, resolved)
+		matches, _ := filepath.Glob(pattern)
+		for _, m := range matches {
+			add(m)
+		}
 	}
 	return out
 }

@@ -208,4 +208,8 @@ func TestVersionFromInstallPathSegments(t *testing.T) {
 	if v != "" {
 		t.Fatalf("current alone must not invent a version: %q", v)
 	}
+	v, src = VersionFromInstallPath(`C:\wamp64\bin\php\php7.4.33\php.exe`)
+	if v != "7.4.33" || src != "install_path_version_segment" {
+		t.Fatalf("wamp phpX.Y.Z: %q %q", v, src)
+	}
 }

@@ -172,6 +172,10 @@ func (p *Printer) Summary(r *audit.Report, htmlPath, csvPath string, elapsed tim
 	} else {
 		fmt.Fprintln(p.out, "  Observed versions: none in this scan scope (absence is not proof PHP is missing)")
 	}
+	if cov := audit.CountBinaryInstallCoverage(r); cov.BinaryCandidates > 0 {
+		fmt.Fprintf(p.out, "  Binary coverage:   %d candidate(s); %d verified metadata, %d path-inferred, %d without comparable version (path-inferred ≠ confirmed install / active runtime)\n",
+			cov.BinaryCandidates, cov.Verified, cov.PathInferred, cov.VersionUnknown)
+	}
 
 	groups := audit.GroupInstallations(r)
 	if len(groups) > 0 {

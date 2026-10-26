@@ -1,6 +1,10 @@
 package audit
 
-import "strings"
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+)
 
 // PHP discovery classification (internal). Used to keep HTML/CLI/CSV/summary semantics aligned
 // without changing vulnerability-detection rules or scan-execution status.
@@ -182,6 +186,60 @@ func classifyPHPDiscovery(r *Report) string {
 	return phpDiscNoneIncomplete
 }
 
+// BinaryInstallCoverage summarizes PHP binary candidate version provenance for operator-facing reports.
+// Path-inferred counts are not confirmed installations or proven vulnerability exposure.
+type BinaryInstallCoverage struct {
+	BinaryCandidates int
+	InstallDirs      int
+	Verified         int
+	PathInferred     int
+	VersionUnknown   int
+}
+
+// CountBinaryInstallCoverage tallies binary_path / binary_static_version / binary_path_inferred_version evidence.
+func CountBinaryInstallCoverage(r *Report) BinaryInstallCoverage {
+	var c BinaryInstallCoverage
+	if r == nil {
+		return c
+	}
+	dirs := map[string]struct{}{}
+	for _, e := range r.Evidence {
+		switch e.Type {
+		case "binary_static_version":
+			c.Verified++
+			c.BinaryCandidates++
+			if e.Location != "" {
+				dirs[normalizeInstallPath(filepath.Dir(e.Location))] = struct{}{}
+			}
+		case "binary_path_inferred_version":
+			c.PathInferred++
+			c.BinaryCandidates++
+			if e.Location != "" {
+				dirs[normalizeInstallPath(filepath.Dir(e.Location))] = struct{}{}
+			}
+		case "binary_path":
+			c.VersionUnknown++
+			c.BinaryCandidates++
+			if e.Location != "" {
+				dirs[normalizeInstallPath(filepath.Dir(e.Location))] = struct{}{}
+			}
+		}
+	}
+	c.InstallDirs = len(dirs)
+	return c
+}
+
+// FormatBinaryInstallCoverageDetail returns a concise operator-facing coverage sentence.
+func FormatBinaryInstallCoverageDetail(c BinaryInstallCoverage) string {
+	if c.BinaryCandidates == 0 {
+		return ""
+	}
+	return fmt.Sprintf(
+		"%d PHP binary candidate(s) across %d install director(ies): %d with verified binary metadata, %d path-inferred (MEDIUM confidence; not binary-verified), %d without comparable version. Path-inferred versions are not confirmed installations or proven vulnerability exposure and require manual verification. Not proof of the HTTP-serving runtime.",
+		c.BinaryCandidates, c.InstallDirs, c.Verified, c.PathInferred, c.VersionUnknown,
+	)
+}
+
 // executiveVerificationGaps lists operator-facing gaps for the HTML "What could not be verified" card.
 // Excludes Windows packages NOT_SUPPORTED and does not invent an HTTP-runtime gap when no PHP was found.
 func executiveVerificationGaps(r *Report) []string {
@@ -210,6 +268,13 @@ func executiveVerificationGaps(r *Report) []string {
 		rtLabel, _ := humanRuntime(r)
 		if rtLabel != "Verified" {
 			add("HTTP-serving PHP runtime")
+		}
+		cov := CountBinaryInstallCoverage(r)
+		if cov.PathInferred > 0 {
+			add("path-inferred PHP version(s) (not binary-verified; manual verification required)")
+		}
+		if cov.VersionUnknown > 0 {
+			add("PHP binary candidate(s) without comparable version")
 		}
 		for _, g := range relevantPHPInventoryGaps(r) {
 			add(g)
