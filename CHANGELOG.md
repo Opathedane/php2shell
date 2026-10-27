@@ -1,12 +1,14 @@
-## Unreleased (toward v2.8.2)
+## Unreleased
+
+## v2.8.2 — 2026-10-27
 
 - Fix: WampServer-style `phpX.Y.Z` install-path version inference (in addition to bare `X.Y.Z`); provenance remains `path_inferred` / MEDIUM — not verified binary metadata and not active-runtime proof.
 - Fix: Bounded WampServer Apache (`C:\wamp{,64}\bin\apache\*\conf`) and `C:\wamp64\bin\php\*\php.ini` well-known discovery; reuses existing parsers; config ≠ serving runtime.
 - Improve: Executive/CLI/`binary_paths` coverage distinguishes verified, path-inferred, and unknown PHP binary candidates; path-inferred findings require manual verification.
 - Fix: Apache handler binary follow-up skips re-inventory when the same path is already recorded (handler config evidence retained).
-- Docs: draft [docs/releases/v2.8.2.md](docs/releases/v2.8.2.md). Latest public remains **v2.8.1** until publication.
-- Scope: discovery correctness only — no CVE threshold, telemetry, active-runtime attestation, or report-schema changes.
-- Validation: synthetic ASERVER2-style fixture + CI (PR #47 / merge `bf70ade`) PASS; real ASERVER2 host re-scan **not yet field-validated** for this release.
+- Docs: [docs/releases/v2.8.2.md](docs/releases/v2.8.2.md); unsigned-binary / endpoint-protection guidance (investigate-first; no broad AV exclusions by default).
+- Scope: discovery correctness only — no CVE threshold, telemetry, active-runtime attestation, CISA KEV/Sigma detection imports, or report-schema changes.
+- Field: synthetic ASERVER2-style fixture + CI (PR #47 / finalize) PASS; real ASERVER2 host re-scan **NOT YET FIELD-VALIDATED**; interactive Windows PowerShell 5.1 / Windows Terminal ANSI matrix **NOT TESTED**.
 
 ## v2.8.1 — 2026-10-25
 

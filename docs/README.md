@@ -1,6 +1,6 @@
 # PHP2Shell documentation
 
-**Latest public release: [v2.8.1](https://github.com/Opathedane/php2shell/releases/tag/v2.8.1).** Start with the [repository README](../README.md) for download and quick start.
+**Latest public release: [v2.8.2](https://github.com/Opathedane/php2shell/releases/tag/v2.8.2).** Start with the [repository README](../README.md) for download and quick start.
 
 This index is the map of **current** documentation. Historical release gates, PR drafts, and point-in-time audits remain in-tree for provenance but are not the day-to-day user path. Proposed archive moves (not applied yet): [maintainer/DOCS-ARCHIVE-PLAN.md](maintainer/DOCS-ARCHIVE-PLAN.md).
 

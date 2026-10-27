@@ -4,7 +4,7 @@ This guide is for IT administrators reading an HTML report or CSV fleet row for 
 
 PHP2Shell assesses **observed PHP inventory** against official upstream advisories. A successful scan is **not** proof that the HTTP-serving runtime is patched or that the host is uncompromised.
 
-**Latest public release: [v2.8.1](https://github.com/Opathedane/php2shell/releases/tag/v2.8.1).**  
+**Latest public release: [v2.8.2](https://github.com/Opathedane/php2shell/releases/tag/v2.8.2).**  
 **Primary CVEs:** CVE-2026-109618, CVE-2026-109619  
 **Upstream fix thresholds (21 Oct 2026):** PHP 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35  
 **Additional advisory:** CVE-2026-115560 (informational; no fixed versions yet)

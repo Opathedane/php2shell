@@ -1,12 +1,19 @@
 # PHP2Shell roadmap
 
-**Latest public release: [v2.8.1](https://github.com/Opathedane/php2shell/releases/tag/v2.8.1)** (security-detection maintenance). Notes: [releases/v2.8.1.md](releases/v2.8.1.md).
+**Latest public release: [v2.8.2](https://github.com/Opathedane/php2shell/releases/tag/v2.8.2)** (WampServer discovery maintenance). Notes: [releases/v2.8.2.md](releases/v2.8.2.md).
 
 This file lists **open** product directions. It is not a commitment calendar. Honesty rules stay fixed: installed ≠ configured ≠ actively serving; config never attests patch posture of the live HTTP SAPI. Path-inferred directory versions remain MEDIUM-confidence inventory leads — not verified binary metadata and not active-runtime proof.
 
-**Maintenance mode:** after v2.8.1, no additional development is planned without new security intelligence, confirmed defects, or demonstrated user demand. **v2.8.2** (draft) addresses a confirmed WampServer discovery defect — [releases/v2.8.2.md](releases/v2.8.2.md) (unreleased).
+**Maintenance mode:** after v2.8.2, no additional development is planned without new security intelligence, confirmed defects, or demonstrated user demand.
 
 ## Shipped recently
+
+### v2.8.2
+
+- WampServer-style `phpX.Y.Z` path inference (path_inferred / MEDIUM)  
+- Bounded Wamp Apache / wamp64 php.ini discovery; multi-source binary dedup  
+- Clearer verified vs path-inferred vs unknown coverage messaging  
+- No threshold / telemetry / active-runtime attestation / schema changes  
 
 ### v2.8.1
 
@@ -56,6 +63,14 @@ Read-only RPM DB inventory (no `rpm`/`dnf` subprocess) with careful NEVRA handli
 ### Deeper webserver ↔ runtime correlation
 
 Richer binding across FPM / reverse-proxy layouts **without** claiming active-SAPI attestation from configuration alone. Homebrew / custom-prefix expansion remains a separate, bounded design problem.
+
+### Detection / investigation (deferred — not in v2.8.2)
+
+Candidates for a **future maintenance decision only** (source-integrity and false-positive review required before any adoption):
+
+- CISA KEV catalog awareness / documentation (CVE-2026-109618 / CVE-2026-109619 added **26 Oct 2026**)  
+- Selective evaluation of CISA TLP:CLEAR Sigma hunting keywords vs existing IR patterns (PoC markers, multipart/body signals, infrastructure IOCs) — many are unsuitable for default offline scanner rules without high FP risk  
+- Additional Unit 42 / public research signals not already covered in v2.8.1  
 
 ### Explicitly not near-term product goals
 
