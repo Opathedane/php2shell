@@ -34,6 +34,8 @@ It does **not** exploit systems, execute discovered PHP binaries, upload your da
 
 Binaries are **not Authenticode-signed**. Always check `SHA256SUMS`. License: [Apache-2.0](LICENSE).
 
+> **EDR / Microsoft Defender:** Because release binaries (and any helper scripts you use to deploy them) are **unsigned**, endpoint protection may **block, quarantine, or cloud-detonate** them. After you verify `SHA256SUMS` from the official Releases page, add an **allowlist / exclusion** for the PHP2Shell executable path (and, if applicable, your deployment script or unpack folder) in Defender, Defender for Endpoint, or your EDR — following your organization’s change process. Do **not** turn off real-time protection globally. PHP2Shell is a read-only assessment tool; it does not execute discovered PHP.
+
 ### 2. Run (interactive — do not use `--quiet` the first time)
 
 **Windows (PowerShell)**

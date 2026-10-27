@@ -64,7 +64,7 @@ Example for a site on `E:`:
 
 A configured site path or `.php` files under it is **not** proof of an active patched PHP runtime. Handler config is labelled as configured-only.
 
-Windows executables are **not Authenticode signed** and may generate SmartScreen warnings. Do not bypass endpoint protection. Prefer least privilege.
+Windows executables are **not Authenticode signed** and may generate SmartScreen warnings or be **blocked / quarantined** by Microsoft Defender or other EDR. After verifying `SHA256SUMS`, allowlist the PHP2Shell EXE (and any deployment script or unpack directory you use) per your organization’s process — do not disable real-time protection globally. Prefer least privilege.
 
 ### When to use Deep Discovery (`--deep-root`)
 
