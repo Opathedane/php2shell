@@ -1,6 +1,6 @@
 # PHP2Shell – consultant quick start
 
-**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory, evidence-qualified patch review, and offline compromise investigation assist. Latest public release: **v2.8.1**. Confirm `php2shell version` on the binary you run matches the release you downloaded. Platform matrix and honesty limits: [SUPPORTED-COVERAGE.md](SUPPORTED-COVERAGE.md).
+**This tool does not certify a server as patched or uncompromised.** Use it for authorized inventory, evidence-qualified patch review, and offline compromise investigation assist. Latest public release: **v2.8.2**. Confirm `php2shell version` on the binary you run matches the release you downloaded. Platform matrix and honesty limits: [SUPPORTED-COVERAGE.md](SUPPORTED-COVERAGE.md).
 
 Download the build matching the destination OS/CPU from GitHub **Releases** (Windows, Linux, or macOS darwin archives). No Python, Go, PHP, installer, or network access is required for the basic local inventory. The optional IOC update requires an independently authenticated rule signing key and a reviewed signed ruleset; the repository does **not** include a validated PHP2Shell-specific rulepack yet.
 
@@ -64,7 +64,19 @@ Example for a site on `E:`:
 
 A configured site path or `.php` files under it is **not** proof of an active patched PHP runtime. Handler config is labelled as configured-only.
 
-Windows executables are **not Authenticode signed** and may generate SmartScreen warnings. Do not bypass endpoint protection. Prefer least privilege.
+#### Unsigned binaries and endpoint protection
+
+PHP2Shell release binaries are currently unsigned. Depending on your organization's security policies, Microsoft Defender, SmartScreen, or other endpoint protection solutions may warn about, block, or quarantine the executable or accompanying deployment scripts.
+
+Download the tool from the official GitHub release and verify its SHA-256 checksum against the published `SHA256SUMS` file before use.
+
+If endpoint protection blocks execution, investigate the specific detection first. Where appropriate, an authorized security administrator may approve a narrowly scoped, temporary allow rule for the verified release artifact, preferably using its SHA-256 hash where supported.
+
+Avoid broad antivirus exclusions for entire directories, PowerShell, executable file extensions, or deployment environments. Do not disable endpoint protection globally.
+
+Note that checksums provide integrity verification against the published manifest, but do not independently authenticate the publisher.
+
+Prefer least privilege when running scans.
 
 ### When to use Deep Discovery (`--deep-root`)
 

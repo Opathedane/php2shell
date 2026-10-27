@@ -12,7 +12,7 @@ It does **not** exploit systems, execute discovered PHP binaries, upload your da
 
 > **Naming:** This project is the **PHP2Shell assessment tool** (a defensive scanner). It assesses advisories such as CVE-2026-109618 / CVE-2026-109619. It is **not** an exploit toolkit and is not affiliated with any similarly nicknamed vulnerability or offensive tooling.
 
-**Latest public release: [v2.8.1](https://github.com/Opathedane/php2shell/releases/tag/v2.8.1).** Confirm `php2shell version` matches the binary you run, and verify files against `SHA256SUMS` on the [Releases](https://github.com/Opathedane/php2shell/releases/latest) page.
+**Latest public release: [v2.8.2](https://github.com/Opathedane/php2shell/releases/tag/v2.8.2).** Confirm `php2shell version` matches the binary you run, and verify files against `SHA256SUMS` on the [Releases](https://github.com/Opathedane/php2shell/releases/latest) page.
 
 | Advisory | How PHP2Shell treats it |
 | --- | --- |
@@ -32,7 +32,19 @@ It does **not** exploit systems, execute discovered PHP binaries, upload your da
 | Linux amd64 / arm64 | `php2shell-linux-amd64.tar.gz` / `php2shell-linux-arm64.tar.gz` |
 | macOS amd64 / arm64 | `php2shell-darwin-amd64.tar.gz` / `php2shell-darwin-arm64.tar.gz` |
 
-Binaries are **not Authenticode-signed**. Always check `SHA256SUMS`. License: [Apache-2.0](LICENSE).
+License: [Apache-2.0](LICENSE).
+
+#### Unsigned binaries and endpoint protection
+
+PHP2Shell release binaries are currently unsigned. Depending on your organization's security policies, Microsoft Defender, SmartScreen, or other endpoint protection solutions may warn about, block, or quarantine the executable or accompanying deployment scripts.
+
+Download the tool from the official GitHub release and verify its SHA-256 checksum against the published `SHA256SUMS` file before use.
+
+If endpoint protection blocks execution, investigate the specific detection first. Where appropriate, an authorized security administrator may approve a narrowly scoped, temporary allow rule for the verified release artifact, preferably using its SHA-256 hash where supported.
+
+Avoid broad antivirus exclusions for entire directories, PowerShell, executable file extensions, or deployment environments. Do not disable endpoint protection globally.
+
+Note that checksums provide integrity verification against the published manifest, but do not independently authenticate the publisher.
 
 ### 2. Run (interactive — do not use `--quiet` the first time)
 
@@ -65,7 +77,7 @@ Open the newest `php2shell-*.html` in a browser. Start with **Patch assessment**
 
 ![Representative HTML report — patch assessment (synthetic lab data)](docs/assets/report-example-patch-assessment.png)
 
-*Representative screenshot only — synthetic lab data (host label `old-php`), not a customer report. Layout remains valid for v2.8.1; CVE thresholds unchanged. Matching HTML: [docs/assets/report-example-patch-assessment.html](docs/assets/report-example-patch-assessment.html).*
+*Representative screenshot only — synthetic lab data (host label `old-php`), not a customer report. Layout remains valid for v2.8.2; CVE thresholds unchanged. Matching HTML: [docs/assets/report-example-patch-assessment.html](docs/assets/report-example-patch-assessment.html).*
 
 **Automation:** add `--quiet` so progress is suppressed; errors and the status line still go to stderr, and `.status.json` remains machine-readable.
 
@@ -89,19 +101,20 @@ Exit **0 is not a security clearance.** Details: [EXIT-CODES-AND-DEPLOYMENT.md](
 
 ---
 
-## Coverage at a glance (v2.8.1)
+## Coverage at a glance (v2.8.2)
 
 **Does**
 
 - Discover PHP via packages (dpkg/apk), PATH / well-known binaries, IIS/Apache hints, optional `--config-root` / `--deep-root`
 - Discover **nginx / PHP-FPM configuration** on well-known Unix paths (local / remote / ambiguous FastCGI classification)
+- Infer versions from install-path segments (`X.Y.Z` and WampServer-style `phpX.Y.Z`) as **path-inferred / MEDIUM** when binary markers are absent — not verified metadata and not active-runtime proof
 - Assess observed versions against upstream thresholds; optional IR when you supply logs / telemetry / webroot / WAF exports
 - Write HTML + CSV + status JSON locally
 
 **Does not**
 
 - Prove complete PHP discovery on every host layout
-- Attest the **active HTTP-serving** PHP runtime or its patch state — including when nginx/FPM configs **correlate** (configuration ≠ verified runtime)
+- Attest the **active HTTP-serving** PHP runtime or its patch state — including when nginx/FPM configs **correlate** or path versions are inferred (configuration/path ≠ verified runtime)
 - Inventory RPM databases or expand Homebrew / custom prefixes in this release
 - Declare the host clean, safe, or uncompromised
 
@@ -120,7 +133,7 @@ Authoritative coverage contract: [docs/SUPPORTED-COVERAGE.md](docs/SUPPORTED-COV
 | Advanced usage | [docs/ADVANCED-USAGE.md](docs/ADVANCED-USAGE.md) |
 | Enterprise (Intune / GPO / collection) | [docs/deployment/](docs/deployment/) |
 | Security / disclosure | [SECURITY.md](SECURITY.md) |
-| Release notes | [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md) · [v2.8.1](docs/releases/v2.8.1.md) |
+| Release notes | [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md) · [v2.8.2](docs/releases/v2.8.2.md) |
 | Roadmap | [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ---
