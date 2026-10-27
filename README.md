@@ -32,9 +32,19 @@ It does **not** exploit systems, execute discovered PHP binaries, upload your da
 | Linux amd64 / arm64 | `php2shell-linux-amd64.tar.gz` / `php2shell-linux-arm64.tar.gz` |
 | macOS amd64 / arm64 | `php2shell-darwin-amd64.tar.gz` / `php2shell-darwin-arm64.tar.gz` |
 
-Binaries are **not Authenticode-signed**. Always check `SHA256SUMS`. License: [Apache-2.0](LICENSE).
+License: [Apache-2.0](LICENSE).
 
-> **EDR / Microsoft Defender:** Because release binaries (and any helper scripts you use to deploy them) are **unsigned**, endpoint protection may **block, quarantine, or cloud-detonate** them. After you verify `SHA256SUMS` from the official Releases page, add an **allowlist / exclusion** for the PHP2Shell executable path (and, if applicable, your deployment script or unpack folder) in Defender, Defender for Endpoint, or your EDR — following your organization’s change process. Do **not** turn off real-time protection globally. PHP2Shell is a read-only assessment tool; it does not execute discovered PHP.
+#### Unsigned binaries and endpoint protection
+
+PHP2Shell release binaries are currently unsigned. Depending on your organization's security policies, Microsoft Defender, SmartScreen, or other endpoint protection solutions may warn about, block, or quarantine the executable or accompanying deployment scripts.
+
+Download the tool from the official GitHub release and verify its SHA-256 checksum against the published `SHA256SUMS` file before use.
+
+If endpoint protection blocks execution, investigate the specific detection first. Where appropriate, an authorized security administrator may approve a narrowly scoped, temporary allow rule for the verified release artifact, preferably using its SHA-256 hash where supported.
+
+Avoid broad antivirus exclusions for entire directories, PowerShell, executable file extensions, or deployment environments. Do not disable endpoint protection globally.
+
+Note that checksums provide integrity verification against the published manifest, but do not independently authenticate the publisher.
 
 ### 2. Run (interactive — do not use `--quiet` the first time)
 
