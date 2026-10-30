@@ -9,7 +9,7 @@ PHP2Shell assesses **observed PHP inventory** against official upstream advisori
 **Upstream fix thresholds (21 Oct 2026):** PHP 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35  
 **Additional advisory:** CVE-2026-115560 (informational; no fixed versions yet)
 
-Synthetic screenshot + HTML (no customer data): [`assets/report-example-patch-assessment.png`](assets/report-example-patch-assessment.png). Additional fixtures: [`testdata/examples/v2.7.2-qa/`](../testdata/examples/v2.7.2-qa/).
+Synthetic full HTML example (no customer data): [`assets/report-example-patch-assessment.html`](assets/report-example-patch-assessment.html) · preview PNG: [`assets/report-example-patch-assessment-v2.8.2.png`](assets/report-example-patch-assessment-v2.8.2.png). Additional fixtures: [`testdata/examples/v2.7.2-qa/`](../testdata/examples/v2.7.2-qa/).
 
 **nginx / PHP-FPM (v2.8.0):** configuration evidence may appear under technical / coverage sections. Correlation of `fastcgi_pass` with a local FPM `listen` is **never** proof of the active HTTP-serving PHP runtime or its patch state. See [SUPPORTED-COVERAGE.md](SUPPORTED-COVERAGE.md).
 
